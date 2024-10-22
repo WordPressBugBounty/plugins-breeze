@@ -196,8 +196,8 @@ class Breeze_Admin {
 	 * @return void
 	 */
 	public function clear_cache_if_changed_api( $product, $data_store ) {
-		// Check if this is a REST API update
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+		// Check if this is a REST API update and clear the cache only if this is the first time hook is called.
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST && did_action( 'woocommerce_after_product_object_save' ) === 1 ) {
 			$this->breeze_clear_all_cache();
 		}
 	}

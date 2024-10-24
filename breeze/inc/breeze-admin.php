@@ -780,7 +780,13 @@ INLINEJS;
 	 */
 	public static function plugin_active_hook( $network_wide ) {
 		WP_Filesystem();
-
+		// Include required files.
+		if ( ! class_exists( 'Breeze_ConfigCache' ) ) {
+			require_once( BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php' );
+		}
+		if ( ! class_exists( 'Breeze_Configuration' ) ) {
+			require_once( BREEZE_PLUGIN_DIR . 'inc/breeze-configuration.php' );
+		}
 		$default_option = self::breeze_default_options_value();
 		$basic          = $default_option['basic'];
 		$file           = $default_option['file'];
@@ -961,6 +967,12 @@ INLINEJS;
 	 */
 	public static function plugin_deactive_hook() {
 		WP_Filesystem();
+		if ( ! class_exists( 'Breeze_ConfigCache' ) ) {
+			require_once( BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php' );
+		}
+		if ( ! class_exists( 'Breeze_Configuration' ) ) {
+			require_once( BREEZE_PLUGIN_DIR . 'inc/breeze-configuration.php' );
+		}
 		Breeze_ConfigCache::factory()->clean_up();
 		//Breeze_ConfigCache::factory()->clean_config();
 		Breeze_ConfigCache::factory()->toggle_caching( false );

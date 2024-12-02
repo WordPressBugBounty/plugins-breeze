@@ -24,6 +24,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Breeze_PurgeCache {
 
+	/**
+	 * Temporary page/post/cpt ID list of already cache cleared.
+	 */
+	private array $cleared_extra_items = array();
+
 	public function set_action() {
 		add_action( 'pre_post_update', array( $this, 'purge_post_on_update' ), 10, 1 );
 		add_action( 'save_post', array( $this, 'purge_post_on_update' ), 10, 1 );
@@ -40,6 +45,60 @@ class Breeze_PurgeCache {
 
 		add_action( 'switch_theme', array( &$this, 'clear_local_cache_on_switch' ), 9, 3 );
 		add_action( 'customize_save_after', array( &$this, 'clear_customizer_cache' ), 11, 1 );
+	}
+
+	/**
+	 * Detects pages with the latest comments block and clears their cache.
+	 *
+	 * This method scans the content of published posts to find pages that contain
+	 * the latest comments block (`<!-- wp:latest-comments -->`). If such pages are found,
+	 * it purges their Cloudflare cache and removes local cache files.
+	 *
+	 * @return void
+	 */
+	private function detect_comments_page_clear_cache(): void {
+		global $wpdb, $wp_filesystem;
+
+		if ( empty( $wp_filesystem ) ) {
+			require_once( ABSPATH . '/wp-admin/includes/file.php' );
+			WP_Filesystem();
+		}
+		$query = "SELECT ID
+			FROM `$wpdb->posts`
+			WHERE post_content LIKE '%<!-- wp:latest-comments %>'
+			AND post_status = 'publish'";
+
+		$results = $wpdb->get_results( $query ); // phpcs:ignore
+
+		$pages_list = array();
+
+		if ( $results ) {
+			foreach ( $results as $result ) {
+				$page_id       = $result->ID;
+				$get_permalink = get_permalink( $page_id );
+				if ( false !== $get_permalink && ! in_array( $page_id, $this->cleared_extra_items, true ) ) {
+					$pages_list[]                = $get_permalink;
+					$this->cleared_extra_items[] = $page_id;
+				}
+			}
+		}
+
+		if ( ! empty( $pages_list ) ) {
+			// CLear Cloudflare, if enabled.
+			Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $pages_list );
+
+			// Remove local cache file.
+			foreach ( $pages_list as $url_path ) {
+				if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url_path ) ) ) {
+					$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url_path ), true );
+				}
+
+				$main     = new Breeze_PurgeVarnish();
+				$item_url = untrailingslashit( $url_path ) . '/?breeze';
+				$main->purge_cache( $item_url );
+			}
+		}
+
 	}
 
 	/**
@@ -302,6 +361,8 @@ class Breeze_PurgeCache {
 			if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url_path ) ) ) {
 				$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url_path ), true );
 			}
+
+			$this->detect_comments_page_clear_cache();
 		}
 	}
 
@@ -325,6 +386,8 @@ class Breeze_PurgeCache {
 					$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url_path ), true );
 				}
 			}
+
+			$this->detect_comments_page_clear_cache();
 		}
 	}
 

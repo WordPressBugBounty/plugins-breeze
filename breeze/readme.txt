@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.1.19
+Stable tag: 2.1.20
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.1.20 = 
+
+* Fix: Resolved an issue where the lazy load library was being loaded even when not enabled. This occurred in rare instances.
+* Fix: Enhanced Lazy-Load functionality to prevent conflicts with the "Elementor" and "EWWW Image Optimizer" plugins.
+* Fix: Updated the Heartbeat option range to include "Default," "30 to 120 seconds," and "Disable" settings.
+* Fix: Pages/Posts and Custom Post Types containing the Gutenberg block "Latest Comments" will now have their cache reset when a comment is added, deleted, or edited. The comment must be approved for the cache reset to occur.
+* Fix: Enhanced validation for URLs added to the “Never Cache URL(s)” option.
 
 = 2.1.19 =
 

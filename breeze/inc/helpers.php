@@ -178,7 +178,11 @@ function breeze_validate_urls( array $url_list = array() ): bool {
 		}
 
 		if ( ! checkdnsrr( $base_domain, 'ANY' ) ) {
-			return false;
+			$ip = gethostbyname( $parsed_url['host'] );
+
+			if ( $ip === $parsed_url['host'] ) {
+				return false;
+			}
 		}
 
 		if ( ! filter_var( $encoded_url, FILTER_VALIDATE_URL ) ) {

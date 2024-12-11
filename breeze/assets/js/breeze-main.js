@@ -1064,7 +1064,7 @@ jQuery( document ).ready(
 
 	setTimeout(
 		function () {
-			var found_alert = $( '#message-clear-cache-top' );
+			var found_alert = $( '.message-clear-cache-top' );
 			if ( found_alert.length ) {
 				found_alert.prependTo( '#wpbody-content' );
 				found_alert.show();
@@ -1072,7 +1072,7 @@ jQuery( document ).ready(
 		},
 		1000
 	);
-	
+
 	$( window ).on(
 		'resize',
 		function () {
@@ -1085,6 +1085,13 @@ jQuery( document ).ready(
 
 	var loader_spinner = '<div class="br-loader-spinner loading_tab"><div></div><div></div><div></div><div></div></div>';
 	var loader_spinner_save = '<div class="br-loader-spinner saving_settings"><div></div><div></div><div></div><div></div></div>';
+
+	// document.cookie = 'breeze_active_tab=' + requested_tab;
+	$( document ).on( 'click', '#breeze-cache-on', function ( e ) {
+		e.preventDefault();
+		document.cookie = 'breeze_active_tab=basic';
+		window.location.href = $( this ).attr( 'href' );
+	} )
 
 	$( '.breeze-box .br-link' ).on(
 		'click tap',
@@ -1156,7 +1163,7 @@ jQuery( document ).ready(
 						var global_group_js = $( '#group-js' );
 						var global_delay_js_scripts = $( '#enable-js-delay' ); // Delay JS Inline Scripts
 						var global_enable_js_delay = $( '#breeze-delay-all-js' ); // Delay All JavaScript
-						var is_exception_delay_js,is_exception_enable_js;
+						var is_exception_delay_js, is_exception_enable_js;
 						if ( global_delay_js_scripts.length ) {
 							is_exception_delay_js = $( '#enable-js-delay' ).get( 0 ).dataset.noaction;
 						}
@@ -1344,10 +1351,10 @@ jQuery( document ).ready(
 	 * @param str
 	 * @returns {*}
 	 */
-	function breeze_uc_words(str) {
-		return str.replace(/(^|\s)\S/g, function (match) {
+	function breeze_uc_words( str ) {
+		return str.replace( /(^|\s)\S/g, function ( match ) {
 			return match.toUpperCase();
-		});
+		} );
 	}
 
 	function breeze_do_db_actions( selected_services, call_index, optimize_db_no ) {
@@ -1635,8 +1642,8 @@ jQuery( document ).ready(
 					data: data_send,
 					dataType: "JSON", // xml, html, script, json, jsonp, text
 					success: function ( data ) {
-						if(typeof data.new_token !== 'undefined'){
-							$('#breeze-api-token').val(data.new_token);
+						if ( typeof data.new_token !== 'undefined' ) {
+							$( '#breeze-api-token' ).val( data.new_token );
 						}
 					},
 					error: function ( jqXHR, textStatus, errorThrown ) {

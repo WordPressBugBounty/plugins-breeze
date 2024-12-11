@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.1.20
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.2.0 =
+
+* Improved: Enhanced cache purging messages to display the purge status for each module individually.
+* Improved: The Breeze error notice for file/folder permission issues and missing files/folders will no longer appear when the cache system is OFF.
+* Fix: To prevent caching of Cloudflare firewall headers, use Cache-Control headers and Page Rules.
+* Fix: The issue with incorrect default options being saved for HTML optimization Tab settings has been fixed.
+* Fix: Resolved an issue where links remained cached even after being added to the 'Never Cache URL(s)' list.
 
 = 2.1.20 = 
 

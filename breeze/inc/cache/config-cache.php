@@ -575,7 +575,7 @@ FILE_STRING;
 
 		$config_file_string = '<?php ' . "\n\r" . "defined( 'ABSPATH' ) || exit;" . "\n\r" . 'return ' . var_export( $config, true ) . '; ' . "\n\r";
 
-		return $wp_filesystem->put_contents( $config_file, $config_file_string );
+		return $wp_filesystem->put_contents( $config_file, $config_file_string, FS_CHMOD_FILE );
 	}
 
 	/**

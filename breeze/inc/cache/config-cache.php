@@ -42,10 +42,15 @@ class Breeze_ConfigCache {
 			'breeze-config' => array(),
 		);
 		if ( is_multisite() ) {
-			// This is a multisite install, loop through all subsites.
+			/**
+			 * This is a multisite install, loop through all subsites.
+			 * Use the given filter to define the number of subsites
+			 * to fetch default is 100.
+			 */
 			$blogs = get_sites(
 				array(
 					'fields' => 'ids',
+					'number' => apply_filters( 'breeze_subsites_fetch_count_modify', 100 ),
 				)
 			);
 

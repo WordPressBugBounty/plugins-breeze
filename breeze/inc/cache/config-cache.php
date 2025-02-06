@@ -592,7 +592,7 @@ FILE_STRING;
 	 */
 	public function toggle_caching( $status ) {
 		$allow_cache_toggle = true;
-		if ( is_multisite() && ! is_network_admin() ) {
+		if ( 'cli' !== php_sapi_name() && ( is_multisite() && ! is_network_admin() ) ) {
 			$allow_cache_toggle = false;
 		}
 

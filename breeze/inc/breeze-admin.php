@@ -89,7 +89,8 @@ class Breeze_Admin {
 			add_action( 'wpmu_new_blog', array( &$this, 'create_new_blog_items' ), 10, 6 );
 		}
 
-		add_action( 'admin_init',
+		add_action(
+			'admin_init',
 			function () {
 				// When permalinks are reset, we also reset the config files.
 				if ( isset( $_POST['permalink_structure'] ) || isset( $_POST['category_base'] ) ) {
@@ -695,7 +696,7 @@ INLINEJS;
 			'data-noptimize',
 			'googletagmanager',
 		);
-		$default_file = array(
+		$default_file            = array(
 			'breeze-minify-html'       => '0',
 			// --
 			'breeze-minify-css'        => '0',
@@ -722,7 +723,7 @@ INLINEJS;
 		if ( empty( $advanced ) ) {
 			$advanced = array();
 		}
-		$default_advanced = array(
+		$default_advanced         = array(
 			'breeze-exclude-urls'                  => array(),
 			'cached-query-strings'                 => array(),
 			'breeze-wp-emoji'                      => '0',
@@ -965,6 +966,8 @@ INLINEJS;
 		Breeze_ConfigCache::factory()->toggle_caching( false );
 		Breeze_Configuration::update_htaccess( true );
 
+		Breeze_Store_Files::cleanup_all_extra_folder();
+
 		$check_varnish = is_varnish_cache_started();
 		if ( $check_varnish ) {
 			if ( is_multisite() ) {
@@ -1156,7 +1159,7 @@ INLINEJS;
 				//delete minify
 				Breeze_MinificationCache::clear_minification();
 				//clear normal cache
-				Breeze_PurgeCache::breeze_cache_flush( $flush_cache );
+				Breeze_PurgeCache::breeze_cache_flush( $flush_cache, true, true );
 				//clear varnish cache
 				$this->breeze_clear_varnish();
 				Breeze_PurgeCache::__flush_object_cache();
@@ -1168,7 +1171,7 @@ INLINEJS;
 			// for current blog.
 			$current_blog_id = get_current_blog_id();
 			Breeze_MinificationCache::clear_minification( $current_blog_id );
-			Breeze_PurgeCache::breeze_cache_flush( $flush_cache );
+			Breeze_PurgeCache::breeze_cache_flush( $flush_cache, true, true );
 			$main     = new Breeze_PurgeVarnish();
 			$homepage = home_url() . '/?breeze';
 			$main->purge_cache( $homepage );
@@ -1184,7 +1187,7 @@ INLINEJS;
 			}
 			Breeze_MinificationCache::clear_minification( $current_blog_id );
 			//clear normal cache
-			Breeze_PurgeCache::breeze_cache_flush( $flush_cache );
+			Breeze_PurgeCache::breeze_cache_flush( $flush_cache, true, true );
 			//clear varnish cache
 			$this->breeze_clear_varnish();
 			$url            = get_home_url();
@@ -1202,7 +1205,7 @@ INLINEJS;
 		$main = new Breeze_PurgeVarnish();
 
 		$is_network = ( is_network_admin() || ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] ) );
-		$response = null;
+		$response   = null;
 
 		if ( is_multisite() && $is_network ) {
 			$sites = get_sites();
@@ -1217,7 +1220,7 @@ INLINEJS;
 			$response = $main->purge_cache( $homepage );
 		}
 
-		if( is_wp_error( $response ) || 200 !== $response['response']['code'] ) {
+		if ( is_wp_error( $response ) || 200 !== $response['response']['code'] ) {
 			return false;
 		} else {
 			return true;

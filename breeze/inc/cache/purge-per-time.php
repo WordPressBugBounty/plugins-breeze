@@ -110,7 +110,7 @@ class Breeze_PurgeCacheTime {
 
 		// Purge normal cache
 		if ( $this->normalcache ) {
-			Breeze_PurgeCache::breeze_cache_flush();
+			Breeze_PurgeCache::breeze_cache_flush( true, true, true );
 			Breeze_MinificationCache::clear_minification();
 		}
 

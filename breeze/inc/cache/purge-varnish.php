@@ -356,13 +356,19 @@ class Breeze_PurgeVarnish {
 			array_push(
 				$listofurls,
 				get_rest_url(),
-				home_url() . '/'
 			);
 			if ( get_option( 'show_on_front' ) == 'page' ) {
 				// Ensure we have a page_for_posts setting to avoid empty URL
 				if ( get_option( 'page_for_posts' ) ) {
 					array_push( $listofurls, get_permalink( get_option( 'page_for_posts' ) ) );
 				}
+			}
+
+			if ( 'posts' === get_option( 'show_on_front' ) ) {
+				array_push(
+					$listofurls,
+					trailingslashit( home_url() )
+				);
 			}
 		} else {
 			// Nothing

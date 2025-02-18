@@ -113,33 +113,33 @@ class Breeze_PurgeVarnish {
 				printf( '<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px; display: none; font-weight: 600;"><p>%2$s</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>', esc_attr( $class ), esc_html( $message ) );
 			}
 
-			if ( isset( $_GET['breeze_purge'] ) && check_admin_referer( 'breeze_purge_cache' ) ) {	
+			if ( isset( $_GET['breeze_purge'] ) && check_admin_referer( 'breeze_purge_cache' ) ) {
 				//clear static cache
 				$size_cache = Breeze_Configuration::breeze_clean_cache();
-				$class = 'notice notice-success is-dismissible breeze-notice message-clear-cache-top';
-				$message =  __( 'Cache data has been purged: ', 'breeze' ) . $size_cache . __( ' Kb static cache cleaned', 'breeze' ) ;
+				$class      = 'notice notice-success is-dismissible breeze-notice message-clear-cache-top';
+				$message    = __( 'Cache data has been purged: ', 'breeze' ) . $size_cache . __( ' Kb static cache cleaned', 'breeze' );
 
 				printf( '<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px; display: none; font-weight: 600;"><p>%2$s</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>', esc_attr( $class ), esc_html( $message ) );
 				// clear varnish cache.
 				if ( is_varnish_cache_started() ) {
-					$admin = new Breeze_Admin();
-					$varnish_response = $admin->breeze_clear_varnish();
-					$message          = $varnish_response ? __( 'Varnish Cache has been purged.', 'breeze' ) : __( 'Problem: Varnish Cache not purged.', 'breeze' );
+					$admin              = new Breeze_Admin();
+					$varnish_response   = $admin->breeze_clear_varnish();
+					$message            = $varnish_response ? __( 'Varnish Cache has been purged.', 'breeze' ) : __( 'Problem: Varnish Cache not purged.', 'breeze' );
 					$notification_class = $varnish_response ? 'notice-success' : 'notice-error';
-					$classes = 'notice is-dismissible breeze-notice message-clear-cache-top ' . $notification_class;
+					$classes            = 'notice is-dismissible breeze-notice message-clear-cache-top ' . $notification_class;
 					printf( '<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px;display: none; font-weight: 600;"><p>%2$s</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>', esc_attr( $classes ), esc_html( $message ) );
 				}
 				// Clear Cloudflare cache.
 				if ( Breeze_CloudFlare_Helper::is_cloudflare_enabled() ) {
-					$response = Breeze_CloudFlare_Helper::reset_all_cache();
-					$response = json_decode( trim( $response ), true );
-					$message = __( 'Cloudflare cache data not purged. ', 'breeze' );
+					$response           = Breeze_CloudFlare_Helper::reset_all_cache();
+					$response           = json_decode( trim( $response ), true );
+					$message            = __( 'Cloudflare cache data not purged. ', 'breeze' );
 					$notification_class = 'notice-error';
 					if ( null !== $response
 					&& json_last_error() === JSON_ERROR_NONE
 					&& isset( $response['success'] ) ) {
 
-						$message = __( 'Cloudflare cache data has been purged. ', 'breeze' );
+						$message            = __( 'Cloudflare cache data has been purged. ', 'breeze' );
 						$notification_class = 'notice-success';
 					}
 					$classes = 'notice is-dismissible breeze-notice message-clear-cache-top ' . $notification_class;
@@ -188,14 +188,13 @@ class Breeze_PurgeVarnish {
 			$purgeme .= '?' . $parseUrl['query'];
 		}
 
-
-		$ssl_verification = apply_filters('breeze_ssl_check_certificate', true);
+		$ssl_verification = apply_filters( 'breeze_ssl_check_certificate', true );
 
 		if ( ! is_bool( $ssl_verification ) ) {
 			$ssl_verification = true;
 		}
 
-		if(defined('WP_DEBUG') && true === WP_DEBUG){
+		if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
 			$ssl_verification = false;
 		}
 
@@ -339,7 +338,7 @@ class Breeze_PurgeVarnish {
 					$listofurls,
 					get_post_type_archive_link( get_post_type( $postId ) ),
 					get_post_type_archive_feed_link( get_post_type( $postId ) )
-				// Need to add in JSON?
+					// Need to add in JSON?
 				);
 			}
 			// Feeds
@@ -364,12 +363,17 @@ class Breeze_PurgeVarnish {
 				}
 			}
 
-			if ( 'posts' === get_option( 'show_on_front' ) ) {
+			// Trim all URLs in the list to ensure clean output
+			$listofurls = array_map( 'trim', $listofurls );
+			$homepage   = trailingslashit( home_url() );
+			if ( ! in_array( $homepage, $listofurls, true ) ) {
+				// Clear the cache for homepage
 				array_push(
 					$listofurls,
-					trailingslashit( home_url() )
+					$homepage
 				);
 			}
+
 		} else {
 			// Nothing
 			return;

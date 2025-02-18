@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.2.2
+Stable tag: 2.2.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,12 +160,17 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.2.3 =
+
+* Fix: Added support for custom headers array.
+* Fix: Homepage cache will now be automatically purged when updating a POST/CPT.
+
 = 2.2.2 =
 
 * Fix: Resolved PHP warnings for Host Files Locally feature.
 * Fix: The Breeze configuration file is now updated upon saving settings rather than being deleted and re-created. In multisite environments, the file will only be removed when switching from 'Custom Settings' to 'Inherit.' Additionally, uninstalling the plugin will delete both the configuration file and its containing folder.
 * Fix: Using  Purge Internal Cache no longer results in multiple query parameters being appended to the current URL.
-* Fix: Updating a Page, Post, or Custom Post Type (CPT) will now clear the local cache specifically for the updated content, its associated taxonomies, and the relevant archive page, if it exists.
+* Fix: Updating a Page, Post, or Custom Post Type (CPT) will now clear the local cache specifically for the updated content, its associated taxonomies, and the relevant archive page, if applicable.
 
 = 2.2.1 =
 

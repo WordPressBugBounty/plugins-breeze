@@ -345,10 +345,15 @@ class Breeze_PurgeCache {
 			}
 		}
 
-		if ( 'posts' === get_option( 'show_on_front' ) ) {
+		// Trim all URLs in the list to ensure clean output
+		$list_of_urls = array_map( 'trim', $list_of_urls );
+
+		$homepage = trailingslashit( home_url() );
+		if ( ! in_array( $homepage, $list_of_urls, true ) ) {
+			// Clear the cache for homepage
 			array_push(
 				$list_of_urls,
-				trailingslashit( home_url() )
+				$homepage
 			);
 		}
 

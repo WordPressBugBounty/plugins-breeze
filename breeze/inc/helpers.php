@@ -138,7 +138,7 @@ function breeze_get_base_domain( $domain ) {
  * array items to see if all of them are valid URLs.
  *
  * @param array $url_list list of URLs to check.
- * @param bool $include_dns_check To include real DNS check and/or IP check or not.
+ * @param bool  $include_dns_check To include real DNS check and/or IP check or not.
  *
  * @return bool
  * @since 1.1.0
@@ -432,179 +432,60 @@ function breeze_file_match_pattern( $file_url, $pattern ) {
 }
 
 /**
- * Will return true/false if the cache headers exist and
- * have values HIT or MISS.
- * HIT = Varnish is enabled and age is cached
- * MISS = Varnish is disabled or the cache has been purged.
- * This method will request only the current url homepage headers
- * and if the first time is a MISS, it will try again.
- *
- * @param int  $retry how many retries count.
- * @param int  $time_fresh current time to make a fresh connect.
- * @param bool $use_headers To use get_headers or cURL.
+ * Will return true/false if the cache headers exist.
  *
  * @return bool
  */
-function is_varnish_cache_started( $retry = 1, $time_fresh = 0, $use_headers = false ) {
+function is_varnish_cache_started() {
+
 	if ( isset( $_SERVER['HTTP_X_VARNISH'] ) && is_numeric( $_SERVER['HTTP_X_VARNISH'] ) ) {
 		return true;
 	}
 
-	if ( empty( $time_fresh ) ) {
-		$time_fresh = time();
+	// Return false early if varnish is disabled by the user.
+	if ( isset( $data['HTTP_X_APPLICATION'] )
+	&& ( 'varnishpass' === trim( $data['HTTP_X_APPLICATION'] ) || 'bypass' === trim( $data['HTTP_X_APPLICATION'] ) )
+	) {
+		return false;
 	}
 
-	// Code specific for Cloudways Server.
-	if ( 1 === $retry ) {
-		$check_local_server = is_varnish_layer_started();
-		if ( true === $check_local_server ) {
-			return true;
-		}
+	$check_local_server = is_varnish_layer_started();
+	if ( true === $check_local_server ) {
+		return true;
 	}
 
-	$url_ping = trim( home_url() . '?breeze_check_cache_available=' . $time_fresh );
+	$custom_varnish_active = get_transient( 'breeze_custom_varnish_server_active' );
 
-	if ( true === $use_headers ) {
-
-		$ssl_verification = apply_filters( 'breeze_ssl_check_certificate', true );
-
-		if ( ! is_bool( $ssl_verification ) ) {
-			$ssl_verification = true;
-		}
-
-		if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
-			$ssl_verification = false;
-		}
-		// Making sure the request is only for HEADER info without getting the content from the page
-		$context_options = array(
-			'http' => array(
-				'method'          => 'HEAD',
-				'follow_location' => 1,
-			),
-			'ssl'  => array(
-				'verify_peer' => $ssl_verification,
-			),
-		);
-
-		stream_context_set_default( $context_options );
-		$headers = get_headers( $url_ping, 1 );
-
-		if ( empty( $headers ) ) {
-			$use_headers = false;
-		} else {
-			$headers = array_change_key_case( $headers, CASE_LOWER );
-		}
+	if ( false === $custom_varnish_active ) {
+		$custom_varnish_active = (int) breeze_check_custom_varnish();
+		set_transient( 'breeze_custom_varnish_server_active', $custom_varnish_active, 24 * HOUR_IN_SECONDS );
 	}
 
-	if ( false === $use_headers ) {
-		$headers = breeze_get_headers_via_curl( $url_ping );
-	}
+	return (bool) $custom_varnish_active;
+}
+
+/**
+ * Checks if the varnish is active on website."
+ * x-cache header is checked to verify varnish presence.
+ *
+ * @return bool
+ */
+function breeze_check_custom_varnish() {
+
+	$unique_string = time();
+
+	$url_ping = trim( home_url() . '?breeze_check_cache_available=' . $unique_string );
+
+	$headers = wp_get_http_headers( $url_ping );
 
 	if ( empty( $headers ) ) {
 		return false;
 	}
 
-	if ( true === $headers ) {
-		return true;
-	}
-
-	if ( ! isset( $headers['x-cache'] ) ) {
-		if ( 1 === $retry ) {
-			++$retry;
-
-			return is_varnish_cache_started( $retry, $time_fresh, $use_headers );
-		}
-
-		return false;
-	} else {
-		$cache_header = strtolower( trim( $headers['x-cache'] ) );
-
-		// After the cache is cleared, the first time the headers will say that the cache is not used
-		// After the first header requests, the cache headers are formed.
-		// Checking the second time will give better results.
-		if ( 1 === $retry ) {
-			if ( substr_count( $cache_header, 'hit' ) > 0 ) {
-				return true;
-			} else {
-				++$retry;
-
-				return is_varnish_cache_started( $retry, $time_fresh, $use_headers );
-			}
-		} else {
-
-			if ( substr_count( $cache_header, 'hit' ) > 0 ) {
-				return true;
-			}
-
-			return false;
-		}
-	}
-}
-
-/**
- * Fallback function to fetch headers.
- *
- * @param string $url_ping URL from where to get the headers.
- *
- * @return array|bool
- */
-function breeze_get_headers_via_curl( $url_ping = '', $return_headers = false ) {
-
-	$ssl_verification = apply_filters( 'breeze_ssl_check_certificate', true );
-	if ( ! is_bool( $ssl_verification ) ) {
-		$ssl_verification = true;
-	}
-
-	if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
-		$ssl_verification = false;
-	}
-
-	$connection = curl_init();
-	$headers    = array();
-	curl_setopt( $connection, CURLOPT_URL, $url_ping );
-	curl_setopt( $connection, CURLOPT_NOBODY, true );
-	curl_setopt( $connection, CURLOPT_RETURNTRANSFER, true );
-	curl_setopt( $connection, CURLOPT_FOLLOWLOCATION, true ); // follow redirects
-	curl_setopt( $connection, CURLOPT_SSL_VERIFYPEER, $ssl_verification );
-	curl_setopt( $connection, CURLOPT_HEADER, true ); // return just headers
-	curl_setopt( $connection, CURLOPT_TIMEOUT, 1 );
-	// this function is called by curl for each header received
-	curl_setopt(
-		$connection,
-		CURLOPT_HEADERFUNCTION,
-		function ( $curl, $header ) use ( &$headers ) {
-			$len    = strlen( $header );
-			$header = explode( ':', $header, 2 );
-			if ( count( $header ) < 2 ) { // ignore invalid headers
-				return $len;
-			}
-
-			$headers[ strtolower( trim( $header[0] ) ) ][] = trim( $header[1] );
-
-			return $len;
-		}
-	);
-
-	curl_exec( $connection );
-	curl_close( $connection );
-
-	// if TRUE, just return the headers.
-	if ( true === $return_headers ) {
-		return $headers;
-	}
-
-	// x-cacheable
-	if ( isset( $headers['x-cacheable'] ) ) {
-		$x_cacheable_value = array_pop( $headers['x-cacheable'] );
-		if ( 'yes' === strtolower( $x_cacheable_value ) || 'short' === strtolower( $x_cacheable_value ) ) {
-			return true;
-		}
-	}
+	$headers = array_change_key_case( $headers->getAll(), CASE_LOWER );
 
 	if ( isset( $headers['x-cache'] ) ) {
-		$x_cache_value = array_pop( $headers['x-cache'] );
-
-		return array( 'x-cache' => $x_cache_value );
+		return true;
 	}
 
 	return false;

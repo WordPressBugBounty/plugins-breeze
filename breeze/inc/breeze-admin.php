@@ -1027,6 +1027,9 @@ INLINEJS;
 				delete_site_option( 'breeze_hide_notice' );
 				delete_site_option( 'breeze_version' );
 
+				// Delete transients.
+				delete_transient( 'breeze_custom_varnish_server_active' );
+
 				// Delete options for each sub-blog.
 				foreach ( $sites as $blog_id ) {
 					switch_to_blog( $blog_id );
@@ -1066,6 +1069,9 @@ INLINEJS;
 				delete_option( 'breeze_exclude_url_pages' );
 				delete_option( 'breeze_hide_notice' );
 				delete_option( 'breeze_version' );
+
+				// Delete transients.
+				delete_transient( 'breeze_custom_varnish_server_active' );
 			}
 		}
 	}

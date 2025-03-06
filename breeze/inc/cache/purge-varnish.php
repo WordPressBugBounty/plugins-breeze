@@ -306,11 +306,18 @@ class Breeze_PurgeVarnish {
 			$categories = get_the_category( $postId );
 			if ( $categories ) {
 				foreach ( $categories as $cat ) {
+					$category_link        = get_category_link( $cat->term_id );
+					$category_link_no_cat = str_replace( 'category/', '', $category_link );
+					if ( ! empty( $category_link ) && $category_link !== $category_link_no_cat ) {
+						array_push( $list_of_urls, $category_link_no_cat );
+					}
+
 					array_push(
 						$listofurls,
-						get_category_link( $cat->term_id ),
+						$category_link,
 						get_rest_url() . $rest_api_route . '/categories/' . $cat->term_id . '/'
 					);
+					$category_link = '';
 				}
 			}
 			// Tag purge based on Donnacha's work in WP Super Cache

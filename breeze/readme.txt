@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.2.5
+Stable tag: 2.2.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,11 +160,15 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.2.6 =
+
+* Fix: PHP warning that occurred when changing comment status has been fixed.
+
 = 2.2.5 =
 
-* Improved: Enhance CF and Varnish cache purge for custom permalinks /%category%/%postname%/.
-* Improved: Enhance Varnish cache validation to prevent multiple HTTP requests.
-* Improved: Optimize the object cache flush system to purge only the relevant cache.
+* Improve: Improve CF and Varnish cache purge for custom permalinks /%category%/%postname%/.
+* Improve: Enhance Varnish cache validation to prevent multiple HTTP requests.
+* Optimize: Optimize the object cache flush system to purge only the relevant cache.
 
 = 2.2.4 =
 

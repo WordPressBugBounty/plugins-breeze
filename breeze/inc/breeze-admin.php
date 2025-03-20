@@ -647,6 +647,7 @@ INLINEJS;
 			'breeze-gzip-compression'  => '1',
 			'breeze-desktop-cache'     => '1',
 			'breeze-mobile-cache'      => '1',
+			'breeze-b-ttl'             => 1440,
 			'breeze-browser-cache'     => '1',
 			'breeze-lazy-load'         => '0',
 			'breeze-lazy-load-native'  => '0',
@@ -950,6 +951,19 @@ INLINEJS;
 		}
 	}
 
+	/**
+	 * Unschedules the 'breeze_purge_cache' event if it is scheduled.
+	 *
+	 * Identifies the next scheduled occurrence of the 'breeze_purge_cache' event
+	 * and removes it from the WordPress cron schedule.
+	 *
+	 * @return void
+	 */
+	public static function unschedule_events() {
+		$timestamp = wp_next_scheduled( 'breeze_purge_cache' );
+		wp_unschedule_event( $timestamp, 'breeze_purge_cache' );
+	}
+
 	/*
 	 * Register deactivate plugin hook.
 	 */
@@ -961,7 +975,9 @@ INLINEJS;
 		if ( ! class_exists( 'Breeze_Configuration' ) ) {
 			require_once( BREEZE_PLUGIN_DIR . 'inc/breeze-configuration.php' );
 		}
+
 		Breeze_ConfigCache::factory()->clean_up();
+		self::unschedule_events();
 		//Breeze_ConfigCache::factory()->clean_config();
 		Breeze_ConfigCache::factory()->toggle_caching( false );
 		Breeze_Configuration::update_htaccess( true );
@@ -974,6 +990,7 @@ INLINEJS;
 				$sites = get_sites();
 				foreach ( $sites as $site ) {
 					switch_to_blog( $site->blog_id );
+					self::unschedule_events();
 					do_action( 'breeze_clear_varnish' );
 					restore_current_blog();
 				}

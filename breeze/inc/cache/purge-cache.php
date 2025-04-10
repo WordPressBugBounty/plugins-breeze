@@ -417,8 +417,8 @@ class Breeze_PurgeCache {
 	 *
 	 * @return void
 	 */
-	public function purge_post_on_new_comment( int $comment_ID, int $approved, array $commentdata ) {
-		if ( empty( $approved ) ) {
+	public function purge_post_on_new_comment( $comment_ID, $approved, $commentdata ) {
+		if ( 1 !== $approved ) {
 			return;
 		}
 		// File based caching only

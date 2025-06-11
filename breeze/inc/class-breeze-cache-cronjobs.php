@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Class Breeze_Cache_CronJobs
+ *
+ * Handles cron jobs and cache-related functionality for the Breeze plugin.
+ */
 class Breeze_Cache_CronJobs {
 
 	/**
@@ -7,7 +12,7 @@ class Breeze_Cache_CronJobs {
 	 */
 	private const OPT_PREFIX = 'breeze_';
 
-	function __construct($enabled) {
+	function __construct( $enabled ) {
 		$current_time_utc = current_time( 'timestamp' );  //phpcs:ignore
 
 		if ( $enabled ) {
@@ -15,14 +20,14 @@ class Breeze_Cache_CronJobs {
 			/**
 			 * Will handle the cache Gravatars.
 			 */
-			if ( ! wp_next_scheduled( 'breeze_clear_remote_gravatar', 'gravatars' ) ) {
-				wp_schedule_event( $current_time_utc, 'weekly', 'breeze_clear_remote_gravatar', 'gravatars' );
+			if ( ! wp_next_scheduled( 'breeze_clear_remote_gravatar', array( 'gravatars' ) ) ) {
+				wp_schedule_event( $current_time_utc, 'weekly', 'breeze_clear_remote_gravatar', array( 'gravatars' ) );
 			}
 			add_action( 'breeze_clear_remote_gravatar', array( &$this, 'extra_cache_cleanup' ), 10, 1 );
 			add_filter( 'get_avatar', array( &$this, 'breeze_replace_gravatar_image' ) );
 		} else {
 
-			if ( wp_next_scheduled( 'breeze_clear_remote_gravatar', 'gravatars' ) ) {
+			if ( wp_next_scheduled( 'breeze_clear_remote_gravatar', array( 'gravatars' ) ) ) {
 				wp_unschedule_event( $current_time_utc, 'weekly', 'breeze_clear_remote_gravatar', 'gravatars' );
 			}
 		}
@@ -35,7 +40,7 @@ class Breeze_Cache_CronJobs {
 	 *
 	 * @return void
 	 */
-	public function extra_cache_cleanup( $folder_for = '' ) {
+	public function extra_cache_cleanup( string $folder_for = '' ) {
 		$allowed_actions = array(
 			'gravatars',
 		);
@@ -73,11 +78,13 @@ class Breeze_Cache_CronJobs {
 	}
 
 	/**
-	 * @param $gravatar
+	 * Replaces gravatar URLs in the provided HTML with locally cached gravatar URLs.
 	 *
-	 * @return array|mixed|string|string[]
+	 * @param string $gravatar The HTML content containing gravatar links.
+	 *
+	 * @return string The updated HTML content with replaced gravatar URLs.
 	 */
-	public function breeze_replace_gravatar_image( $gravatar ) {
+	public function breeze_replace_gravatar_image( string $gravatar ): string {
 		preg_match_all( '/srcset=["\']?((?:.(?!["\']?\s+(?:\S+)=|\s*\/?[>"\']))+.)["\']?/', $gravatar, $srcset );
 		if ( isset( $srcset[1] ) && isset( $srcset[1][0] ) ) {
 			$url             = explode( ' ', $srcset[1][0] )[0];
@@ -90,18 +97,26 @@ class Breeze_Cache_CronJobs {
 			$local_gravatars = $this->fetch_gravatar_from_remote( $url );
 			$gravatar        = str_replace( $url, $local_gravatars, $gravatar );
 		}
+		if ( ! is_string( $gravatar ) ) {
+			$gravatar = '';
+		}
 
 		return $gravatar;
 	}
 
 	/**
-	 * @param $url
+	 * Fetches a Gravatar image from a remote URL, saves it locally in the cache directory,
+	 * and returns the local path to the cached image. If the image already exists in the cache,
+	 * the local cached version is returned directly. If unable to fetch and save the image,
+	 * the original URL is returned.
 	 *
-	 * @return mixed|string
+	 * @param string $url The URL of the Gravatar image to fetch.
+	 *
+	 * @return string The local cached URL of the Gravatar image, or the original URL if the operation fails.
 	 */
-	private function fetch_gravatar_from_remote( $url = '' ) {
+	private function fetch_gravatar_from_remote( string $url = '' ): string {
 		if ( empty( $url ) ) {
-			return $url;
+			return '';
 		}
 		$blog_id             = $this->get_blog_id();
 		$local_gravatar_name = basename( wp_parse_url( $url, PHP_URL_PATH ) );
@@ -138,12 +153,15 @@ class Breeze_Cache_CronJobs {
 	}
 
 	/**
-	 * @param $folder
-	 * @param $filename
+	 * Checks if a specific file exists in the designated cache folder and returns its URL
+	 * if found. If the file does not exist, an empty string is returned.
 	 *
-	 * @return string
+	 * @param string $folder The name of the folder to check within the cache directory.
+	 * @param string $filename The name of the file to check for in the specified folder.
+	 *
+	 * @return string The URL of the found file in the cache, or an empty string if the file does not exist.
 	 */
-	private function check_for_content( $folder = '', $filename = '' ) {
+	private function check_for_content( string $folder = '', string $filename = '' ): string {
 		if ( empty( $folder ) || empty( $filename ) ) {
 			return '';
 		}
@@ -157,7 +175,11 @@ class Breeze_Cache_CronJobs {
 	}
 
 	/**
-	 * @return int|mixed|string
+	 * Retrieves the blog ID for the current WordPress site. For multisite installations,
+	 * it appends a forward slash ("/") to the blog ID. If multisite-specific functions
+	 * are unavailable, it fetches the blog ID from a global configuration or defaults to 1.
+	 *
+	 * @return string|int The blog ID as a string|int, with a forward slash appended for multisite installations.
 	 */
 	private function get_blog_id() {
 		$blog_id = '';
@@ -173,11 +195,15 @@ class Breeze_Cache_CronJobs {
 	}
 
 	/**
-	 * @param $folder
+	 * Retrieves the local extra cache directory path for a specified folder and blog ID.
+	 * Ensures that the directory structure exists by creating it if necessary.
 	 *
-	 * @return string
+	 * @param string $folder The specific folder name for which the cache directory is retrieved.
+	 *                       Defaults to an empty string if not specified.
+	 *
+	 * @return string The path to the corresponding local extra cache directory.
 	 */
-	private function get_local_extra_cache_directory( $folder = '' ) {
+	private function get_local_extra_cache_directory( string $folder = '' ): string {
 		$blog_id = $this->get_blog_id();
 		Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_EXTRA );
 		Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' );

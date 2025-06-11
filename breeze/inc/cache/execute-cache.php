@@ -283,6 +283,10 @@ function breeze_cache( $buffer, $flags ) {
 
 	$modified_time = time(); // Make sure modified time is consistent
 
+	$is_cross_origin_activated = false;
+	if ( isset( $GLOBALS['breeze_config']['cache_options']['breeze-cross-origin'] ) && filter_var( $GLOBALS['breeze_config']['cache_options']['breeze-cross-origin'], FILTER_VALIDATE_BOOLEAN ) ) {
+		$is_cross_origin_activated = true;
+	}
 	// Lazy load implementation
 	if ( class_exists( 'Breeze_Lazy_Load' ) ) {
 		if ( isset( $GLOBALS['breeze_config'] ) ) {
@@ -299,11 +303,14 @@ function breeze_cache( $buffer, $flags ) {
 
 			$lazy_load = new \Breeze_Lazy_Load( $buffer, $is_lazy_load_enabled, $is_lazy_load_native );
 			$buffer    = $lazy_load->apply_lazy_load_feature();
+			if ( false === $is_cross_origin_activated ) {
+				$buffer = html_entity_decode( $buffer, ENT_QUOTES, 'UTF-8' );
+			}
 		}
 	}
 
 	// Cross-origin safe link functionality
-	if ( isset( $GLOBALS['breeze_config']['cache_options']['breeze-cross-origin'] ) && filter_var( $GLOBALS['breeze_config']['cache_options']['breeze-cross-origin'], FILTER_VALIDATE_BOOLEAN ) ) {
+	if ( true === $is_cross_origin_activated ) {
 
 		// Buffer encoding
 		if ( version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
@@ -327,6 +334,7 @@ function breeze_cache( $buffer, $flags ) {
 
 		// Buffer decoding.
 		$buffer = mb_decode_numericentity( $buffer, array( 0x80, 0x10FFFF, 0, ~0 ), 'UTF-8' );
+		$buffer = html_entity_decode( $buffer, ENT_QUOTES, 'UTF-8' );
 	}
 
 	$cache_type = '';
@@ -619,7 +627,6 @@ function check_exclude_page( $opts_config, $current_url ) {
 						return true;
 					}
 				} else { // Whole path
-
 
 					$exclude_url = ltrim( $exclude_url, 'https:' );
 					$current_url = ltrim( $current_url, 'https:' );

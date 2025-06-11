@@ -444,7 +444,7 @@ INLINEJS;
 	function register_admin_bar_menu( WP_Admin_Bar $wp_admin_bar ) {
 
 		if ( ! ( current_user_can( 'manage_options' ) || current_user_can( 'editor' ) )
-		     && ! ( is_plugin_active( 'woocommerce/woocommerce.php' ) && current_user_can( 'manage_woocommerce' ) ) ) {
+			 && ! ( is_plugin_active( 'woocommerce/woocommerce.php' ) && current_user_can( 'manage_woocommerce' ) ) ) {
 			return;
 		}
 
@@ -461,12 +461,12 @@ INLINEJS;
 		$wp_admin_bar->add_node( $args );
 
 		// Recreate the current URL in order to redirect to the same page on cache purge.
-		$current_protocol = is_ssl() ? 'https' : 'http';
-		$current_host     = $_SERVER['HTTP_HOST'];
-		$current_script   = $_SERVER['SCRIPT_NAME'];
-		$current_params   = $_SERVER['QUERY_STRING'];
+		$current_protocol                 = is_ssl() ? 'https' : 'http';
+		$current_host                     = $_SERVER['HTTP_HOST'];
+		$current_script                   = $_SERVER['SCRIPT_NAME'];
+		$current_params                   = $_SERVER['QUERY_STRING'];
 		$current_params ? $current_params = '?' . $current_params : $current_params = '';
-		$current_screen_base = get_current_screen()->base;
+		$current_screen_base              = get_current_screen()->base;
 
 		if ( is_multisite() && ! is_subdomain_install() ) {
 			$blog_details = get_blog_details();
@@ -645,7 +645,7 @@ INLINEJS;
 			$token .= $characters[ random_int( 0, strlen( $characters ) - 1 ) ];
 		}
 
-		$default_basic         = array(
+		$default_basic = array(
 			'breeze-active'            => '1',
 			'breeze-mobile-separate'   => '1',
 			'breeze-cross-origin'      => '0',
@@ -968,6 +968,15 @@ INLINEJS;
 	public static function unschedule_events() {
 		$timestamp = wp_next_scheduled( 'breeze_purge_cache' );
 		wp_unschedule_event( $timestamp, 'breeze_purge_cache' );
+
+		// Find the timestamp with the correct parameters
+		$timestamp = wp_next_scheduled( 'breeze_clear_remote_gravatar', array( 'gravatars' ) );
+
+		// Only try to unschedule if a timestamp was found
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, 'breeze_clear_remote_gravatar', array( 'gravatars' ) );
+		}
+
 	}
 
 	/*

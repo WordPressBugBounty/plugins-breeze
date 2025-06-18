@@ -22,7 +22,7 @@ class Breeze_Bulk_Update {
 
 			// Get the current count
 			$current_value = (int) get_option( 'breeze_updated_plugin_count', 0 );
-			$current_value ++;
+			++$current_value;
 			update_option( 'breeze_updated_plugin_count', $current_value, 'no' );
 
 			if ( ! empty( get_option( 'breeze_all_plugins_update_flag', false ) ) ) {
@@ -41,8 +41,17 @@ class Breeze_Bulk_Update {
 	}
 
 	function store_update_count() {
+		// Nonce security.
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'breeze_store_update_count_nonce' ) ) {
+			wp_send_json_error( 'Invalid nonce' );
+		}
+
+		// Check user capability.
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			wp_send_json_error( 'Unauthorized user' );
+		}
 		if ( isset( $_POST['count'] ) ) {
-			$count              = $_POST['count'];
+			$count              = intval( $_POST['count'] );
 			$total_plugin_count = get_option( 'plugins_to_be_updated_count', 0 );
 			$total_plugin_count = intval( $total_plugin_count );
 			if ( 0 === $total_plugin_count ) {
@@ -59,26 +68,27 @@ class Breeze_Bulk_Update {
 		if ( 'plugins' !== $screen->base && 'plugins-network' !== $screen->base ) {
 			return;
 		}
+		$nonce = wp_create_nonce( 'breeze_store_update_count_nonce' );
 		?>
 		<script>
-		   jQuery( document ).on( 'wp-plugin-updating', function ( event, args ) {
-			   var updateCount = jQuery( ".check-column input:checked" ).length;
-			   jQuery.ajax( {
-				   url: ajaxurl, // from wp_localize_script()
-				   type: 'post',
-				   data: {
-					   action: 'store_update_count',
-					   count: updateCount
-				   },
-				   success: function ( response ) {
-					   console.log( "Data Saved: " + response );
-				   }
-			   } );
-		   } );
+			jQuery( document ).on( 'wp-plugin-updating', function ( event, args ) {
+				var updateCount = jQuery( ".check-column input:checked" ).length;
+				jQuery.ajax( {
+					url: ajaxurl, // from wp_localize_script()
+					type: 'post',
+					data: {
+						action: 'store_update_count',
+						count: updateCount,
+						nonce: '<?php echo esc_js( $nonce ); ?>'
+					},
+					success: function ( response ) {
+						console.log( "Data Saved: " + response );
+					}
+				} );
+			} );
 		</script>
 		<?php
 	}
-
 }
 
 new Breeze_Bulk_Update();

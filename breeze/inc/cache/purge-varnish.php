@@ -36,14 +36,14 @@ class Breeze_PurgeVarnish {
 		global $blog_id;
 		$this->blogId = $blog_id;
 
-		//storage config
+		// storage config
 		if ( ! empty( Breeze_Options_Reader::get_option_value( 'auto-purge-varnish' ) ) ) {
 			$this->auto_purge = (int) Breeze_Options_Reader::get_option_value( 'auto-purge-varnish' );
 			if ( $this->auto_purge && ! isset( $_GET['breeze_check_cache_available'] ) ) {
 				// before sending the requests, we need to make sure Varnish is actually enabled.
 				// If Varnish is disabled, the requests will take longer to finish and will affect
 				// the WordPress performance.
-				#$this->auto_purge = is_varnish_cache_started();
+				// $this->auto_purge = is_varnish_cache_started();
 			}
 		}
 		add_action( 'init', array( $this, 'init' ) );
@@ -52,7 +52,7 @@ class Breeze_PurgeVarnish {
 	public function init() {
 		if ( $this->auto_purge ) {
 			if ( ! empty( $this->actions ) ) {
-				//if enabled auto purge option , this action will start
+				// if enabled auto purge option , this action will start
 				foreach ( $this->actions as $action ) {
 					if ( in_array( $action, $this->actionsNoId ) ) {
 						add_action(
@@ -66,17 +66,16 @@ class Breeze_PurgeVarnish {
 					}
 				}
 			}
-			//Pust urlsPurge after comment
+			// Pust urlsPurge after comment
 			add_action( 'comment_post', array( $this, 'purge_post_on_comment' ), 10, 3 );
 			add_action( 'wp_set_comment_status', array( $this, 'purge_post_on_comment_status' ), 10, 2 );
 		}
-		//Execute Purge
+		// Execute Purge
 		add_action( 'shutdown', array( $this, 'breeze_execute_purge' ) );
 	}
 
 	/**
 	 * Execute Purge
-	 *
 	 */
 	public function breeze_execute_purge() {
 
@@ -97,24 +96,12 @@ class Breeze_PurgeVarnish {
 			$homepage = home_url() . '/?breeze';
 
 			if ( isset( $_GET['breeze_purge_cloudflare'] ) && check_admin_referer( 'breeze_purge_cache_cloudflare' ) ) {
-				$reset   = Breeze_CloudFlare_Helper::reset_all_cache();
-				$json    = json_decode( trim( $reset ), true );
-				$message = __( 'CloudWays - Cloudflare microservice was not reachable. ', 'breeze' );
-				$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
-				if ( null !== $json && json_last_error() === JSON_ERROR_NONE && isset( $json['success'] ) ) {
-					$success = filter_var( $json['success'], FILTER_VALIDATE_BOOLEAN );
-					$class   = 'notice notice-warning is-dismissible breeze-notice';
-					$message = __( 'Cloudflare cache data has not been purged. ', 'breeze' );
-					if ( true === $success ) {
-						$message = __( 'Cloudflare cache data has been purged. ', 'breeze' );
-						$class   = 'notice notice-success is-dismissible breeze-notice';
-					}
-				}
-				printf( '<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px; display: none; font-weight: 600;"><p>%2$s</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>', esc_attr( $class ), esc_html( $message ) );
+				$response = Breeze_CloudFlare_Helper::reset_all_cache();
+				$this->print_cloudflare_cache_purge_notification( $response );
 			}
 
 			if ( isset( $_GET['breeze_purge'] ) && check_admin_referer( 'breeze_purge_cache' ) ) {
-				//clear static cache
+				// clear static cache
 				$size_cache = Breeze_Configuration::breeze_clean_cache();
 				$class      = 'notice notice-success is-dismissible breeze-notice message-clear-cache-top';
 				$message    = __( 'Cache data has been purged: ', 'breeze' ) . $size_cache . __( ' Kb static cache cleaned', 'breeze' );
@@ -131,28 +118,53 @@ class Breeze_PurgeVarnish {
 				}
 				// Clear Cloudflare cache.
 				if ( Breeze_CloudFlare_Helper::is_cloudflare_enabled() ) {
-					$response           = Breeze_CloudFlare_Helper::reset_all_cache();
-					$response           = json_decode( trim( $response ), true );
-					$message            = __( 'Cloudflare cache data not purged. ', 'breeze' );
-					$notification_class = 'notice-error';
-					if ( null !== $response
-					&& json_last_error() === JSON_ERROR_NONE
-					&& isset( $response['success'] ) ) {
-
-						$message            = __( 'Cloudflare cache data has been purged. ', 'breeze' );
-						$notification_class = 'notice-success';
-					}
-					$classes = 'notice is-dismissible breeze-notice message-clear-cache-top ' . $notification_class;
-					printf( '<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px;display: none; font-weight: 600;"><p>%2$s</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>', esc_attr( $classes ), esc_html( $message ) );
+					$response = Breeze_CloudFlare_Helper::reset_all_cache();
+					$this->print_cloudflare_cache_purge_notification( $response );
 				}
 			}
 		}
 	}
 
+	/**
+	 * Print a admin notice for cloudflare cache purge response.
+	 *
+	 * @param int|string $res Response http code returned from cf microservice.
+	 */
+	public function print_cloudflare_cache_purge_notification( $res ) {
+
+		if ( 200 === $res ) {
+			$message = __( 'Cloudflare Cache has been purged. ', 'breeze' );
+			$class   = 'notice notice-success is-dismissible';
+		} elseif ( 429 === $res ) {
+			$message = __( 'Too many purge requests. Please try again in a few minutes.', 'breeze' );
+			$class   = 'notice notice-error is-dismissible';
+		} elseif ( 408 === $res ) {
+			$message = __( 'Unable to connect to Cloudflare. Please try again or contact support.', 'breeze' );
+			$class   = 'notice notice-warning is-dismissible';
+		} elseif ( 401 === $res ) {
+			$message = __( 'Invalid token. Please contact support for more details.', 'breeze' );
+			$class   = 'notice notice-error is-dismissible';
+		} elseif ( 'baseUrlNotFound' === $res ) {
+			$message = __( 'Cloudflare microservices base url not found. Please contact support.', 'breeze' );
+			$class   = 'notice notice-error is-dismissible';
+		} else {
+			$message = __( 'An error occurred while purging the Cloudflare cache. Please try again or contact support.', 'breeze' );
+			$class   = 'notice notice-error is-dismissible';
+		}
+		printf(
+			'<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px; font-weight: 600;">
+				<p>%2$s</p>
+				<button type="button" class="notice-dismiss">
+				<span class="screen-reader-text">Dismiss this notice.</span>
+				</button>
+			</div>',
+			esc_attr( $class ),
+			esc_html( $message )
+		);
+	}
 
 	/**
 	 * Purge varnish cache
-	 *
 	 */
 	public function purge_cache( $url ) {
 		if ( true === Breeze_CloudFlare_Helper::is_log_enabled() ) {
@@ -218,7 +230,7 @@ class Breeze_PurgeVarnish {
 		return $response;
 	}
 
-	//check permission
+	// check permission
 	public function check_permission() {
 		return ( ! is_multisite() && current_user_can( 'activate_plugins' ) ) || current_user_can( 'manage_network' ) || ( is_multisite() && ! current_user_can( 'manage_network' ) && ( SUBDOMAIN_INSTALL || ( ! SUBDOMAIN_INSTALL && ( BLOG_ID_CURRENT_SITE != $this->blogId ) ) ) );
 	}
@@ -380,7 +392,6 @@ class Breeze_PurgeVarnish {
 					$homepage
 				);
 			}
-
 		} else {
 			// Nothing
 			return;

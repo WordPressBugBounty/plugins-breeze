@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 2.2.15
+Stable tag: 2.2.16
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,9 +160,13 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.2.16 =
+
+* Improved: Increased expected API response timeout from 4 seconds to 30 seconds to better handle delayed responses.
+
 = 2.2.15 =
 
-*  Improved: Updated handling and response messages for Cloudflare cache purge requests to provide clearer feedback and improve transparency.
+* Improved: Updated handling and response messages for Cloudflare cache purge requests to provide clearer feedback and improve transparency.
 
 = 2.2.14 =
 
@@ -172,7 +176,6 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 = 2.2.13 =
 
 * Fix: Addressed compatibility issues with Elementor and WooCommerce variable products. Also resolved issues caused by improper HTML entity decoding to ensure correct JavaScript content rendering and improved plugin stability.
-
 
 = 2.2.12 =
 

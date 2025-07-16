@@ -442,7 +442,7 @@ final class Breeze_CloudFlare_Helper {
 		curl_setopt( $connection, CURLOPT_POST, true );
 		curl_setopt( $connection, CURLOPT_USERAGENT, $rop_user_agent );
 		curl_setopt( $connection, CURLOPT_REFERER, home_url() );
-		curl_setopt( $connection, CURLOPT_TIMEOUT, 4 );
+		curl_setopt( $connection, CURLOPT_TIMEOUT, 30 );
 
 		// Array to send to microservice.
 		$data_to_send = array(

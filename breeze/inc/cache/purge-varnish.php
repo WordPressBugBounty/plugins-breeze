@@ -134,22 +134,22 @@ class Breeze_PurgeVarnish {
 
 		if ( 200 === $res ) {
 			$message = __( 'Cloudflare Cache has been purged. ', 'breeze' );
-			$class   = 'notice notice-success is-dismissible';
+			$class   = 'notice notice-success is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 429 === $res ) {
 			$message = __( 'Too many purge requests. Please try again in a few minutes.', 'breeze' );
-			$class   = 'notice notice-error is-dismissible';
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 408 === $res ) {
 			$message = __( 'Unable to connect to Cloudflare. Please try again or contact support.', 'breeze' );
-			$class   = 'notice notice-warning is-dismissible';
+			$class   = 'notice notice-warning is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 401 === $res ) {
 			$message = __( 'Invalid token. Please contact support for more details.', 'breeze' );
-			$class   = 'notice notice-error is-dismissible';
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 'baseUrlNotFound' === $res ) {
 			$message = __( 'Cloudflare microservices base url not found. Please contact support.', 'breeze' );
-			$class   = 'notice notice-error is-dismissible';
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		} else {
 			$message = __( 'An error occurred while purging the Cloudflare cache. Please try again or contact support.', 'breeze' );
-			$class   = 'notice notice-error is-dismissible';
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		}
 		printf(
 			'<div class="%1$s" style="margin: 10px 14px 10px 0;padding: 10px; font-weight: 600;">

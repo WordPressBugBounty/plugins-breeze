@@ -47,6 +47,35 @@ jQuery( document ).ready(
 			}
 		);
 
+		// Purge All Notification.
+		$( document ).on(
+			'click',
+			'#wp-admin-bar-breeze-purge-all',
+			function () {
+				var message = 'Purging All Cache...';
+				purging_cache_notification( message );
+			}
+		);
+
+		// Purge Site Cache Notification.
+		$( document ).on(
+			'click',
+			'#wp-admin-bar-breeze-purge-site',
+			function () {
+				var message = 'Purging Site Cache...';
+				purging_cache_notification( message );
+			}
+		);
+
+		// Cloudflare purge cache action.
+		$( document ).on(
+			'click',
+			'#wp-admin-bar-breeze-purge-cloudflare',
+			function () {
+				var message = 'Purging Cloudflare Cache...';
+				purging_cache_notification( message );
+			}
+		);
 		// Top bar action
 		$( document ).on(
 			'click',
@@ -154,10 +183,17 @@ jQuery( document ).ready(
 			return /^(http(s)?:)?\/\/(www\.)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/.test( url );
 		}
 
+		function purging_cache_notification(message = "Purging Cache...") {
+			var $div = $('<div id="purging-cache-notification" class="notice notice-info is-dismissible breeze-notice"><p>' + message + '</p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>');
+			$("#wpbody #wpbody-content").prepend($div);
+			return $div;
+		}
+
 		//clear cache by button
 		function breeze_purge_opcache_ajax() {
-			$( '.br-internal-purge' ).remove();
 			$( '.breeze-notice' ).remove();
+			var message = 'Purging Object Cache...';
+			var $div    = purging_cache_notification( message );
 			$.ajax(
 				{
 					url: ajaxurl,
@@ -169,23 +205,13 @@ jQuery( document ).ready(
 						security: breeze_token_name.breeze_purge_opcache
 					},
 					success: function ( res ) {
-						current = location.href;
+						$div.removeClass('notice-info');
 						if ( res.clear ) {
-							var div = '<div id="message" class="notice notice-success is-dismissible breeze-notice" style="margin-top:10px; margin-bottom:10px;padding: 10px;margin-left: 0;"><p><strong>Object Cache has been purged.</strong></p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>';
-							//backend
-							$( "#wpbody #wpbody-content" ).prepend( div );
-							setTimeout(
-								function () {
-									//location.reload();
-									purge_action = true;
-								},
-								2000
-							);
-
+							$div.addClass("notice-success");
+							$div.find("p").text("Object Cache has been purged.");
 						} else {
-							window.location.href = current + "breeze-msg=purge-fail";
-							purge_action         = true;
-							location.reload();
+							$div.addClass("notice-error");
+							$div.find("p").text("Object Cache could not be purged.");
 						}
 					}
 				}
@@ -242,8 +268,9 @@ jQuery( document ).ready(
 
 		//clear cache by button
 		function breeze_purgeVarnish_callAjax() {
-			$( '.br-internal-purge' ).remove();
 			$( '.breeze-notice' ).remove();
+			var message = 'Purging Varnish Cache...';
+			var $div    = purging_cache_notification( message );
 			$.ajax(
 				{
 					url: ajaxurl,
@@ -255,23 +282,13 @@ jQuery( document ).ready(
 						security: breeze_token_name.breeze_purge_varnish
 					},
 					success: function ( res ) {
-						current = location.href;
+						$div.removeClass("notice-info");
 						if ( res.clear ) {
-							var div = '<div id="message" class="notice notice-success is-dismissible breeze-notice" style="margin-top:10px; margin-bottom:10px;padding: 10px;margin-left: 0;"><p><strong>Varnish Cache has been purged.</strong></p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>';
-							//backend
-							$( "#wpbody #wpbody-content" ).prepend( div );
-							setTimeout(
-								function () {
-									//location.reload();
-									purge_action = true;
-								},
-								2000
-							);
-
+							$div.addClass("notice-success");
+							$div.find("p").text("Varnish Cache has been purged.");
 						} else {
-							window.location.href = current + "breeze-msg=purge-fail";
-							purge_action         = true;
-							location.reload();
+							$div.addClass("notice-error");
+							$div.find("p").text("Varnish Cache could not be purged.");
 						}
 					}
 				}
@@ -279,8 +296,9 @@ jQuery( document ).ready(
 		}
 
 		function breeze_purgeFile_callAjax() {
-			$( '.br-internal-purge' ).remove();
 			$( '.breeze-notice' ).remove();
+			var message = 'Purging Internal File Based Cache...';
+			var $div    = purging_cache_notification( message );
 			$.ajax(
 				{
 					url: ajaxurl,
@@ -291,23 +309,18 @@ jQuery( document ).ready(
 						security: breeze_token_name.breeze_purge_cache
 					},
 					success: function ( res ) {
-						current       = location.href;
 						res           = parseFloat( res );
 						var fileClean = res;
-
-						// Remove the hash fragment (everything after #) from the current URL to avoid duplicates
-						//if ( current.includes( "#" ) ) {
-						//	current = current.split( "#" )[ 0 ];
-						//}
-						//window.location.href = current + "#breeze-msg=success-cleancache&file=" + res;
-						//location.reload();
+						$div.removeClass('notice-info');
 						if ( fileClean > 0 ) {
-							div = '<div id="message" class="notice notice-success is-dismissible breeze-notice br-internal-purge" style="margin-top:10px; margin-bottom:10px;padding: 10px;margin-left: 0;"><p><strong>Internal cache has been purged: ' + fileClean + 'Kb cleaned</strong></p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>';
+							var purgeText = 'Internal cache has been purged: ' + fileClean + 'Kb cleaned';
+							$div.addClass("notice-success");
+							$div.find("p").text(purgeText);
 						} else {
-							div = '<div id="message" class="notice notice-success is-dismissible breeze-notice br-internal-purge" style="margin-top:10px; margin-bottom:10px;padding: 10px;margin-left: 0;"><p><strong>Internal cache has been purged.</strong></p><button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button></div>';
+							$div.addClass("notice-success");
+							$div.find("p").text("Internal cache has been purged.");
 
 						}
-						$( "#wpbody #wpbody-content" ).prepend( div );
 
 					}
 				}

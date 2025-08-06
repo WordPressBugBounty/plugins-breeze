@@ -506,7 +506,7 @@ INLINEJS;
 
 		// add purge all item
 		$args = array(
-			'id'     => 'breeze-purge-all',
+			'id'     => ( ! is_multisite() || $is_network ) ? 'breeze-purge-all' : 'breeze-purge-site',
 			'title'  => ( ! is_multisite() || $is_network ) ? esc_html__( 'Purge All Cache', 'breeze' ) : esc_html__( 'Purge Site Cache', 'breeze' ),
 			'parent' => 'breeze-topbar',
 			'href'   => $purge_site_cache_url,

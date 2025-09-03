@@ -131,14 +131,10 @@ final class Breeze_CloudFlare_Helper {
 			return false;
 		}
 
-		if ( ! is_array( $home_url ) ) {
-			$home_url = array();
-		}
-
 		/**
 		 * Execute code if this function is not called by WP-CLI.
 		 */
-		if ( 'cli' !== php_sapi_name() ) {
+		if ( empty( $home_url ) ) {
 
 			// For multisite network, clear cache for all sub-sites.
 			if ( ( is_multisite() && is_network_admin() ) ) {

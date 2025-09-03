@@ -13,7 +13,11 @@ jQuery( document ).ready(
 						{
 							type: "POST",
 							url: ajaxurl,
-							data: { action: "compatibility_warning_close", 'breeze_close_warning': '1' },
+							data: {
+								action: "compatibility_warning_close",
+								'breeze_close_warning': '1',
+								security: breeze_token_name.breeze_check_compat
+							},
 							dataType: "json", // xml, html, script, json, jsonp, text
 							success: function ( data ) {
 
@@ -995,7 +999,7 @@ jQuery( document ).ready(
 			'#breeze_export_settings',
 			function () {
 				$network        = $( '#breeze-level' ).val();
-				window.location = ajaxurl + '?action=breeze_export_json&network_level=' + $network;
+				window.location = ajaxurl + '?action=breeze_export_json&network_level=' + $network+'&security=' + breeze_token_name.breeze_export_json;
 			}
 		);
 
@@ -1246,7 +1250,11 @@ jQuery( document ).ready(
 		$.ajax( {
 			type: "GET",
 			url: ajaxurl,
-			data: { action: "breeze_file_permission_check", 'is-network': $( 'body' ).hasClass( 'network-admin' ) },
+			data: {
+				action: "breeze_file_permission_check",
+				'is-network': $( 'body' ).hasClass( 'network-admin' ),
+				'security': breeze_token_name.breeze_check_permission,
+			},
 			dataType: "html", // xml, html, script, json, jsonp, text
 			success: function ( data ) {
 				if ( '' === data || 'no-issue' === data ) {

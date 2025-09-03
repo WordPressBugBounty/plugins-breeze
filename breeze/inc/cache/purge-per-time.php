@@ -106,6 +106,12 @@ class Breeze_PurgeCacheTime {
 
 	//execute purge varnish after time life
 	public function schedule_varnish() {
+
+		// Purge cloudflare cache.
+		if ( Breeze_CloudFlare_Helper::is_cloudflare_enabled() ) {
+			Breeze_CloudFlare_Helper::reset_all_cache();
+		}
+
 		// Purge varnish cache
 		if ( $this->varnishcache ) {
 			do_action( 'breeze_clear_varnish' );

@@ -54,6 +54,7 @@ class Breeze_File_Permissions {
 	 *              and outputs a message regarding file permission issues or a no-issue status.
 	 */
 	public function breeze_check_the_files_permission() {
+		check_ajax_referer( '_breeze_check_permission', 'security' );
 		$this->check_specific_files_folders();
 		$message_display = '';
 		if ( false === self::is_cache() ) {

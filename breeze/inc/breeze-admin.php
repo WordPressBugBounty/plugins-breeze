@@ -267,7 +267,7 @@ class Breeze_Admin {
 		if ( true === $is_lazy_load_enabled ) {
 			if ( false === $is_lazy_load_native ) {
 				$data = 'document.addEventListener("DOMContentLoaded", function () {
-								    const lazyLoadInstance = new LazyLoad({
+							window.lazyLoadInstance = new LazyLoad({
 						    elements_selector: ".br-lazy",
 						    data_src: "breeze",
 						    data_srcset: "brsrcset",
@@ -384,14 +384,17 @@ INLINEJS;
 		// Only create the security nonce if the user has manage_options ( administrator capabilities ).
 		if ( false === breeze_is_restricted_access( true ) ) {
 			$token_name = array(
-				'breeze_purge_varnish'   => wp_create_nonce( '_breeze_purge_varnish' ),
-				'breeze_purge_database'  => wp_create_nonce( '_breeze_purge_database' ),
-				'breeze_purge_cache'     => wp_create_nonce( '_breeze_purge_cache' ),
-				'breeze_save_options'    => wp_create_nonce( '_breeze_save_options' ),
-				'breeze_purge_opcache'   => wp_create_nonce( '_breeze_purge_opcache' ),
-				'breeze_import_settings' => wp_create_nonce( '_breeze_import_settings' ),
-				'breeze_reset_default'   => wp_create_nonce( '_breeze_reset_default' ),
-				'breeze_check_cdn_url'   => wp_create_nonce( '_breeze_check_cdn_url' ),
+				'breeze_purge_varnish'    => wp_create_nonce( '_breeze_purge_varnish' ),
+				'breeze_purge_database'   => wp_create_nonce( '_breeze_purge_database' ),
+				'breeze_purge_cache'      => wp_create_nonce( '_breeze_purge_cache' ),
+				'breeze_save_options'     => wp_create_nonce( '_breeze_save_options' ),
+				'breeze_purge_opcache'    => wp_create_nonce( '_breeze_purge_opcache' ),
+				'breeze_import_settings'  => wp_create_nonce( '_breeze_import_settings' ),
+				'breeze_reset_default'    => wp_create_nonce( '_breeze_reset_default' ),
+				'breeze_check_cdn_url'    => wp_create_nonce( '_breeze_check_cdn_url' ),
+				'breeze_check_compat'     => wp_create_nonce( '_breeze_check_compat' ),
+				'breeze_check_permission' => wp_create_nonce( '_breeze_check_permission' ),
+				'breeze_export_json'      => wp_create_nonce( '_breeze_export_json' ),
 			);
 		}
 

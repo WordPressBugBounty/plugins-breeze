@@ -89,6 +89,7 @@ class Breeze_Settings_Import_Export {
 	 * @access public
 	 */
 	public function export_json_settings() {
+		check_ajax_referer( '_breeze_export_json', 'security' );
 		breeze_is_restricted_access();
 		$level = '';
 		if ( is_multisite() ) {

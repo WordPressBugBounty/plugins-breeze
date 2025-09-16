@@ -124,11 +124,7 @@ class Breeze_Cache_CronJobs {
 		if ( ! empty( $saved_gravatar ) ) {
 			return $saved_gravatar;
 		}
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem       = breeze_get_filesystem();
 		$gravatar_local_path = $this->get_local_extra_cache_directory( 'gravatars' );
 		$gravatar_name       = basename( wp_parse_url( $url, PHP_URL_PATH ) );
 		if ( ! file_exists( $gravatar_local_path . $gravatar_name ) ) {
@@ -213,5 +209,4 @@ class Breeze_Cache_CronJobs {
 
 		return BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' . $blog_id;
 	}
-
 }

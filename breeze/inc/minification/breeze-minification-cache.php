@@ -216,7 +216,7 @@ class Breeze_MinificationCache {
 	static function checkCacheDir( $dir ) {
 		// Check and create if not exists
 		if ( ! file_exists( $dir ) ) {
-			@mkdir( $dir, 0775, true );
+			@mkdir( $dir, defined( 'FS_CHMOD_DIR' ) ? FS_CHMOD_DIR : 0775, true );
 			if ( ! file_exists( $dir ) ) {
 				return false;
 			}

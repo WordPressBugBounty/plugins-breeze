@@ -115,13 +115,13 @@ class Breeze_Store_Files {
 		$local_css_file_dir  = $file_dir . $local_css_file_name;
 		$local_css_file_uri  = $stored_files_uri . $local_css_file_name;
 
-		if ( file_exists( $file_dir ) ) {
-			$css_file = fopen( $local_css_file_dir, 'w' );
-			fwrite( $css_file, $css );
-			fclose( $css_file );
+		$wp_filesystem = breeze_get_filesystem();
+
+		if ( $wp_filesystem->exists( $file_dir ) ) {
+			$wp_filesystem->put_contents( $local_css_file_dir, $css );
 		}
 
-		if ( file_exists( $local_css_file_dir ) ) {
+		if ( $wp_filesystem->exists( $local_css_file_dir ) ) {
 			return $local_css_file_uri;
 		}
 
@@ -268,8 +268,11 @@ class Breeze_Store_Files {
 	 * @return bool|false
 	 */
 	public function download_files_locally( $url, $file_dir, $file_name, $file_type = '.css' ) {
-		if ( ! file_exists( $file_dir ) ) {
-			mkdir( $file_dir, 0775, true );
+		$wp_filesystem = breeze_get_filesystem();
+
+		if ( ! $wp_filesystem->exists( $file_dir ) ) {
+			// Use PHP filesystem function with FS_CHMOD_DIR. $wp_filesystem->mkdir does not support a recursive flag.
+			mkdir( $file_dir, defined( 'FS_CHMOD_DIR' ) ? FS_CHMOD_DIR : 0775, true );
 		}
 
 		if ( $file_type = '.css' ) {
@@ -280,8 +283,11 @@ class Breeze_Store_Files {
 
 		$local_file_path = $file_dir . $file_name;
 
-		// Check if the file exists and is less than 1 week old
-		if ( file_exists( $local_file_path ) && time() - filemtime( $local_file_path ) < $max_age_in_seconds ) {
+		// Check if the file exists and is less than 1 week old.
+		if (
+			$wp_filesystem->exists( $local_file_path ) &&
+			time() - filemtime( $local_file_path ) < $max_age_in_seconds
+		) {
 			return true; // File is already up-to-date
 		}
 
@@ -296,11 +302,14 @@ class Breeze_Store_Files {
 			return false;
 		}
 
-		$file = fopen( $local_file_path, 'w' );
-		fwrite( $file, $original_file_content );
-		fclose( $file );
+		// Write the file.
+		$result = $wp_filesystem->put_contents( $local_file_path, $original_file_content );
 
-		if ( ! file_exists( $local_file_path ) ) {
+		// Check if file was created successfully.
+		if (
+			! $result ||
+			! $wp_filesystem->exists( $local_file_path )
+		) {
 			return false;
 		}
 
@@ -313,11 +322,8 @@ class Breeze_Store_Files {
 	 * @return bool
 	 */
 	public static function cleanup_all_extra_folder() {
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
+
 		$ret = true;
 
 		$folder = untrailingslashit( WP_CONTENT_DIR ) . '/uploads/breeze';

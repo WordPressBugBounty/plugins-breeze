@@ -62,12 +62,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -99,12 +94,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -195,12 +185,7 @@ class Breeze_Configuration {
 
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -300,12 +285,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response      = array();
 		$preload_fonts = array();
@@ -366,12 +346,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -436,12 +411,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -486,12 +456,7 @@ class Breeze_Configuration {
 		check_ajax_referer( '_breeze_save_options', 'security' );
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response = array();
 		parse_str( $_POST['form-data'], $_POST );
@@ -572,12 +537,7 @@ class Breeze_Configuration {
 
 		set_as_network_screen();
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/file.php' );
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$response         = array();
 		$inherit_settings = ( ( true === filter_var( $_POST['is-selected'], FILTER_VALIDATE_BOOLEAN ) ) ? '1' : '0' );

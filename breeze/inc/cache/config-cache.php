@@ -29,11 +29,7 @@ class Breeze_ConfigCache {
 	 * Create advanced-cache file
 	 */
 	public function write() {
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$file = trailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
 
@@ -555,12 +551,7 @@ FILE_STRING;
 	 * @param bool  $create_root_config Used in multisite, to reset/create breeze-config.php file
 	 */
 	public static function write_config( $config, $create_root_config = false ) {
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$config_dir = trailingslashit( WP_CONTENT_DIR ) . 'breeze-config';
 		$filename   = 'breeze-config';
@@ -605,7 +596,7 @@ FILE_STRING;
 			return false;
 		}
 
-		global $wp_filesystem;
+		$wp_filesystem = breeze_get_filesystem();
 		if ( defined( 'WP_CACHE' ) && WP_CACHE === $status ) {
 			return;
 		}
@@ -681,7 +672,7 @@ FILE_STRING;
 	 */
 	public function clean_up() {
 
-		global $wp_filesystem;
+		$wp_filesystem = breeze_get_filesystem();
 		$file = untrailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
 
 		$ret = true;
@@ -712,7 +703,7 @@ FILE_STRING;
 	 */
 	public function clean_config() {
 
-		global $wp_filesystem;
+		$wp_filesystem = breeze_get_filesystem();
 
 		$folder = untrailingslashit( WP_CONTENT_DIR ) . '/breeze-config';
 

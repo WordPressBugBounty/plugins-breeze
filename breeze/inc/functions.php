@@ -951,11 +951,7 @@ function breeze_is_folder_empty( string $dir = '' ): bool {
 		return false;// folder does not exist.
 	}
 
-	global $wp_filesystem;
-	if ( empty( $wp_filesystem ) ) {
-		require_once ABSPATH . '/wp-admin/includes/file.php';
-		WP_Filesystem();
-	}
+	$wp_filesystem = breeze_get_filesystem();
 
 	// This will return an array with the contents or empty.
 	$files = $wp_filesystem->dirlist( $dir );

@@ -211,7 +211,6 @@ class Breeze_Admin {
 		if ( empty( $blog_varnish ) ) {
 			update_blog_option( $blog_id, 'breeze_varnish_cache', $varnish );
 		}
-
 	}
 
 
@@ -239,11 +238,11 @@ class Breeze_Admin {
 
 		$is_lazy_load_enabled = false;
 		$is_lazy_load_native  = false;
-		$is_lazy_load_iframe  = false;
+		$is_lazy_load_videos  = false;
 
-		$option_breeze_lazy_load         = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load' );
-		$option_breeze_lazy_load_native  = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load-native' );
-		$option_breeze_lazy_load_iframes = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load-iframes' );
+		$option_breeze_lazy_load        = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load' );
+		$option_breeze_lazy_load_native = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load-native' );
+		$option_breeze_lazy_load_videos = Breeze_Options_Reader::get_option_value( 'breeze-lazy-load-videos' );
 
 		if ( isset( $option_breeze_lazy_load ) ) {
 			$is_lazy_load_enabled = filter_var( $option_breeze_lazy_load, FILTER_VALIDATE_BOOLEAN );
@@ -251,21 +250,19 @@ class Breeze_Admin {
 		if ( isset( $option_breeze_lazy_load_native ) ) {
 			$is_lazy_load_native = filter_var( $option_breeze_lazy_load_native, FILTER_VALIDATE_BOOLEAN );
 		}
-		if ( isset( $option_breeze_lazy_load_iframes ) ) {
-			$is_lazy_load_iframe = filter_var( $option_breeze_lazy_load_iframes, FILTER_VALIDATE_BOOLEAN );
+		if ( isset( $option_breeze_lazy_load_videos ) ) {
+			$is_lazy_load_videos = filter_var( $option_breeze_lazy_load_videos, FILTER_VALIDATE_BOOLEAN );
 		}
 
-		if ( ( true === $is_lazy_load_enabled && false === $is_lazy_load_native ) || true === $is_lazy_load_iframe ) {
-			if ( ! wp_script_is( 'jquery', 'enqueued' ) ) {
-				wp_enqueue_script( 'jquery' );
-			}
+		if ( $is_lazy_load_enabled ) {
+			// Load breeze lazy load only for videos if the native lazy load is enabled. If the lazy load native is not activated, load the breeze lazy load
+			if ( ! $is_lazy_load_native || $is_lazy_load_videos ) {
+				if ( ! wp_script_is( 'jquery', 'enqueued' ) ) {
+					wp_enqueue_script( 'jquery' );
+				}
 
-			wp_enqueue_script( 'breeze-lazy', plugins_url( 'assets/js/js-front-end/breeze-lazy-load.min.js', dirname( __FILE__ ) ), array(), BREEZE_VERSION, true );
-		}
+				wp_enqueue_script( 'breeze-lazy', plugins_url( 'assets/js/js-front-end/breeze-lazy-load.min.js', __DIR__ ), array(), BREEZE_VERSION, true );
 
-		// Fix viewport images when lazy-load is active.
-		if ( true === $is_lazy_load_enabled ) {
-			if ( false === $is_lazy_load_native ) {
 				$data = 'document.addEventListener("DOMContentLoaded", function () {
 							window.lazyLoadInstance = new LazyLoad({
 						    elements_selector: ".br-lazy",
@@ -277,7 +274,9 @@ class Breeze_Admin {
 								    });
 						});';
 				wp_add_inline_script( 'breeze-lazy', $data, 'after' );
-			} else {
+			}
+
+			if ( $is_lazy_load_native ) {
 				$inline_js = <<<INLINEJS
 window.addEventListener("DOMContentLoaded",(e=>{document.querySelectorAll('img[loading="lazy"]').forEach((e=>{e.getBoundingClientRect().top<=window.innerHeight&&(e.loading="eager")}))}));
 INLINEJS;

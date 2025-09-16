@@ -93,7 +93,6 @@ class Breeze_PurgeCache {
 				$main->purge_cache( $item_url );
 			}
 		}
-
 	}
 
 	/**
@@ -232,7 +231,6 @@ class Breeze_PurgeCache {
 				Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls );
 			}
 		}
-
 	}
 
 	/**
@@ -251,7 +249,6 @@ class Breeze_PurgeCache {
 			// Purge CF cache.
 			Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls );
 		}
-
 	}
 
 	private function collect_urls_for_cache_purge( $post_id ): array {
@@ -390,11 +387,7 @@ class Breeze_PurgeCache {
 	 * @return void
 	 */
 	private function clear_local_cache_for_urls( array $list_of_urls ) {
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		if ( ! empty( $list_of_urls ) ) {
 			foreach ( $list_of_urls as $local_url ) {
@@ -485,12 +478,7 @@ class Breeze_PurgeCache {
 		}
 
 		if ( true === $purge_all_html_folder ) {
-			global $wp_filesystem;
-
-			if ( empty( $wp_filesystem ) ) {
-				require_once ABSPATH . '/wp-admin/includes/file.php';
-				WP_Filesystem();
-			}
+			$wp_filesystem = breeze_get_filesystem();
 
 			$cache_path = breeze_get_cache_base_path( is_network_admin() );
 			$wp_filesystem->rmdir( untrailingslashit( $cache_path ), true );
@@ -525,8 +513,8 @@ class Breeze_PurgeCache {
 
 	public function clean_up() {
 
-		global $wp_filesystem;
-		$file = untrailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
+		$wp_filesystem = breeze_get_filesystem();
+		$file          = untrailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
 
 		$ret = true;
 
@@ -602,7 +590,6 @@ class Breeze_PurgeCache {
 		wp_cache_delete( $object_id, 'posts' );
 		wp_cache_delete( $object_id, 'post_meta' ); // If needed
 		wp_cache_delete( 'post_terms_' . $object_id, 'terms' ); //for term related to post
-
 	}
 
 	/**
@@ -629,7 +616,6 @@ class Breeze_PurgeCache {
 		#delete_transient( 'all_terms' ); //for all terms, if needed
 		$tax_cache_key = "{$taxonomy}_terms"; //dynamic based on current taxonomy
 		wp_cache_delete( $tax_cache_key, 'terms' ); //clear cache for taxonomy
-
 	}
 
 	/**
@@ -680,9 +666,7 @@ class Breeze_PurgeCache {
 		}
 		// Go ahead and clear the object cache.
 		return false;
-
 	}
-
 }
 
 $breeze_basic_settings = Breeze_Options_Reader::get_option_value( 'breeze-active' );

@@ -264,11 +264,8 @@ function breeze_cache( $buffer, $flags ) {
 	// Filter to modify cache buffer before caching
 	$buffer = apply_filters( 'breeze_cache_buffer_before_processing', $buffer );
 
-	global $wp_filesystem, $breeze_current_url_path;
-	if ( empty( $wp_filesystem ) ) {
-		require_once( ABSPATH . '/wp-admin/includes/file.php' );
-		WP_Filesystem();
-	}
+	global $breeze_current_url_path;
+	$wp_filesystem = breeze_get_filesystem();
 
 	$blog_id_requested = isset( $GLOBALS['breeze_config']['blog_id'] ) ? $GLOBALS['breeze_config']['blog_id'] : 0;
 	$cache_base_path   = breeze_get_cache_base_path( false, $blog_id_requested );

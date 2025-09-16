@@ -258,15 +258,17 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 
 		$full_file_path = $breeze_export . $breeze_file;
 		$create         = false;
+
+		$wp_filesystem = breeze_get_filesystem();
+
 		if ( wp_mkdir_p( $breeze_export ) ) {
 			$create = true;
 		}
+
 		if ( $create ) {
-			$file_handle = @fopen( $full_file_path, 'wb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_read_fopen
-			if ( $file_handle ) {
-				fwrite( $file_handle, $settings ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fwrite
-				fclose( $file_handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fclose
-			} else {
+			// Write settings to the file.
+			$result = $wp_filesystem->put_contents( $full_file_path, $settings );
+			if ( ! $result ) {
 				WP_CLI::error(
 					__( 'Could not write to file', 'breeze' )
 				);
@@ -407,7 +409,6 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 		}
 
 		WP_CLI::line( WP_CLI::colorize( '%YDone%n.' ) );
-
 	}
 
 	/**
@@ -455,7 +456,6 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 			);
 		}
 	}
-
 }
 
 WP_CLI::add_command(
@@ -463,6 +463,3 @@ WP_CLI::add_command(
 	'Breeze_WP_Cli_Core',
 	array( 'file-path' => '' )
 );
-
-
-

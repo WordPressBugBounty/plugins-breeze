@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.8.2
 Requires PHP: 7.4
-Stable tag: 2.2.18
+Stable tag: 2.2.19
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,11 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.2.19 =
+
+* Fixed: Video lazy loading conflicts by ensuring compatibility with native lazy load and excluding WordPress [video] short codes from lazy loading.
+* Improved: File and folder permission handling logic – missing file/folder checks will no longer appear when the cache system is disabled.
 
 = 2.2.18 =
 

@@ -220,11 +220,7 @@ class Breeze_Upgrade {
 	 */
 	public static function refresh_config_files() {
 
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		// import these file in front-end when required.
 		if ( ! class_exists( 'Breeze_Ecommerce_Cache' ) ) {

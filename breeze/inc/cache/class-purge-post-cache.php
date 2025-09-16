@@ -76,12 +76,7 @@ class Purge_Post_Cache {
 
 		check_admin_referer( 'clear-cache-post_' . $post_id );
 
-		global $wp_filesystem;
-
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . '/wp-admin/includes/file.php';
-			WP_Filesystem();
-		}
+		$wp_filesystem = breeze_get_filesystem();
 
 		$url_path = get_permalink( $post_id );
 

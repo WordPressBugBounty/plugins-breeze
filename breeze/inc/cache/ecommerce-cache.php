@@ -29,19 +29,11 @@ class Breeze_Ecommerce_Cache {
 	public function update_ecommerce_activation() {
 		$check = get_option( 'breeze_ecommerce_detect' );
 		if ( stripos( $_SERVER['REQUEST_URI'], 'wc-setup&step=locale' ) !== false ) {
-			global $wp_filesystem;
-			if ( empty( $wp_filesystem ) ) {
-				require_once( ABSPATH . '/wp-admin/includes/file.php' );
-				WP_Filesystem();
-			}
+			$wp_filesystem = breeze_get_filesystem();
 			Breeze_ConfigCache::write_config_cache();
 		}
 		if ( ! empty( $check ) ) {
-			global $wp_filesystem;
-			if ( empty( $wp_filesystem ) ) {
-				require_once( ABSPATH . '/wp-admin/includes/file.php' );
-				WP_Filesystem();
-			}
+			$wp_filesystem = breeze_get_filesystem();
 			Breeze_ConfigCache::write_config_cache();
 			update_option( 'breeze_ecommerce_detect', 0 );
 		}
@@ -425,7 +417,7 @@ class Breeze_Ecommerce_Cache {
 		$urls  = array();
 		$regex = '*';
 
-		if ( !function_exists('bbp_get_current_user_id') || !function_exists('bbp_get_user_profile_url') ) {
+		if ( ! function_exists( 'bbp_get_current_user_id' ) || ! function_exists( 'bbp_get_user_profile_url' ) ) {
 			return $urls;
 		}
 
@@ -445,7 +437,6 @@ class Breeze_Ecommerce_Cache {
 
 			$urls[] = $url_profile;
 
-
 			if ( ! empty( $urls ) ) {
 				// Process urls to return
 				$urls = array_unique( $urls );
@@ -457,10 +448,10 @@ class Breeze_Ecommerce_Cache {
 	}
 
 	/**
-	 * Take page id and checks if it's in the exluded pages list 
+	 * Take page id and checks if it's in the exluded pages list
 	 * when woocommerce is active the exluded pages currently are
 	 * cart,checkout,myaccount.
-	 * 
+	 *
 	 * @param int $page_id
 	 * @return boolean $is_excluded_ecom_page
 	 */
@@ -480,7 +471,6 @@ class Breeze_Ecommerce_Cache {
 			}
 		}
 		return $is_excluded_ecom_page;
-
 	}
 
 	/**
@@ -532,8 +522,8 @@ class Breeze_Ecommerce_Cache {
 		$urls = array();
 		if ( class_exists( 'WC_Facebook_Loader' ) ) {
 			if ( class_exists( 'SkyVerge\WooCommerce\Facebook\Products\Feed' ) ) {
-			$urls[] = SkyVerge\WooCommerce\Facebook\Products\Feed::get_feed_data_url();
-		}
+				$urls[] = SkyVerge\WooCommerce\Facebook\Products\Feed::get_feed_data_url();
+			}
 			if ( class_exists( 'WooCommerce\Facebook\Products\Feed' ) ) {
 				$urls[] = WooCommerce\Facebook\Products\Feed::get_feed_data_url();
 			}
@@ -553,7 +543,7 @@ class Breeze_Ecommerce_Cache {
 			$home_url      = trailingslashit( get_home_url() );
 			$home_url_path = parse_url( $home_url, PHP_URL_PATH );
 
-			if( '/' === $url || $home_url_path === $url || $home_url === $url ) {
+			if ( '/' === $url || $home_url_path === $url || $home_url === $url ) {
 				$url = '/' . get_post_field( 'post_name', $postID ) . '/';
 			}
 		} else {
@@ -602,7 +592,7 @@ class Breeze_Ecommerce_Cache {
 		}
 
 		// qTranslate-x plugin
-		require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		if ( is_plugin_active( 'qtranslate-x/qtranslate.php' ) ) {
 			global $q_config;
 			if ( isset( $q_config ) && function_exists( 'qtranxf_convertURL' ) ) {

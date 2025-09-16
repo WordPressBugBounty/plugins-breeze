@@ -100,7 +100,7 @@ class Breeze_Woocommerce_Product_Cache {
 
 				if ( ! empty( $archive_urls ) ) {
 					foreach ( $archive_urls as $url ) {
-						global $wp_filesystem;
+						$wp_filesystem = breeze_get_filesystem();
 						// Clear the cache for the product page.
 						if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url ) ) ) {
 							$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url ), true );

@@ -551,11 +551,9 @@ function breeze_read_write_file( $file_path = '', $content = '' ) {
 		return false;
 	}
 
-	if (($handler = @fopen($file_path, 'w')) !== false) { // phpcs:ignore
-		if ((@fwrite($handler, $content)) !== false) { // phpcs:ignore
-			@fclose($handler); // phpcs:ignore
-		}
-	}
+	$wp_filesystem = breeze_get_filesystem();
+
+	return $wp_filesystem->put_contents( $file_path, $content );
 }
 
 
@@ -613,13 +611,7 @@ function multisite_blog_id_config() {
  * @since 1.1.10
  */
 function breeze_varnish_purge_cache( $url = '', $purge_varnish = false, $check_varnish = true ) {
-	global $wp_filesystem;
-
-	// Making sure the filesystem is loaded.
-	if ( empty( $wp_filesystem ) ) {
-		require_once ABSPATH . '/wp-admin/includes/file.php';
-		WP_Filesystem();
-	}
+	$wp_filesystem = breeze_get_filesystem();
 
 	// Clear the local cache using the product URL.
 	if ( ! empty( $url ) && $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url ) ) ) {
@@ -850,4 +842,21 @@ function breeze_helper_fetch_headers( int $time_fresh = 0 ) {
 	$headers = iterator_to_array( $request['headers'] );
 
 	return $headers;
+}
+
+/**
+ * Helper function to get the WordPress Filesystem object.
+ * Initializes the filesystem if it's not already set up.
+ *
+ * @return WP_Filesystem_Base The WordPress filesystem object.
+ */
+function breeze_get_filesystem(): WP_Filesystem_Base {
+	global $wp_filesystem;
+
+	if ( empty( $wp_filesystem ) ) {
+		require_once ABSPATH . '/wp-admin/includes/file.php';
+		WP_Filesystem();
+	}
+
+	return $wp_filesystem;
 }

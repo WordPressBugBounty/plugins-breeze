@@ -75,7 +75,6 @@ class Breeze_Lazy_Load {
 				'data-srcset-img',
 			)
 		);
-
 	}
 
 	/**
@@ -299,6 +298,11 @@ class Breeze_Lazy_Load {
 
 			foreach ( $video_matches[0] as $video_tag ) {
 
+                // Exclude the WP video shortcode due to its reliance on the MediaElementPlayer library.
+                if ( preg_match( '/class=[\'"][^\'"]*\bwp-video-shortcode\b[^\'"]*[\'"]/i', $video_tag ) ) {
+                    continue;
+                }
+
 				$video_tag_edited = false;
 
 				// Lazy loading class
@@ -354,7 +358,6 @@ class Breeze_Lazy_Load {
 		$content = mb_decode_numericentity( $content, array( 0x80, 0x10FFFF, 0, ~0 ), 'UTF-8' );
 
 		return $content;
-
 	}
 
 	/**

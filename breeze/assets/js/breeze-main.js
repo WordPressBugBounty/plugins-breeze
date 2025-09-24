@@ -287,13 +287,13 @@ jQuery( document ).ready(
 					},
 					success: function ( res ) {
 						$div.removeClass("notice-info");
-						if ( res.clear ) {
-							$div.addClass("notice-success");
-							$div.find("p").text("Varnish Cache has been purged.");
-						} else {
-							$div.addClass("notice-error");
-							$div.find("p").text("Varnish Cache could not be purged.");
-						}
+						$div.addClass("notice-success");
+						$div.find("p").text(res.responseJSON?.data);
+					},
+					error: function ( res ) {
+						$div.removeClass("notice-info");
+						$div.addClass("notice-error");
+						$div.find("p").text(res.responseJSON?.data);
 					}
 				}
 			);

@@ -190,10 +190,17 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 						// inline css in style tags can be wrapped in comment tags, so restore comments
 						$tag = $this->restore_comments( $tag );
 						preg_match( '#<style.*>(.*)</style>#Usmi', $tag, $code );
+
 						// and re-hide them to be able to to the removal based on tag
 						$tag = $this->hide_comments( $tag );
 						if ( $this->include_inline ) {
 							$code = preg_replace( '#^.*<!\[CDATA\[(?:\s*\*/)?(.*)(?://|/\*)\s*?\]\]>.*$#sm', '$1', $code[1] );
+							if( !is_array($code) && false !== strpos( $code, ':is' )){
+								$tag = '';
+								continue;
+							}
+							$code = $this->breeze_sanitize_css_content($code);
+
 							if ( true == $this->group_css ) {
 								// Not the problem
 								if ( isset( $media[0] ) && 'print' === trim( $media[0] ) ) {
@@ -264,6 +271,8 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 					$cssPath = $css;
 					$css     = $this->fixurls( $cssPath, file_get_contents( $cssPath ) );
 					$css     = preg_replace( '/\x{EF}\x{BB}\x{BF}/', '', $css );
+					$css = $this->breeze_sanitize_css_content($css);
+
 					if (
 						false !== strpos( $css, '.elementor-products-grid ul.products.elementor-grid li.product' ) ||
 						false !== strpos( $css, 'li.product,.woocommerce-page ul.products[class*=columns-] li.product' )
@@ -295,7 +304,7 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 						$this->csscode[ $elem ] = '';
 					}
 					if ( $is_elementor_exception && false !== strpos( $css, 'li.product,.woocommerce-page ul.products[class*=columns-] li.product' ) ) {
-						$this->csscode['all'] .= "\n/*FILESTART*/" . "@media {$elem}{" . $css . '}'; // TODO aici se strica
+						$this->csscode['all'] .= "\n/*FILESTART*/" . "@media {$elem}{" . $css . '}';
 					} else {
 						$this->csscode[ $elem ] .= "\n/*FILESTART*/" . "@media {$elem}{" . $css . '}';
 					}
@@ -348,6 +357,9 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 
 								$code     = addcslashes( $this->fixurls( $path, file_get_contents( $path ) ), '\\' );
 								$code     = preg_replace( '/\x{EF}\x{BB}\x{BF}/', '', $code );
+
+								$code = $this->breeze_sanitize_css_content($code);
+
 								$tmpstyle = apply_filters( 'breeze_css_individual_style', $code, '' );
 								if ( has_filter( 'breeze_css_individual_style' ) && ! empty( $tmpstyle ) ) {
 									$code                  = $tmpstyle;
@@ -603,7 +615,9 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 
 			$whole_css_file = $this->append_font_swap( $whole_css_file );
 			$md5            = hash('sha512', $whole_css_file);
+
 			$cache          = new Breeze_MinificationCache( $md5, 'css' );
+
 			if ( ! $cache->check() ) {
 				// Cache our code
 				$cache->cache( $whole_css_file, 'text/css' );
@@ -676,7 +690,7 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 			$this->restofcontent = '';
 		}
 		// Inject the new stylesheets
-		$replaceTag = array( '<title', 'before' );
+		$replaceTag = array( '</head', 'before' );
 		$replaceTag = apply_filters( 'breeze_filter_css_replacetag', $replaceTag );
 		if ( $this->group_css == true ) {
 			if ( $this->inline == true ) {
@@ -718,16 +732,20 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 					}
 				}
 				foreach ( $this->url as $media => $url ) {
+
 					$url = $this->url_replace_cdn( $url );
 					//Add the stylesheet either deferred (import at bottom) or normal links in head
 					if ( $this->defer == true ) {
+
 						$deferredCssBlock .= "lCss('" . $url . "','" . $media . "');";
 						$noScriptCssBlock .= '<link type="text/css" media="' . $media . '" href="' . $url . '" rel="stylesheet" />';
 					} else {
-						if ( strlen( $this->csscode[ $media ] ) > $this->cssinlinesize ) {
+						if ( isset($this->csscode[ $media ]) &&  strlen( $this->csscode[ $media ] ) > $this->cssinlinesize ) {
 							$this->inject_in_html( '<link type="text/css" media="' . $media . '" href="' . $url . '" rel="stylesheet" />', $replaceTag );
-						} elseif ( strlen( $this->csscode[ $media ] ) > 0 ) {
+						} elseif ( ! filter_var( $url, FILTER_VALIDATE_URL ) && strlen( $this->csscode[ $media ] ) > 0 ) {
 							$this->inject_in_html( '<style type="text/css" media="' . $media . '">' . $this->csscode[ $media ] . '</style>', $replaceTag );
+						}elseif( filter_var( $url, FILTER_VALIDATE_URL ) ){
+							$this->inject_in_html( '<link type="text/css" media="' . $media . '" href="' . $url . '" rel="stylesheet" />', $replaceTag );
 						}
 					}
 				}
@@ -959,4 +977,27 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 
 		return $code;
 	}
+
+	/**
+	 * Sanitize CSS content before minification
+	 * Fixes common syntax errors that break the CSS minify.
+	 *
+	 * @param string $css_content Raw CSS content
+	 *
+	 * @return string Sanitized CSS content
+	 */
+	private function breeze_sanitize_css_content( string $css_content ): string {
+		// Remove stray backticks at start of selectors.
+		$css_content = preg_replace('/^`([^{]+\{)/m', '$1', $css_content);
+		// Remove extra white spaces.
+		$css_content = preg_replace('/\s+/', ' ', $css_content);
+		// Fix double semicolons.
+		$css_content = preg_replace('/;;+/', ';', $css_content);
+		// Remove trailing semicolons before closing braces.
+		$css_content = preg_replace('/;\s*}/', '}', $css_content);
+
+		return $css_content;
+	}
+
+
 }

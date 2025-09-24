@@ -222,7 +222,7 @@ class Breeze_PurgeCache {
 				return;
 			}
 
-			$list_of_urls = $this->collect_urls_for_cache_purge( $post_id );
+			$list_of_urls = self::collect_urls_for_cache_purge( $post_id );
 
 			if ( ! empty( $list_of_urls ) ) {
 				// Purge local cache for the URLs list.
@@ -241,7 +241,7 @@ class Breeze_PurgeCache {
 	 * @return void
 	 */
 	public function purge_post_on_trash( int $post_id ) {
-		$list_of_urls = $this->collect_urls_for_cache_purge( $post_id );
+		$list_of_urls = self::collect_urls_for_cache_purge( $post_id );
 
 		if ( ! empty( $list_of_urls ) ) {
 			// Purge local cache for the URLs list.
@@ -251,7 +251,7 @@ class Breeze_PurgeCache {
 		}
 	}
 
-	private function collect_urls_for_cache_purge( $post_id ): array {
+	public static function collect_urls_for_cache_purge( $post_id ): array {
 
 		if ( false === get_permalink( $post_id ) ) {
 			return array();

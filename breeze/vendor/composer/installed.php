@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => '38dfbfd1c71fef5390fa76ecefb434cfe9c05017',
+        'pretty_version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
+        'version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
+        'reference' => 'ac60a99fbc30bd2589ec056c551c6cfb2a679f2f',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,18 +11,18 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => '38dfbfd1c71fef5390fa76ecefb434cfe9c05017',
+            'pretty_version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
+            'version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
+            'reference' => 'ac60a99fbc30bd2589ec056c551c6cfb2a679f2f',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'matthiasmullie/minify' => array(
-            'pretty_version' => '1.3.71',
-            'version' => '1.3.71.0',
-            'reference' => 'ae42a47d7fecc1fbb7277b2f2d84c37a33edc3b1',
+            'pretty_version' => '1.3.75',
+            'version' => '1.3.75.0',
+            'reference' => '76ba4a5f555fd7bf4aa408af608e991569076671',
             'type' => 'library',
             'install_path' => __DIR__ . '/../matthiasmullie/minify',
             'aliases' => array(),

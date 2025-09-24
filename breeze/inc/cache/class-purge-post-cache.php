@@ -104,6 +104,13 @@ class Purge_Post_Cache {
 		}
 		// Clear the varnish cache.
 		do_action( 'breeze_clear_varnish' );
+
+		// Clear the object cache.
+		Breeze_PurgeCache::clear_op_cache_for_posts( $post_id );
+
+		// Clear the CF cache.
+		$post_related_urls = Breeze_PurgeCache::collect_urls_for_cache_purge( $post_id );
+		Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $post_related_urls );
 		wp_redirect(
 			add_query_arg(
 				array(
@@ -112,8 +119,6 @@ class Purge_Post_Cache {
 				$this->sendback_url( $post_id )
 			)
 		);
-
-		Breeze_PurgeCache::clear_op_cache_for_posts($post_id);
 		exit;
 	}
 

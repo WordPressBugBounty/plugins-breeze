@@ -32,7 +32,6 @@ class Breeze_MinificationCache {
 				$this->filename = '/' . BREEZE_CACHEFILE_PREFIX . $separate_cache . $md5 . '.' . $ext;
 			}
 		}
-
 	}
 
 	public function get_cache_dir() {
@@ -44,7 +43,17 @@ class Breeze_MinificationCache {
 	}
 
 	public function check() {
-		if ( ! file_exists( $this->cachedir . $this->filename ) ) {
+		global $wp_filesystem;
+		if ( empty( $wp_filesystem ) ) {
+			require_once ABSPATH . '/wp-admin/includes/file.php';
+			WP_Filesystem();
+		}
+
+		if ( ! defined( 'FS_CHMOD_FILE' ) ) {
+			define( 'FS_CHMOD_FILE', ( 0664 & ~ umask() ) );
+		}
+
+		if ( ! $wp_filesystem->exists( $this->cachedir . $this->filename, FS_CHMOD_FILE ) ) {
 
 			// No cached file, sorry
 			return false;
@@ -209,7 +218,6 @@ class Breeze_MinificationCache {
 
 		// All OK
 		return true;
-
 	}
 
 	//      check dir cache
@@ -300,10 +308,13 @@ class Breeze_MinificationCache {
 					$thisAoCacheDir = rtrim( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . ( ! empty( $user_folder ) ? $user_folder . '/' : '' ) . $scandirName, '/' ) . '/';
 
 					foreach ( $scanneddir as $file ) {
-						if ( ! in_array( $file, array(
+						if ( ! in_array(
+							$file,
+							array(
 								'.',
-								'..'
-							) ) && ( strpos( $file, 'lock' ) !== false || strpos( $file, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $file ) ) {
+								'..',
+							)
+						) && ( strpos( $file, 'lock' ) !== false || strpos( $file, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $file ) ) {
 							@unlink( $thisAoCacheDir . $file );
 						}
 					}
@@ -342,10 +353,13 @@ class Breeze_MinificationCache {
 					$thisAoCacheDir = rtrim( BREEZE_MINIFICATION_CACHE . ( ! empty( $user_folder ) ? $user_folder . '/' : '' ) . $scandirName, '/' ) . '/';
 
 					foreach ( $scanneddir as $file ) {
-						if ( ! in_array( $file, array(
+						if ( ! in_array(
+							$file,
+							array(
 								'.',
-								'..'
-							) ) && ( strpos( $file, 'lock' ) !== false || strpos( $file, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $file ) ) {
+								'..',
+							)
+						) && ( strpos( $file, 'lock' ) !== false || strpos( $file, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $file ) ) {
 							@unlink( $thisAoCacheDir . $file );
 						}
 					}

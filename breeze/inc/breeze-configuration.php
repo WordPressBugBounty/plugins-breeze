@@ -1604,14 +1604,20 @@ class Breeze_Configuration {
 	/*
 	 * Ajax purge varnish
 	 */
-	public static function purge_varnish_action() {
+	public static function purge_varnish_action( $breeze_admin ) {
 		breeze_is_restricted_access();
 		//check security
 		check_ajax_referer( '_breeze_purge_varnish', 'security' );
 
-		do_action( 'breeze_clear_varnish' );
+		$res = $breeze_admin->breeze_clear_varnish();
 
-		echo json_encode( array( 'clear' => true ) );
+		if( $res ) {
+			$success_message = __( 'Varnish Cache has been purged.', 'breeze' );
+			wp_send_json_success( $success_message, 200 );
+		} else {
+			$error_message = __( 'Varnish Cache could not be purged.', 'breeze' );
+			wp_send_json_error( $error_message, 500 );
+		}
 		exit;
 	}
 

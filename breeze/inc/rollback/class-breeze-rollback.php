@@ -56,7 +56,7 @@ class Breeze_Rollback {
     public function breeze_rollback_html() {
         // Permissions check
         if ( ! current_user_can( 'update_plugins' ) ) {
-            wp_die( __( 'You do not have sufficient permissions to perform rollbacks for this site.', 'breeze' ) );
+            wp_die( esc_html__( 'You do not have sufficient permissions to perform rollbacks for this site.', 'breeze' ) );
         }
     
         // Get the necessary class
@@ -71,7 +71,7 @@ class Breeze_Rollback {
         check_admin_referer( 'breeze_rollback_nonce' );
     
         if ( empty( $args['breeze_version'] ) ) {
-            _e( 'Your Request is missing a required query param', 'breeze' );
+            esc_html_e( 'Your Request is missing a required query param', 'breeze' );
             return;
         }
     
@@ -85,7 +85,7 @@ class Breeze_Rollback {
     
         $result   = $upgrader->breeze_rollback( plugin_basename( $args['plugin_file'] ) );
 
-        _e( 'Breeze cache cleared successfully.', 'breeze' );
+        esc_html_e( 'Breeze cache cleared successfully.', 'breeze' );
     }
 }
 

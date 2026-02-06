@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 } // Exit if accessed directly
 
 abstract class Breeze_MinificationBase {
+
 	protected $content    = '';
 	protected $tagWarning = false;
 	protected $cdn_url    = '';
@@ -297,7 +298,7 @@ abstract class Breeze_MinificationBase {
 					$filecontent = preg_replace( "#\x{EF}\x{BB}\x{BF}#", '', $filecontent );
 
 					// remove comments and blank lines
-					if ( substr( $filepath, - 3, 3 ) === '.js' ) {
+					if ( substr( $filepath, -3, 3 ) === '.js' ) {
 						$filecontent = preg_replace( '#^\s*\/\/.*$#Um', '', $filecontent );
 					}
 
@@ -305,15 +306,15 @@ abstract class Breeze_MinificationBase {
 					$filecontent = preg_replace( "#(^[\r\n]*|[\r\n]+)[\s\t]*[\r\n]+#", "\n", $filecontent );
 
 					// specific stuff for JS-files
-					if ( substr( $filepath, - 3, 3 ) === '.js' ) {
-						if ( ( substr( $filecontent, - 1, 1 ) !== ';' ) && ( substr( $filecontent, - 1, 1 ) !== '}' ) ) {
+					if ( substr( $filepath, -3, 3 ) === '.js' ) {
+						if ( ( substr( $filecontent, -1, 1 ) !== ';' ) && ( substr( $filecontent, -1, 1 ) !== '}' ) ) {
 							$filecontent .= ';';
 						}
 
 						if ( get_option( 'breeze_js_trycatch' ) === 'on' ) {
 							$filecontent = 'try{' . $filecontent . '}catch(e){}';
 						}
-					} elseif ( ( substr( $filepath, - 4, 4 ) === '.css' ) ) {
+					} elseif ( ( substr( $filepath, -4, 4 ) === '.css' ) ) {
 						$filecontent = Breeze_MinificationStyles::fixurls( $filepath, $filecontent );
 					}
 
@@ -417,4 +418,92 @@ abstract class Breeze_MinificationBase {
 
 		return $return;
 	}
+
+	public function create_cache_file_name( string $url = '', int $blog_id = 0, int $length = 0 ): string {
+		global $post;
+
+		$filename = '';
+		if ( is_object( $post ) ) {
+			$post_id = $post->ID;
+		}
+
+		if ( empty( $post_id ) ) {
+			$post_id = 0;
+		}
+
+		if ( ! empty( $url ) ) {
+			$current_url = $url;
+		} else {
+			//check disable cache for page
+			$http_host_breeze = ( isset( $_SERVER['HTTP_HOST'] ) ) ? $_SERVER['HTTP_HOST'] : '';
+			$domain           = ( ( ( ! empty( $_SERVER['HTTPS'] ) && 'off' !== $_SERVER['HTTPS'] ) || ( isset( $_SERVER['SERVER_PORT'] ) && 443 === (int) $_SERVER['SERVER_PORT'] ) ) ? 'https://' : 'http://' ) . $http_host_breeze;
+			$current_url      = $domain . rawurldecode( $_SERVER['REQUEST_URI'] );
+            $current_url = urldecode($current_url);
+
+		}
+		if ( empty( $blog_id ) ) {
+			$blog_id = get_current_blog_id();
+		}
+
+		$current_link = get_home_url( $blog_id );
+        $current_link = urldecode($current_link);
+		$current_link = untrailingslashit( $current_link );
+
+		$url_test_replace = str_replace( $current_link, '', $current_url );
+		$url_test_replace = sanitize_title( $url_test_replace );
+
+		if ( empty( $url_test_replace ) ) {
+			$url_test_replace = sanitize_title( $current_link );
+		}
+
+		if ( ! empty( $length ) ) {
+			$url_test_replace = substr( $url_test_replace, 0, $length );
+		}
+
+        $url_test_replace = str_replace('http-','', $url_test_replace);
+        $url_test_replace = str_replace('https-','', $url_test_replace);
+
+        //sanitize characters.
+        $url_test_replace = $this->breeze_sanitize_filename( $url_test_replace );
+
+		$filename = $url_test_replace . '-' . $blog_id . '-' . $post_id;
+
+		return $filename;
+	}
+
+    /**
+     * Sanitize filename to handle non-ASCII characters properly
+     *
+     * @param string $filename The filename to sanitize
+     * @return string Sanitized filename safe for filesystem
+     */
+    private function breeze_sanitize_filename( string $filename ): string {
+        // Remove leading/trailing slashes and whitespace
+        $filename = trim( $filename, '/ ' );
+
+        // If empty after trimming, return a default
+        if ( empty( $filename ) ) {
+            return 'home';
+        }
+
+        if(function_exists('transliterator_transliterate')){
+            $filename = urldecode($filename);
+            $filename = transliterator_transliterate("Any-Latin; Latin-ASCII; Lower()",$filename);
+            $filename = preg_replace('/[^a-z0-9\-]+/', '-', $filename); // replace unsafe with hyphen
+            $filename = preg_replace('/-+/', '-', $filename); // collapse multiple hyphens
+            $filename = trim($filename, '-'); // trim leading/trailing hyphens
+        }else{
+            // Convert to lowercase for consistency
+            $filename = strtolower( $filename );
+            // Replace spaces and special characters with hyphens
+            $filename = preg_replace( '/[^a-z0-9\-_]/', '-', $filename );
+            // Remove multiple consecutive hyphens
+            $filename = preg_replace( '/-+/', '-', $filename );
+            // Remove leading/trailing hyphens
+            $filename = trim( $filename, '-' );
+        }
+
+
+        return $filename;
+    }
 }

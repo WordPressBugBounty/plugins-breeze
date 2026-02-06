@@ -1,10 +1,12 @@
 <?php
-
 /**
  * Class Breeze_Cache_CronJobs
  *
  * Handles cron jobs and cache-related functionality for the Breeze plugin.
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 class Breeze_Cache_CronJobs {
 
 	/**

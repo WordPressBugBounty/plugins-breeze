@@ -1,4 +1,7 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 include BREEZE_PLUGIN_DIR . 'inc/wp-cli/class-breeze-cli-helpers.php';
 include BREEZE_PLUGIN_DIR . 'inc/wp-cli/class-breeze-settings-import-export.php';

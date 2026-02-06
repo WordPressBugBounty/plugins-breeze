@@ -241,6 +241,8 @@ class Breeze_Minify {
 		$breeze_delay_all_js = filter_var( Breeze_Options_Reader::get_option_value( 'breeze-delay-all-js' ), FILTER_VALIDATE_BOOLEAN );
 		$script_delay        = Breeze_Options_Reader::get_option_value( 'breeze-delay-js-scripts' );
 		$is_inline_delay_on  = filter_var( Breeze_Options_Reader::get_option_value( 'breeze-enable-js-delay' ), FILTER_VALIDATE_BOOLEAN );
+		$breeze_minified_css_hashes = isset( get_option( 'breeze_minified_hashes' )['css'] ) ? get_option( 'breeze_minified_hashes' )['css'] : array();
+		$breeze_minified_js_hashes	= isset( get_option( 'breeze_minified_hashes' )['js'] ) ? get_option( 'breeze_minified_hashes' )['js'] : array();
 		$classoptions        = array(
 			'Breeze_MinificationScripts' => array(
 				'justhead'           => false,
@@ -257,6 +259,7 @@ class Breeze_Minify {
 				'no_delay_js'        => ( ! empty( $no_script_delay ) ? $no_script_delay : array() ),
 				'delay_javascript'   => $breeze_delay_all_js,
 				'is_inline_delay_on' => $is_inline_delay_on,
+				'breeze_minified_js_hashes' => $breeze_minified_js_hashes,
 			),
 			'Breeze_MinificationStyles'  => array(
 				'justhead'             => false,
@@ -272,18 +275,19 @@ class Breeze_Minify {
 				'groupcss'             => $groupcss,
 				'custom_css_exclude'   => Breeze_Options_Reader::get_option_value( 'breeze-exclude-css' ),
 				'include_imported_css' => false,
+				'breeze_minified_css_hashes' => $breeze_minified_css_hashes,
 			),
 			'Breeze_MinificationHtml'    => array(
 				'keepcomments' => false,
 			),
 			'Breeze_Js_Deferred_Loading' => array(
-				'move_to_footer_js'  => Breeze_Options_Reader::get_option_value( 'breeze-move-to-footer-js' ),
-				'defer_js'           => Breeze_Options_Reader::get_option_value( 'breeze-defer-js' ),
-				'delay_inline_js'    => ( ! empty( $script_delay ) ? $script_delay : array() ),
-				'no_delay_js'        => ( ! empty( $no_script_delay ) ? $no_script_delay : array() ),
-				'cdn_url'            => $cdn_url,
-				'delay_javascript'   => $breeze_delay_all_js,
-				'is_inline_delay_on' => $is_inline_delay_on,
+				'move_to_footer_js'  		=> Breeze_Options_Reader::get_option_value( 'breeze-move-to-footer-js' ),
+				'defer_js'           		=> Breeze_Options_Reader::get_option_value( 'breeze-defer-js' ),
+				'delay_inline_js'    		=> ( ! empty( $script_delay ) ? $script_delay : array() ),
+				'no_delay_js'        		=> ( ! empty( $no_script_delay ) ? $no_script_delay : array() ),
+				'cdn_url'            		=> $cdn_url,
+				'delay_javascript'   		=> $breeze_delay_all_js,
+				'is_inline_delay_on' 		=> $is_inline_delay_on,
 			),
 		);
 

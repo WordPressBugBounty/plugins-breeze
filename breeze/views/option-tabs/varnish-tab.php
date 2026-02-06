@@ -25,14 +25,14 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 ?>
 <form data-section="varnish">
 	<?php if ( true === $is_custom ) { ?>
-		<div class="br-overlay-disable"><?php _e( 'Settings are inherited', 'breeze' ); ?></div>
+		<div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
 	<section>
 		<div class="br-section-title">
-			<img src="<?php echo $icon; ?>"/>
-			<?php _e( 'Varnish', 'breeze' ); ?>
+			<img src="<?php echo esc_url( $icon ); ?>"/>
+			<?php esc_html_e( 'Varnish', 'breeze' ); ?>
 			<p class="br-subtitle">
-				<?php _e( 'By default Varnish is enabled on all WordPress websites hosted on Cloudways.', 'breeze' ); ?>
+				<?php esc_html_e( 'By default Varnish is enabled on all WordPress websites hosted on Cloudways.', 'breeze' ); ?>
 			</p>
 		</div>
 
@@ -40,7 +40,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Auto Purge Varnish', 'breeze' ); ?>
+					<?php esc_html_e( 'Auto Purge Varnish', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -54,7 +54,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 				?>
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="auto-purge-varnish" name="auto-purge-varnish" type="checkbox" class="br-box" value="1" <?php echo $is_enabled; ?>>
+						<input id="auto-purge-varnish" name="auto-purge-varnish" type="checkbox" class="br-box" value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -62,7 +62,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 
 				<div class="br-note">
 					<p>
-						<?php _e( 'Keep this option enabled to automatically purge Varnish cache on actions like publishing new blog posts, pages and comments.', 'breeze' ); ?>
+						<?php esc_html_e( 'Keep this option enabled to automatically purge Varnish cache on actions like publishing new blog posts, pages and comments.', 'breeze' ); ?>
 					</p>
 					<?php
 					if ( ! $check_varnish ) {
@@ -70,10 +70,10 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 						//                      echo '<strong>';
 						//                      _e( 'Note: ', 'breeze' );
 						//                      echo '</strong>';
-						_e( 'Seems Varnish is disabled on your Application. Please refer to this', 'breeze' );
+						esc_html_e( 'Seems Varnish is disabled on your Application. Please refer to this', 'breeze' );
 						?>
-						<a href="https://support.cloudways.com/most-common-varnish-issues-and-queries/"
-						   target="_blank"><?php _e( 'Knowledge Base', 'breeze' ); ?></a><?php _e( ' article and learn how to enable it.', 'breeze' ); ?> </span>
+						<a href="<?php echo esc_url( 'https://support.cloudways.com/most-common-varnish-issues-and-queries/' ); ?>"
+						   target="_blank"><?php esc_html_e( 'Knowledge Base', 'breeze' ); ?></a><?php esc_html_e( ' article and learn how to enable it.', 'breeze' ); ?> </span>
 						<?php
 						echo '</p>';
 					}
@@ -87,7 +87,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Varnish Server', 'breeze' ); ?>
+					<?php esc_html_e( 'Varnish Server', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -95,11 +95,11 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 				$varnish_ip = ( ! empty( $options['breeze-varnish-server-ip'] ) ? esc_html( $options['breeze-varnish-server-ip'] ) : '127.0.0.1' );
 
 				?>
-				<input type="text" id="varnish-server-ip" name="varnish-server-ip" size="50" placeholder="<?php _e( '127.0.0.1', 'breeze' ); ?>" value="<?php echo $varnish_ip; ?>"/>
+				<input type="text" id="varnish-server-ip" name="varnish-server-ip" size="50" placeholder="<?php esc_attr_e( '127.0.0.1', 'breeze' ); ?>" value="<?php echo esc_attr( $varnish_ip ); ?>"/>
 				<div class="br-note">
 					<p> 
 					<?php
-						_e( 'Keep this default if you are a Cloudways customer. Otherwise ask your hosting provider on what to set here.', 'breeze' );
+						esc_html_e( 'Keep this default if you are a Cloudways customer. Otherwise ask your hosting provider on what to set here.', 'breeze' );
 					?>
 						 </p>
 				</div>
@@ -111,17 +111,17 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Purge Varnish Cache', 'breeze' ); ?>
+					<?php esc_html_e( 'Purge Varnish Cache', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
-				<a href="#" id="purge-varnish-button" class="br-blue-button-reverse"><?php _e( 'Purge', 'breeze' ); ?></a>
+				<a href="#" id="purge-varnish-button" class="br-blue-button-reverse"><?php esc_html_e( 'Purge', 'breeze' ); ?></a>
 
 				<div class="br-note">
 					<p>
 						<?php
 
-						_e( 'Use this option to instantly Purge Varnish Cache on entire website.', 'breeze' );
+						esc_html_e( 'Use this option to instantly Purge Varnish Cache on entire website.', 'breeze' );
 						?>
 					</p>
 				</div>
@@ -130,7 +130,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/varnish-active.png';
 		<!-- END OPTION -->
 	</section>
 	<div class="br-submit">
-		<input type="submit" value="<?php echo __( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
+		<input type="submit" value="<?php echo esc_attr__( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
 	</div>
 </form>
 

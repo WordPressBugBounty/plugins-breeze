@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Breeze
- * Description: Breeze is a WordPress cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.2.20
+ * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
+ * Version: 2.2.24
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.2.20' );
+	define( 'BREEZE_VERSION', '2.2.23' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -160,7 +160,6 @@ require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-api.php';
 $api_enabled = Breeze_Options_Reader::get_option_value( 'breeze-enable-api' );
 if ( $api_enabled ) {
 	$options = array(
-		'breeze-secure-api' => Breeze_Options_Reader::get_option_value( 'breeze-secure-api' ),
 		'breeze-api-token'  => Breeze_Options_Reader::get_option_value( 'breeze-api-token' ),
 
 	);

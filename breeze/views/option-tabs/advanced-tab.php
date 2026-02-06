@@ -24,24 +24,24 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 ?>
 <form data-section="advanced">
 	<?php if ( true === $is_custom ) { ?>
-		<div class="br-overlay-disable"><?php _e( 'Settings are inherited', 'breeze' ); ?></div>
+		<div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
 	<section>
 		<div class="br-section-title">
-			<img src="<?php echo $icon; ?>"/>
-			<?php _e( 'ADVANCED OPTIONS', 'breeze' ); ?>
+			<img src="<?php echo esc_url( $icon ); ?>"/>
+			<?php esc_html_e( 'ADVANCED OPTIONS', 'breeze' ); ?>
 		</div>
 
 		<!-- START OPTION -->
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Never Cache URL(s)', 'breeze' ); ?>
+					<?php esc_html_e( 'Never Cache URL(s)', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
 				<p>
-					<?php _e( 'Specify URLs of Pages or posts that should never be cached (one per line)', 'breeze' ); ?>
+					<?php esc_html_e( 'Specify URLs of Pages or posts that should never be cached (one per line)', 'breeze' ); ?>
 				</p>
 				<?php
 				$excluded_url_list = true;
@@ -59,20 +59,20 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				$placeholder_never_cache_url = 'Exclude Single URL:&#10;https://demo.com/example/&#10;&#10;Exclude Multiple URL using wildcard&#10;https://demo.com/example/(.*)';
 				?>
 				<textarea cols="100" rows="7" id="exclude-urls" name="exclude-urls"
-						  placeholder="<?php echo esc_attr( $placeholder_never_cache_url ); ?>"><?php echo $never_cache_urls; ?></textarea>
+							placeholder="<?php echo esc_attr( $placeholder_never_cache_url ); ?>"><?php echo esc_textarea( $never_cache_urls ); ?></textarea>
 				<div class="br-note">
 					<p>
 						<?php
 
-						_e( 'Add the URLs of the pages (one per line) you wish to exclude from the WordPress internal cache. To exclude URLs from the Varnish cache, please refer to this ', 'breeze' );
+						esc_html_e( 'Add the URLs of the pages (one per line) you wish to exclude from the WordPress internal cache. To exclude URLs from the Varnish cache, please refer to this ', 'breeze' );
 						?>
 						<a
 								href="https://support.cloudways.com/en/articles/5126470-how-to-install-and-configure-breeze-wordpress-cache-plugin#h_4be3a0ff05"
-								target="_blank"><?php _e( 'Knowledge Base', 'breeze' ); ?></a><?php _e( ' article.', 'breeze' ); ?>
+								target="_blank"><?php esc_html_e( 'Knowledge Base', 'breeze' ); ?></a><?php esc_html_e( ' article.', 'breeze' ); ?>
 					</p>
 					<?php if ( false === $excluded_url_list ) { ?>
 						<p class="br-notice">
-							<?php _e( 'One (or more) URL is invalid. Please check and correct the entry.', 'breeze' ); ?>
+							<?php esc_html_e( 'One (or more) URL is invalid. Please check and correct the entry.', 'breeze' ); ?>
 						</p>
 					<?php } ?>
 				</div>
@@ -84,7 +84,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Cache Query Strings', 'breeze' ); ?>
+					<?php esc_html_e( 'Cache Query Strings', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -98,15 +98,15 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				$placeholder_cache_query_str = 'Include Single Query String:&#10;city&#10;&#10;Include Multiple Query Strings using wildcard&#10;city(.*)';
 				?>
 				<textarea cols="100" rows="7" id="cache-query-str" name="cache-query-str"
-						  placeholder="<?php esc_attr_e( $placeholder_cache_query_str ); ?>"><?php echo $cached_query_strings; ?></textarea>
+							placeholder="<?php echo esc_attr( $placeholder_cache_query_str ); ?>"><?php echo esc_textarea( $cached_query_strings ); ?></textarea>
 				<div class="br-note">
 					<p>
 						<?php
-						_e( 'Pages that contain the query strings added here, will be cached. Each entry must be added in a new line. For further details please refer to this ', 'breeze' );
+						esc_html_e( 'Pages that contain the query strings added here, will be cached. Each entry must be added in a new line. For further details please refer to this ', 'breeze' );
 						?>
 						<a
 								href="https://support.cloudways.com/en/articles/5126470-how-to-install-and-configure-breeze-wordpress-cache-plugin#h_3f620cea69"
-								target="_blank"><?php _e( 'Knowledge Base', 'breeze' ); ?></a><?php _e( ' article.', 'breeze' ); ?>
+								target="_blank"><?php esc_html_e( 'Knowledge Base', 'breeze' ); ?></a><?php esc_html_e( ' article.', 'breeze' ); ?>
 					</p>
 				</div>
 			</div>
@@ -117,7 +117,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Disable Emoji', 'breeze' ); ?>
+					<?php esc_html_e( 'Disable Emoji', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -132,7 +132,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-wpjs-emoji" name="breeze-wpjs-emoji" type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -142,7 +142,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 					<p>
 						<?php
 
-						_e( 'Disable the loading of emoji libraries and CSS', 'breeze' );
+						esc_html_e( 'Disable the loading of emoji libraries and CSS', 'breeze' );
 						?>
 					</p>
 				</div>
@@ -154,7 +154,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Host Files Locally', 'breeze' ); ?>
+					<?php esc_html_e( 'Host Files Locally', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -171,8 +171,8 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-store-googlefonts-locally" name="breeze-store-googlefonts-locally"
-							   type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								type="checkbox" class="br-box"
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -191,8 +191,8 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-store-googleanalytics-locally" name="breeze-store-googleanalytics-locally"
-							   type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								type="checkbox" class="br-box"
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -211,8 +211,8 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-store-facebookpixel-locally" name="breeze-store-facebookpixel-locally"
-							   type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								type="checkbox" class="br-box"
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -231,8 +231,8 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-store-gravatars-locally" name="breeze-store-gravatars-locally" type="checkbox"
-							   class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								class="br-box"
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -251,7 +251,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 		<div class="br-option-item br-top">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'API Integration', 'breeze' ); ?>
+					<?php esc_html_e( 'API Integration', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -268,7 +268,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
 						<input id="breeze-enable-api" name="breeze-enable-api" type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?>>
+								value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -276,7 +276,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 
 				<div class="br-note">
 					<p>
-						<?php _e( 'Enable Breeze API endpoint to purge cache via Rest API OnDemand. The functionality can be used to integrate with your  workflows. i.e. when updating or adding new posts or products through the WordPress Rest API.', 'breeze' ); ?>
+						<?php esc_html_e( 'Enable Breeze API endpoint to purge cache via Rest API OnDemand. The functionality can be used to integrate with your  workflows. i.e. when updating or adding new posts or products through the WordPress Rest API.', 'breeze' ); ?>
 					</p>
 				</div>
 
@@ -286,9 +286,6 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 
 		<!-- START OPTION -->
 		<?php
-		$basic_value = isset( $options['breeze-secure-api'] ) ? filter_var( $options['breeze-secure-api'], FILTER_VALIDATE_BOOLEAN ) : false;
-		$is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-secure-api'], '1', false ) : '';
-
 		$disable_group_css = '';
 		$disable_overlay   = '';
 
@@ -297,27 +294,16 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 			$disable_overlay = ' br-apply-disable';
 		}
 		?>
-		<div class="br-option-item<?php echo $disable_overlay; ?>">
+		<div class="br-option-item<?php echo esc_attr( $disable_overlay ); ?>">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Authentication', 'breeze' ); ?>
+					<?php esc_html_e( 'Authentication Token', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
-				<!-- Checkbox -->
-				<div class="on-off-checkbox">
-					<label class="br-switcher">
-						<input id="breeze-secure-api" name="breeze-secure-api" type="checkbox" class="br-box"
-							   value="1" <?php echo $is_enabled; ?> <?php echo $disable_group_css; ?>>
-						<div class="br-see-state">
-						</div>
-					</label><br>
-				</div>
-
-
 				<div class="br-note">
-					<p>
-						<?php _e( 'Secure Breeze API Endpoint with authentication key, allowing the ability option to safeguard the purge endpoint from unauthorized access. Use the option below to autogenerate a random key.', 'breeze' ); ?>
+					<p style="margin-top:0">
+						<?php esc_html_e( 'Authentication is required for the Breeze API Endpoint. Provide an authentication key to secure the purge endpoint from unauthorized access. Use the refresh icon to autogenerate a random key.', 'breeze' ); ?>
 					</p>
 				</div>
 
@@ -330,11 +316,18 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				?>
 				<div>
 					<input type="text" id="breeze-api-token" name="breeze-api-token"
-						   placeholder="5a1404a010241e0b79aecb67581009d5"
-						   value="<?php echo $api_token_output; ?>"/>
+							placeholder="5a1404a010241e0b79aecb67581009d5"
+							value="<?php echo esc_attr( $api_token_output ); ?>" readonly/>
 					<a id="refresh-api-token" title="<?php esc_attr_e( 'Refresh Token', 'breeze' ); ?>">
 						<span class="dashicons dashicons-update"></span>
 					</a>
+					<a style="display: inline-block;color: #11ACDF;  margin-left: 15px;" id="copy-api-token"
+						title="<?php esc_attr_e( 'Copy Token', 'breeze' ); ?>">
+						<span style="font-size: 22px;" class="dashicons dashicons-clipboard"></span>
+					</a>
+
+					<div id="breeze-password-strength-meter" style="display:none; margin-top: 5px; padding: 5px; font-weight: bold;"></div>
+					<div id="breeze-password-hint" style="display:none; color: #d63638; font-size: 12px; margin-top: 5px;"></div>
 				</div>
 				<div class="br-note">
 
@@ -346,6 +339,6 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 		<!-- END OPTION -->
 	</section>
 	<div class="br-submit">
-		<input type="submit" value="<?php echo __( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
+		<input type="submit" value="<?php echo esc_attr__( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
 	</div>
 </form>

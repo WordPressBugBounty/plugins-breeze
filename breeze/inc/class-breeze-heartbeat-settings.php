@@ -1,10 +1,12 @@
 <?php
-
 /**
  * Handle Heartbeat options.
  *
  * @since 2.0.2
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 class Breeze_Heartbeat_Settings {
 
 	/**

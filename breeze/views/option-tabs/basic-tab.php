@@ -36,19 +36,19 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 ?>
 <form data-section="basic">
 	<?php if ( true === $is_custom ) { ?>
-		<div class="br-overlay-disable"><?php _e( 'Settings are inherited', 'breeze' ); ?></div>
+		<div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
 	<section>
 		<div class="br-section-title">
-			<img src="<?php echo $icon; ?>"/>
-			<?php _e( 'BASIC OPTIONS', 'breeze' ); ?>
+			<img src="<?php echo esc_url( $icon ); ?>"/>
+			<?php esc_html_e( 'BASIC OPTIONS', 'breeze' ); ?>
 		</div>
 
 		<!-- START OPTION -->
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Cache System', 'breeze' ); ?>
+					<?php esc_html_e( 'Cache System', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -58,7 +58,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 				?>
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="cache-system" name="cache-system" type="checkbox" class="br-box" value="1" <?php echo $check_basic; ?>>
+						<input id="cache-system" name="cache-system" type="checkbox" class="br-box" value="1" <?php echo esc_attr( $check_basic ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -66,7 +66,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 				<div class="br-note">
 					<p>
-						<?php _e( 'This is the basic cache that we recommend should be kept enabled in all cases. Basic cache will build the internal and static caches for the WordPress websites.', 'breeze' ); ?>
+						<?php esc_html_e( 'This is the basic cache that we recommend should be kept enabled in all cases. Basic cache will build the internal and static caches for the WordPress websites.', 'breeze' ); ?>
 					</p>
 				</div>
 			</div>
@@ -86,7 +86,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Mobile Cache', 'breeze' ); ?>
+					<?php esc_html_e( 'Mobile Cache', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -104,29 +104,37 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 				}
 				?>
 				<div class="on-off-checkbox">
-					<label class="br-switcher<?php esc_attr_e($item_cursor); ?>">
-						<input id="breeze-mobile-separate" type="checkbox" name="breeze-mobile-separate" class="br-box" <?php echo $check_basic; ?> value='1' <?php echo $div_condition; ?>/>
+					<label class="br-switcher<?php echo esc_attr( $item_cursor ); ?>">
+						<input id="breeze-mobile-separate" type="checkbox" name="breeze-mobile-separate" class="br-box" <?php echo esc_attr( $check_basic ); ?> value='1' <?php echo esc_attr( $div_condition ); ?>/>
 						<div class="br-see-state">
 						</div>
 					</label><br>
 				</div>
 				<div class="br-note">
 					<p>
-						<?php _e( 'Modern themes are built to be responsive and they usually function optimally without the need for an additional cache. Only activate mobile caching if you happen to be using a dedicated mobile theme or plugin.', 'breeze' ); ?>
+						<?php esc_html_e( 'Modern themes are built to be responsive and they usually function optimally without the need for an additional cache. Only activate mobile caching if you happen to be using a dedicated mobile theme or plugin.', 'breeze' ); ?>
 					</p>
 				</div>
 				<?php
 				if ( ! empty( $div_condition ) ) {
 					echo '<p class="br-important">';
 					echo '<strong>';
-					_e( 'Important: ', 'breeze' );
+					esc_html_e( 'Important: ', 'breeze' );
 					echo '</strong>';
 
 					$kb_mobile_cache = 'https://support.cloudways.com/en/articles/8460042-how-to-use-device-detection-with-your-application#h_78ed161271';
-					echo sprintf(
-					/* translators: %s Export file location */
-						__( 'To use mobile caching with the Breeze plugin on Cloudways, you must enable the Device Detection feature through the Cloudways Platform. Please follow this <a href="%s" target="_blank">guide</a> to ensure the mobile cache functions properly.', 'breeze' ),
-						$kb_mobile_cache
+					echo wp_kses(
+						sprintf(
+						/* translators: %s Export file location */
+							__( 'To use mobile caching with the Breeze plugin on Cloudways, you must enable the Device Detection feature through the Cloudways Platform. Please follow this <a href="%s" target="_blank">guide</a> to ensure the mobile cache functions properly.', 'breeze' ),
+							esc_url( $kb_mobile_cache )
+						),
+						array(
+							'a' => array(
+								'href' => true,
+								'target' => true,
+							),
+						)
 					);
 					echo '</p>';
 				}
@@ -139,17 +147,17 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Purge Cache After', 'breeze' ); ?>
+					<?php esc_html_e( 'Purge Cache After', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
 				<?php
 				$cache_ttl = ( isset( $basic['breeze-b-ttl'] ) && ! empty( $basic['breeze-b-ttl'] ) ? (int) $basic['breeze-b-ttl'] : '1440' );
 				?>
-				<input type="text" id="cache-ttl" name="cache-ttl" size="50" placeholder="<?php _e( '1440', 'breeze' ); ?>" value="<?php echo $cache_ttl; ?>"/>
+				<input type="text" id="cache-ttl" name="cache-ttl" size="50" placeholder="<?php esc_attr_e( '1440', 'breeze' ); ?>" value="<?php echo esc_attr( $cache_ttl ); ?>"/>
 				<div class="br-note">
 					<p>
-						<?php _e( 'Automatically purge internal cache after X minutes. By default this is set to 1440 minutes (1 day)', 'breeze' ); ?>
+						<?php esc_html_e( 'Automatically purge internal cache after X minutes. By default this is set to 1440 minutes (1 day)', 'breeze' ); ?>
 					</p>
 				</div>
 			</div>
@@ -169,10 +177,10 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 			$disable_overlay = ' br-apply-disable';
 		}
 		?>
-		<div class="br-option-item<?php echo $disable_overlay; ?>">
+		<div class="br-option-item<?php echo esc_attr( $disable_overlay ); ?>">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Gzip Compression', 'breeze' ); ?>
+					<?php esc_html_e( 'Gzip Compression', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -188,7 +196,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 				<div class="br-note">
 					<p>
-						<?php _e( 'Enable this to compress your files making HTTP requests fewer and faster.', 'breeze' ); ?>
+						<?php esc_html_e( 'Enable this to compress your files making HTTP requests fewer and faster.', 'breeze' ); ?>
 					</p>
 					<?php
 					if ( $is_disabled ) {
@@ -215,10 +223,10 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 			$disable_overlay = ' br-apply-disable';
 		}
 		?>
-		<div class="br-option-item<?php echo $disable_overlay; ?>">
+		<div class="br-option-item<?php echo esc_attr( $disable_overlay ); ?>">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Browser Cache', 'breeze' ); ?>
+					<?php esc_html_e( 'Browser Cache', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -234,7 +242,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 				<div class="br-note">
 					<p>
-						<?php _e( 'Enable this to add expires headers to static files. This will ask browsers to either request a file from server or fetch from the browser’s cache.', 'breeze' ); ?>
+						<?php esc_html_e( 'Enable this to add expires headers to static files. This will ask browsers to either request a file from server or fetch from the browser\'s cache.', 'breeze' ); ?>
 					</p>
 					<?php
 					if ( $is_disabled ) {
@@ -252,7 +260,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Lazy Load Images', 'breeze' ); ?>
+					<?php esc_html_e( 'Lazy Load Images', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -268,7 +276,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 				?>
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="bz-lazy-load" type="checkbox" name="bz-lazy-load" class="br-box" value='1' <?php echo $disabled; ?> <?php echo $check_basic; ?>/>
+						<input id="bz-lazy-load" type="checkbox" name="bz-lazy-load" class="br-box" value='1' <?php echo esc_attr( $disabled ); ?> <?php echo esc_attr( $check_basic ); ?>/>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -276,11 +284,11 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 
 				<div class="br-note">
-					<p><?php _e( 'Images will begin to load before being displayed on screen.', 'breeze' ); ?></p>
+					<p><?php esc_html_e( 'Images will begin to load before being displayed on screen.', 'breeze' ); ?></p>
 					<?php
 					if ( ! empty( $disabled ) ) {
 						echo '<p class="br-notice">';
-						_e( 'This option requires the library PHP DOMDocument and PHP DOMXPath', 'breeze' );
+						esc_html_e( 'This option requires the library PHP DOMDocument and PHP DOMXPath', 'breeze' );
 						echo '</p>';
 					}
 					?>
@@ -311,56 +319,56 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 				$videos_lazy_load = ( isset( $basic_value ) && true === $basic_value ) ? checked( $basic['breeze-lazy-load-videos'], '1', false ) : '';
 				?>
 
-				<span <?php echo $hide; ?> id="native-lazy-option-iframe">
+				<span <?php echo esc_attr( $hide ); ?> id="native-lazy-option-iframe">
 
 					<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="bz-lazy-load-iframe" type="checkbox" name="bz-lazy-load-iframe" class="br-box" value='1' <?php echo $iframe_lazy_load; ?>>
+						<input id="bz-lazy-load-iframe" type="checkbox" name="bz-lazy-load-iframe" class="br-box" value='1' <?php echo esc_attr( $iframe_lazy_load ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
 					</div>
 
 						<p>
-					<?php _e( 'iFrame lazy load', 'breeze' ); ?><br/>
+					<?php esc_html_e( 'iFrame lazy load', 'breeze' ); ?><br/>
 					</p>
 					<p class="br-important">
 						<?php
 						echo '<strong>';
-						_e( 'Important: ', 'breeze' );
+						esc_html_e( 'Important: ', 'breeze' );
 						echo '</strong>';
-						_e( 'Apply lazy load to all iframe tags.', 'breeze' );
+						esc_html_e( 'Apply lazy load to all iframe tags.', 'breeze' );
 						?>
 					</p>
 				</span>
 
-                <span <?php echo $hide; ?> id="native-lazy-option-videos">
+                <span <?php echo esc_attr( $hide ); ?> id="native-lazy-option-videos">
 
 					<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="bz-lazy-load-videos" type="checkbox" name="bz-lazy-load-videos" class="br-box" value='1' <?php echo $videos_lazy_load; ?>>
+						<input id="bz-lazy-load-videos" type="checkbox" name="bz-lazy-load-videos" class="br-box" value='1' <?php echo esc_attr( $videos_lazy_load ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
 					</div>
 
 						<p>
-					<?php _e( 'Video lazy load', 'breeze' ); ?><br/>
+					<?php esc_html_e( 'Video lazy load', 'breeze' ); ?><br/>
 					</p>
 					<p class="br-important">
 						<?php
 						echo '<strong>';
-						_e( 'Important: ', 'breeze' );
+						esc_html_e( 'Important: ', 'breeze' );
 						echo '</strong>';
-						_e( 'Apply lazy load to all videos tags.', 'breeze' );
+						esc_html_e( 'Apply lazy load to all videos tags.', 'breeze' );
 						?>
 					</p>
 				</span>
 
-				<span <?php echo $hide; ?> id="native-lazy-option">
+				<span <?php echo esc_attr( $hide ); ?> id="native-lazy-option">
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="bz-lazy-load-nat" type="checkbox" name="bz-lazy-load-nat" class="br-box" value='1' <?php echo $native_lazy_load; ?>>
+						<input id="bz-lazy-load-nat" type="checkbox" name="bz-lazy-load-nat" class="br-box" value='1' <?php echo esc_attr( $native_lazy_load ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -368,14 +376,14 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 
 						<p>
-					<?php _e( 'Enable native browser lazy load', 'breeze' ); ?><br/>
+					<?php esc_html_e( 'Enable native browser lazy load', 'breeze' ); ?><br/>
 					</p>
 					<p class="br-important">
 						<?php
 						echo '<strong>';
-						_e( 'Important: ', 'breeze' );
+						esc_html_e( 'Important: ', 'breeze' );
 						echo '</strong>';
-						_e( 'This is not supported by all browsers.', 'breeze' );
+						esc_html_e( 'This is not supported by all browsers.', 'breeze' );
 						?>
 					</p>
 				</span>
@@ -389,7 +397,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Cross-origin Safe Links', 'breeze' ); ?>
+					<?php esc_html_e( 'Cross-origin Safe Links', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -399,14 +407,14 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 				?>
 				<div class="on-off-checkbox">
 					<label class="br-switcher">
-						<input id="safe-cross-origin" type="checkbox" name="safe-cross-origin" class="br-box" <?php echo $check_basic; ?> value='1'/>
+						<input id="safe-cross-origin" type="checkbox" name="safe-cross-origin" class="br-box" <?php echo esc_attr( $check_basic ); ?> value='1'/>
 						<div class="br-see-state">
 						</div>
 					</label><br>
 				</div>
 
 				<div class="br-note">
-					<p><?php _e( 'Apply “noopener noreferrer” to links which have target”_blank” attribute and the anchor leads to external websites', 'breeze' ); ?></p>
+					<p><?php esc_html_e( 'Apply "noopener noreferrer" to links which have target"_blank" attribute and the anchor leads to external websites', 'breeze' ); ?></p>
 				</div>
 			</div>
 		</div>
@@ -416,7 +424,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Cache Logged-in Users', 'breeze' ); ?>
+					<?php esc_html_e( 'Cache Logged-in Users', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -437,7 +445,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 					<div class="on-off-checkbox">
 						<label class="br-switcher">
 							<input id="breeze-admin-cache-<?php echo esc_attr( $user_role ); ?>" type="checkbox" name="breeze-admin-cache[<?php echo esc_attr( $user_role ); ?>]" class="br-box"
-								   value="1" <?php echo $check_role; ?>>
+								   value="1" <?php echo esc_attr( $check_role ); ?>>
 							<div class="br-see-state">
 							</div>
 						</label><br>
@@ -452,15 +460,15 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 					<p>
 						<?php
 
-						_e( 'Enable cache for WP standard user roles: Administrator, Editor, Author, Contributor.', 'breeze' );
+						esc_html_e( 'Enable cache for WP standard user roles: Administrator, Editor, Author, Contributor.', 'breeze' );
 						?>
 					</p>
 					<p class="br-important">
 						<?php
 						echo '<strong>';
-						_e( 'Important: ', 'breeze' );
+						esc_html_e( 'Important: ', 'breeze' );
 						echo '</strong>';
-						_e( 'This option might not work properly with some page builders.', 'breeze' );
+						esc_html_e( 'This option might not work properly with some page builders.', 'breeze' );
 						?>
 					</p>
 				</div>
@@ -470,6 +478,6 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 
 	</section>
 	<div class="br-submit">
-		<input type="submit" value="<?php echo __( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
+		<input type="submit" value="<?php echo esc_attr__( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
 	</div>
 </form>

@@ -1,4 +1,7 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 class Breeze_File_Permissions {
 	/**
@@ -58,7 +61,7 @@ class Breeze_File_Permissions {
 		$this->check_specific_files_folders();
 		$message_display = '';
 		if ( false === self::is_cache() ) {
-			wp_die( $message_display );
+			wp_die( esc_html( $message_display ) );
 		}
 
 		if ( ! empty( self::$errors ) ) {
@@ -81,7 +84,7 @@ class Breeze_File_Permissions {
 			$message_display = 'no-issue';
 		}
 
-		wp_die( $message_display );
+		wp_die( esc_html( $message_display ) );
 	}
 
 	/**
@@ -281,9 +284,9 @@ class Breeze_File_Permissions {
 			$this->check_specific_files_folders();
 			if ( ! empty( self::$errors ) ) {
 				echo '<div class="notice notice-error is-dismissible breeze-per" style="margin-left:2px">';
-				echo '<p><strong>' . __( 'Breeze plugin functionality may be affected due to missing config file(s) or folder(s), or issues with file permissions preventing proper operation.', 'breeze' ) . '</strong></p>';
+				echo '<p><strong>' . esc_html__( 'Breeze plugin functionality may be affected due to missing config file(s) or folder(s), or issues with file permissions preventing proper operation.', 'breeze' ) . '</strong></p>';
 				foreach ( self::$errors as $message ) {
-					echo '<p>' . $message . '</p>';
+					echo '<p>' . esc_html( $message ) . '</p>';
 				}
 				echo '<p>';
 				printf(
@@ -320,7 +323,7 @@ class Breeze_File_Permissions {
 			return;
 		}
 
-		$message = __( 'The Breeze Cache System is disabled in the settings</strong>, the website performance might drop. You can enable the cache system in the Breeze settings ', 'breeze' );
+		$message = esc_html__( 'The Breeze Cache System is disabled in the settings</strong>, the website performance might drop. You can enable the cache system in the Breeze settings ', 'breeze' );
 
 		$is_network   = is_multisite() && is_network_admin();
 		$settings_url = $is_network ? network_admin_url( 'settings.php?page=breeze' ) : admin_url( 'options-general.php?page=breeze' );
@@ -330,7 +333,7 @@ class Breeze_File_Permissions {
 		$notice .= '</div>';
 
 		printf(
-			$notice,
+			wp_kses_post( $notice ),
 			esc_url( $settings_url ),
 			esc_html__( 'here', 'breeze' )
 		);

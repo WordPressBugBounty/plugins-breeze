@@ -93,7 +93,7 @@ if ( $is_subsite ) {
 		<div class="br-logo<?php echo esc_attr( $logo_subsite ); ?>">&nbsp;</div>
 		<div class="br-mobile-menu">
 			<span class="dashicons dashicons-menu"></span>
-			<?php _e( 'Open menu', 'breeze' ); ?>
+			<?php esc_html_e( 'Open menu', 'breeze' ); ?>
 		</div>
 		<?php
 		$active_selected_tab = 'basic';
@@ -128,8 +128,8 @@ if ( $is_subsite ) {
 				$key         = $item['tab-slug'];
 				$is_inactive = false;
 				$name        = mb_strtoupper( esc_html( $item['tab-name'] ) );
-				echo '<a id="tab-' . $key . '" class="' . ( $is_inactive ? ' inactive' : '' ) . '" href="#tab-' . $key . '" data-tab-id="' . $key . '">
-				<img src="' . $icon . '" data-path="' . BREEZE_PLUGIN_URL . 'assets/images/' . '"/> ' . $name . ' 
+				echo '<a id="tab-' . esc_attr( $key ) . '" class="' . ( $is_inactive ? ' inactive' : '' ) . '" href="#tab-' . esc_attr( $key ) . '" data-tab-id="' . esc_attr( $key ) . '">
+				<img src="' . esc_url( $icon ) . '" data-path="' . esc_url( BREEZE_PLUGIN_URL . 'assets/images/' ) . '"/> ' . esc_html( $name ) . ' 
 				</a> ';
 				?>
 			</div>
@@ -161,12 +161,12 @@ if ( $is_subsite ) {
 				<div>
 					<p class="br-global-text-settings">
 						<span class="br-important br-is-network <?php echo esc_attr( $display_text['network'] ); ?>">
-							<strong><?php _e( 'Network Settings', 'breeze' ); ?></strong>:<br/>
+							<strong><?php esc_html_e( 'Network Settings', 'breeze' ); ?></strong>:<br/>
 							 <?php esc_html_e( 'This option allows the subsite to inherit all the cache settings from network. To modify/update the settings please go to network site.', 'breeze' ); ?>
 						</span>
 
 						<span class="br-is-custom <?php echo esc_attr( $display_text['custom'] ); ?>">
-							<strong><?php _e( 'Use Custom Settings', 'breeze' ); ?></strong>:<br/>
+							<strong><?php esc_html_e( 'Use Custom Settings', 'breeze' ); ?></strong>:<br/>
 							 <?php esc_html_e( 'This option allows subsite to have different settings/configuration from the network level. Use this option only if you wish to have separate settings for this subsite.', 'breeze' ); ?>
 						</span>
 					</p>
@@ -175,12 +175,12 @@ if ( $is_subsite ) {
 				<div class="br-option-net">
 					<div class="br-radio">
 						<input type="radio" id="inherit-settings-1" name="inherit-settings" value="1" <?php echo ( true === $is_inherited_settings ) ? 'checked' : ''; ?>/>
-						<label for="inherit-settings-1" class="radio-label"><?php _e( 'Inherit Network Settings', 'breeze' ); ?></label>
+						<label for="inherit-settings-1" class="radio-label"><?php esc_html_e( 'Inherit Network Settings', 'breeze' ); ?></label>
 					</div>
 
 					<div class="br-radio">
 						<input type="radio" id="inherit-settings-2" name="inherit-settings" value="0" <?php echo ( false === $is_inherited_settings ) ? 'checked' : ''; ?> style="margin-left: 25px;"/>
-						<label for="inherit-settings-2" class="radio-label"><?php _e( 'Use Custom Settings', 'breeze' ); ?></label>
+						<label for="inherit-settings-2" class="radio-label"><?php esc_html_e( 'Use Custom Settings', 'breeze' ); ?></label>
 					</div>
 
 				</div>

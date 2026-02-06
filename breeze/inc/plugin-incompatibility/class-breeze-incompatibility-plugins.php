@@ -73,7 +73,7 @@ if ( ! class_exists( 'Breeze_Incompatibility_Plugins' ) ) {
 				// Start the notice row.
 				if ( ! empty( $this->notification_message ) ) {
 					// Display catched notifications.
-					echo $this->notification_message;
+					echo wp_kses_post( $this->notification_message );
 				}
 				// End the notice row.
 

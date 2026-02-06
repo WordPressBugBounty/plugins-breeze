@@ -5,6 +5,9 @@
  * Date: 16.06.2022
  * Time: 17:37
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 class Breeze_Woocs_Compatibility {
 

@@ -1,8 +1,10 @@
 <?php
-
 /**
  * Compatibility with Avada theme cache reset.
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 class Breeze_Avada_Cache {
 	private $run_time = 0;
 

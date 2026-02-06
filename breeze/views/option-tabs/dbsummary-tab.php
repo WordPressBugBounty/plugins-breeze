@@ -23,8 +23,8 @@ $summary_icon = BREEZE_PLUGIN_URL . 'assets/images/dbsummary-active.png';
 ?>
 <section>
 	<div class="br-section-title">
-		<img src="<?php echo $summary_icon; ?>"/>
-		<?php _e( 'DATABASE SUMMARY', 'breeze' ); ?>
+		<img src="<?php echo esc_url( $summary_icon ); ?>"/>
+		<?php esc_html_e( 'DATABASE SUMMARY', 'breeze' ); ?>
 	</div>
 	<div>
 		<!-- START OPTION -->
@@ -33,7 +33,7 @@ $summary_icon = BREEZE_PLUGIN_URL . 'assets/images/dbsummary-active.png';
 
 				<?php
 				// Get statistics data
-				echo $myListTable->get_statistics();
+				echo wp_kses_post( $myListTable->get_statistics() );
 
 				// Invoke table helper
 				$myListTable->prepare_items();

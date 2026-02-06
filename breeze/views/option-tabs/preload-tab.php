@@ -22,19 +22,19 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 ?>
 <form data-section="preload">
 	<?php if ( true === $is_custom ) { ?>
-		<div class="br-overlay-disable"><?php _e( 'Settings are inherited', 'breeze' ); ?></div>
+		<div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
 	<section>
 		<div class="br-section-title">
-			<img src="<?php echo $icon; ?>"/>
-			<?php _e( 'PRELOAD', 'breeze' ); ?>
+			<img src="<?php echo esc_url( $icon ); ?>"/>
+			<?php esc_html_e( 'PRELOAD', 'breeze' ); ?>
 		</div>
 
 		<!-- START OPTION -->
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Preload Webfont', 'breeze' ); ?>
+					<?php esc_html_e( 'Preload Webfont', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -45,13 +45,13 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 								<input type="text" size="98"
 									   class="breeze-input-url"
 									   name="breeze-preload-font[]"
-									   placeholder="<?php _e( 'Enter Font/CSS URL...', 'breeze' ); ?>"
+									   placeholder="<?php esc_attr_e( 'Enter Font/CSS URL...', 'breeze' ); ?>"
 									   value="<?php echo esc_html( $font_url ); ?>"/>
 								<span class="sort-handle">
 										<span class="dashicons dashicons-arrow-up moveUp"></span>
 										<span class="dashicons dashicons-arrow-down moveDown"></span>
 									</span>
-								<span class="dashicons dashicons-no item-remove" title="<?php _e( 'Remove', 'breeze' ); ?>"></span>
+								<span class="dashicons dashicons-no item-remove" title="<?php esc_attr_e( 'Remove', 'breeze' ); ?>"></span>
 							</div>
 						<?php endforeach; ?>
 					<?php else : ?>
@@ -60,32 +60,32 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 								   class="breeze-input-url"
 								   id="breeze-preload-font"
 								   name="breeze-preload-font[]"
-								   placeholder="<?php _e( 'Enter Font/CSS URL...', 'breeze' ); ?>"
+								   placeholder="<?php esc_attr_e( 'Enter Font/CSS URL...', 'breeze' ); ?>"
 								   value=""/>
 							<span class="sort-handle">
 									<span class="dashicons dashicons-arrow-up moveUp"></span>
 									<span class="dashicons dashicons-arrow-down moveDown"></span>
 								</span>
-							<span class="dashicons dashicons-no item-remove" title="<?php _e( 'Remove', 'breeze' ); ?>"></span>
+							<span class="dashicons dashicons-no item-remove" title="<?php esc_attr_e( 'Remove', 'breeze' ); ?>"></span>
 						</div>
 					<?php endif; ?>
 				</div>
 				<div style="margin: 10px 0">
 					<button type="button" class="br-blue-button-reverse add-url" id="add-breeze-preload-fonts">
-						<?php _e( 'Add URL', 'breeze' ); ?>
+						<?php esc_html_e( 'Add URL', 'breeze' ); ?>
 					</button>
 				</div>
 				<div class="br-note">
 					<p>
 						<?php
 
-						_e( 'Specify the local font URL or the URL for the CSS file which loads only fonts. Load WOFF formats fonts for the best performance. Do not preload the whole website CSS file as it will slow down your website. Do not add Google Fonts links as those already use preload.', 'breeze' );
+						esc_html_e( 'Specify the local font URL or the URL for the CSS file which loads only fonts. Load WOFF formats fonts for the best performance. Do not preload the whole website CSS file as it will slow down your website. Do not add Google Fonts links as those already use preload.', 'breeze' );
 						?>
 						<br/>
 						<?php
 						$theme_url = get_template_directory_uri() . '/assets/fonts/my-font.woff';
 						echo '<strong>';
-						_e( 'Example:', 'breeze' );
+						esc_html_e( 'Example:', 'breeze' );
 						echo '</strong>';
 						echo ' ' . esc_url( $theme_url );
 						?>
@@ -100,7 +100,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Preload Links', 'breeze' ); ?>
+					<?php esc_html_e( 'Preload Links', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
@@ -109,8 +109,8 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 				$is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-preload-links'], '1', false ) : '';
 				?>
 				<div class="on-off-checkbox">
-					<label class="br-switcher">
-						<input id="preload-links" name="preload-links" type="checkbox" class="br-box" value="1" <?php echo $is_enabled; ?>>
+					<label class="br-switcher asd">
+						<input id="preload-links" name="preload-links" type="checkbox" class="br-box" value="1" <?php echo esc_attr( $is_enabled ); ?>>
 						<div class="br-see-state">
 						</div>
 					</label><br>
@@ -120,15 +120,15 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 					<p>
 						<?php
 
-						_e( 'When users hover over links, the cache is created in advance. The page will load faster upon link visiting.', 'breeze' );
+						esc_html_e( 'When users hover over links, the cache is created in advance. The page will load faster upon link visiting.', 'breeze' );
 						?>
 					</p>
 					<p class="br-important">
 						<?php
 						echo '<strong>';
-						_e( 'Important: ', 'breeze' );
+						esc_html_e( 'Important: ', 'breeze' );
 						echo '</strong>';
-						_e( 'This feature is supported by Chromium based browsers (Chrome, Opera, Microsoft Edge Chromimum, Brave...);', 'breeze' );
+						esc_html_e( 'This feature is supported by Chromium based browsers (Chrome, Opera, Microsoft Edge Chromimum, Brave...);', 'breeze' );
 						?>
 					</p>
 				</div>
@@ -140,12 +140,12 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 		<div class="br-option-item">
 			<div class="br-label">
 				<div class="br-option-text">
-					<?php _e( 'Prefetch of DNS Request', 'breeze' ); ?>
+					<?php esc_html_e( 'Prefetch of DNS Request', 'breeze' ); ?>
 				</div>
 			</div>
 			<div class="br-option">
 				<p>
-					<?php _e( 'Specify domain URLs, one per line', 'breeze' ); ?>
+					<?php esc_html_e( 'Specify domain URLs, one per line', 'breeze' ); ?>
 				</p>
 				<?php
 				$prefetch_domain_list = true;
@@ -163,17 +163,17 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 
 				$placeholder_never_cache_url = '//demo.com';
 				?>
-				<textarea cols="100" rows="7" id="br-prefetch-urls" name="br-prefetch-urls" placeholder="<?php echo esc_attr( $placeholder_never_cache_url ); ?>"><?php echo $domains_output; ?></textarea>
+				<textarea cols="100" rows="7" id="br-prefetch-urls" name="br-prefetch-urls" placeholder="<?php echo esc_attr( $placeholder_never_cache_url ); ?>"><?php echo esc_textarea( $domains_output ); ?></textarea>
 				<div class="br-note">
 					<p>
 						<?php
 
-						_e( 'Third-party content load will be optimized if we prefetch the domains.', 'breeze' );
+						esc_html_e( 'Third-party content load will be optimized if we prefetch the domains.', 'breeze' );
 						?>
 					</p>
 					<?php if ( false === $prefetch_domain_list ) { ?>
 						<p class="br-notice">
-							<?php _e( 'One (or more) URL is invalid. Please check and correct the entry.', 'breeze' ); ?>
+							<?php esc_html_e( 'One (or more) URL is invalid. Please check and correct the entry.', 'breeze' ); ?>
 						</p>
 					<?php } ?>
 				</div>
@@ -182,6 +182,6 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 		<!-- END OPTION -->
 	</section>
 	<div class="br-submit">
-		<input type="submit" value="<?php echo __( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
+		<input type="submit" value="<?php echo esc_attr_e( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
 	</div>
 </form>

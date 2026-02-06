@@ -1,10 +1,12 @@
 <?php
-
 /**
  * Class that handles the export and import of Breeze options
  *
  * Class Breeze_Settings_Import_Export
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 class Breeze_Settings_Import_Export {
 
 	function __construct() {
@@ -476,7 +478,6 @@ class Breeze_Settings_Import_Export {
 				'breeze-store-facebookpixel-locally'   => ( isset( $options['breeze-store-facebookpixel-locally'] ) ? $options['breeze-store-facebookpixel-locally'] : '0' ),
 				'breeze-store-gravatars-locally'       => ( isset( $options['breeze-store-gravatars-locally'] ) ? $options['breeze-store-gravatars-locally'] : '0' ),
 				'breeze-enable-api'                    => ( isset( $options['breeze-enable-api'] ) ? $options['breeze-enable-api'] : '0' ),
-				'breeze-secure-api'                    => ( isset( $options['breeze-secure-api'] ) ? $options['breeze-secure-api'] : '0' ),
 				'breeze-api-token'                     => ( isset( $options['breeze-api-token'] ) ? $options['breeze-api-token'] : '' ),
 
 			);
@@ -713,7 +714,6 @@ class Breeze_Settings_Import_Export {
 			'breeze-preload-links'                 => '1',
 			'breeze-wp-emoji'                      => '0',
 			'breeze-enable-api'                    => '0',
-			'breeze-secure-api'                    => '0',
 			'cdn-active'                           => '0',
 			'cdn-relative-path'                    => '1',
 			'auto-purge-varnish'                   => '1',

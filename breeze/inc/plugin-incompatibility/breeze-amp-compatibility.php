@@ -1,8 +1,10 @@
 <?php
-
 /**
  * Disabled minification for HTML, CSS and JS.
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 function amp_breeze_compat() {
 

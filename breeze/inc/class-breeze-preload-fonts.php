@@ -47,9 +47,9 @@ if ( ! class_exists( 'Breeze_Preload_Fonts' ) ) {
 					$extension = pathinfo( $preload_url, PATHINFO_EXTENSION );
 					$extension = strtolower( $extension );
 					if ( 'css' === $extension ) {
-						echo '<link rel="preload" as="style" onload="this.rel = \'stylesheet\'" href="' . $preload_url . '" crossorigin>' . "\n";
+						echo '<link rel="preload" as="style" onload="this.rel = \'stylesheet\'" href="' . esc_url( $preload_url ) . '" crossorigin>' . "\n";
 					} elseif ( in_array( $extension, $fonts_extensions, true ) ) {
-						echo '<link rel="preload" as="font" type="font/' . $extension . '" href="' . $preload_url . '" crossorigin>' . "\n";
+						echo '<link rel="preload" as="font" type="font/' . esc_attr( $extension ) . '" href="' . esc_url( $preload_url ) . '" crossorigin>' . "\n";
 					}
 				}
 			}

@@ -1,4 +1,8 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Mobile Detect Library
  * - export -
@@ -60,7 +64,7 @@ if ( file_put_contents(
 	$fileName,
 	function_exists( 'json_format' ) ? json_format( $json ) : json_encode( $json )
 ) ) {
-	echo 'Done. Check ' . realpath( $fileName ) . ' file.';
+	echo 'Done. Check ' . esc_html( realpath( $fileName ) ) . ' file.';
 } else {
-	echo 'Failed to write ' . realpath( $fileName ) . ' to disk.';
+	echo 'Failed to write ' . esc_html( realpath( $fileName ) ) . ' to disk.';
 }

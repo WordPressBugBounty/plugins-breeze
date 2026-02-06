@@ -563,10 +563,12 @@ function breeze_serve_cache( $filename, $breeze_current_url_path, $X1, $opts ) {
 				header( 'Content-Encoding: gzip' );
 				header( 'Content-Length: ' . strlen( $content ) );
 				header( 'Vary: Accept-Encoding' );
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary gzipped content cannot be escaped
 				echo $content;
 			} else {
 				header( 'Content-Length: ' . strlen( $datas['body'] ) );
 				//render page cache
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Cached HTML content from WordPress
 				echo $datas['body'];
 			}
 			exit;

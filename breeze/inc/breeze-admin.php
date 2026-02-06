@@ -285,7 +285,11 @@ INLINEJS;
 				add_action(
 					'wp_footer',
 					function () use ( $inline_js ) {
-						printf( '<script type="text/javascript">%s</script>', $inline_js );
+						// Sanitize JavaScript code for output - validate UTF-8 and ensure safe output
+						$sanitized_js = wp_check_invalid_utf8( $inline_js );
+						$sanitized_js = preg_replace( '/[\x00-\x1F\x7F]/u', '', $sanitized_js );
+						// For JavaScript code blocks, use wp_kses_post which allows safe content
+						printf( '<script type="text/javascript">%s</script>', wp_kses_post( $sanitized_js ) );
 					},
 					99
 				);
@@ -316,7 +320,7 @@ INLINEJS;
 	function define_ajaxurl() {
 		if ( current_user_can( 'manage_options' ) ) {
 			echo '<script type="text/javascript">
-           var ajaxurl = "' . admin_url( 'admin-ajax.php' ) . '";
+           var ajaxurl = "' . esc_js( admin_url( 'admin-ajax.php' ) ) . '";
              </script>';
 		}
 	}
@@ -333,7 +337,7 @@ INLINEJS;
 
 			$message = __( 'Thanks for installing Breeze. It is always recommended not to use more than one caching plugin at the same time. We recommend you to purge cache if necessary.', 'breeze' );
 
-			printf( '<div class="%1$s"><p>%2$s <button class="button" id="breeze-hide-install-msg">' . __( 'Hide message', 'breeze' ) . '</button></p></div>', esc_attr( $class ), esc_html( $message ) );
+			printf( '<div class="%1$s"><p>%2$s <button class="button" id="breeze-hide-install-msg">' . esc_html__( 'Hide message', 'breeze' ) . '</button></p></div>', esc_attr( $class ), esc_html( $message ) );
 			update_option( 'breeze_first_install', 'no' );
 		}
 	}
@@ -341,7 +345,7 @@ INLINEJS;
 	/**
 	 * Enqueue CSS and JS files required for the plugin functionality.
 	 */
-	function load_admin_scripts() {
+	function load_admin_scripts( $hook ) {
 		if ( ! wp_script_is( 'jquery', 'enqueued' ) ) {
 			wp_enqueue_script( 'jquery' );
 		}
@@ -398,6 +402,27 @@ INLINEJS;
 		}
 
 		wp_localize_script( 'breeze-backend', 'breeze_token_name', $token_name );
+
+		// Only load on Breeze settings page to optimize performance
+		if ( false === strpos( $hook, 'breeze' ) ) {
+			return;
+		}
+
+		// Enqueue the WordPress password strength meter script
+		wp_enqueue_script( 'password-strength-meter' );
+
+		// This ensures the localization strings (pwsL10n) are available in JS
+		wp_localize_script(
+			'password-strength-meter',
+			'pwsL10n',
+			array(
+				'short'    => __( 'Very weak', 'breeze' ),
+				'bad'      => __( 'Weak', 'breeze' ),
+				'good'     => __( 'Medium', 'breeze' ),
+				'strong'   => __( 'Strong', 'breeze' ),
+				'mismatch' => __( 'Mismatch', 'breeze' ),
+			)
+		);
 	}
 
 	/**
@@ -646,12 +671,7 @@ INLINEJS;
 			$active_cache_users[ $usr_role ] = 0;
 		}
 
-		$characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-		$token      = '';
-
-		for ( $i = 0; $i < 12; $i++ ) {
-			$token .= $characters[ random_int( 0, strlen( $characters ) - 1 ) ];
-		}
+		$token = Breeze_Configuration::breeze_generate_token();
 
 		$default_basic = array(
 			'breeze-active'            => '1',
@@ -747,7 +767,6 @@ INLINEJS;
 			'breeze-store-facebookpixel-locally'   => '0',
 			'breeze-store-gravatars-locally'       => '0',
 			'breeze-enable-api'                    => '0',
-			'breeze-secure-api'                    => '0',
 			'breeze-api-token'                     => $token,
 		);
 		$default_data['advanced'] = array_merge( $default_advanced, $advanced );
@@ -1112,6 +1131,9 @@ INLINEJS;
 
 				// Delete transients.
 				delete_transient( 'breeze_custom_varnish_server_active' );
+
+				// Delete Minfication hashes.
+				delete_option( 'breeze_minified_hashes' );
 			}
 		}
 	}

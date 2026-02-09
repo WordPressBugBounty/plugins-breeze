@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.2.24
+ * Version: 2.3.0
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.2.23' );
+	define( 'BREEZE_VERSION', '2.3.0' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -71,6 +71,7 @@ define( 'BREEZE_CACHE_NOGZIP', true );
 define( 'BREEZE_ROOT_DIR', str_replace( BREEZE_WP_CONTENT_NAME, '', WP_CONTENT_DIR ) );
 // Options reader
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-options-reader.php';
+require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-htaccess-settings.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-cloudflare-helper.php';
 
 // Compatibility checks
@@ -160,6 +161,7 @@ require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-api.php';
 $api_enabled = Breeze_Options_Reader::get_option_value( 'breeze-enable-api' );
 if ( $api_enabled ) {
 	$options = array(
+		'breeze-secure-api' => Breeze_Options_Reader::get_option_value( 'breeze-secure-api' ),
 		'breeze-api-token'  => Breeze_Options_Reader::get_option_value( 'breeze-api-token' ),
 
 	);
@@ -177,7 +179,8 @@ add_action(
 	5
 );
 
-// Compatibility with ShortPixel.
+// Compatibilities.
+require_once BREEZE_PLUGIN_DIR . 'inc/compatibility/class-breeze-the-events-calendar.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/compatibility/class-breeze-shortpixel-compatibility.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/compatibility/class-breeze-avada-cache.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/compatibility/class-breeze-elementor-template.php';

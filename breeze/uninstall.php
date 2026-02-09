@@ -11,7 +11,9 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 // Helper functions.
 require_once BREEZE_PLUGIN_DIR . 'inc/helpers.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/functions.php';
+require_once( BREEZE_PLUGIN_DIR . 'inc/class-breeze-options-reader.php' );
 require_once( BREEZE_PLUGIN_DIR . 'inc/breeze-configuration.php' );
+require_once( BREEZE_PLUGIN_DIR . 'inc/class-breeze-htaccess-settings.php' );
 //config to cache
 require_once( BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php' );
 // Load Store Local Files class.

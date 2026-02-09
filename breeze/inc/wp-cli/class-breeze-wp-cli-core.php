@@ -75,7 +75,7 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 				// Clear all cache at network level.
 				if ( is_multisite() && empty( $level ) || 'network' === $level ) {
 
-					$sites = get_sites();
+					$sites = get_sites( array( 'number' => 0 ) );
 					foreach ( $sites as $site ) {
 						switch_to_blog( $site->blog_id );
 						do_action( 'breeze_clear_all_cache' );
@@ -104,7 +104,7 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 			if ( 'varnish' === $assoc_args['cache'] ) {
 				// Clear varnish at network level.
 				if ( is_multisite() && empty( $level ) || 'network' === $level ) {
-					$sites = get_sites();
+					$sites = get_sites( array( 'number' => 0 ) );
 					foreach ( $sites as $site ) {
 						switch_to_blog( $site->blog_id );
 						do_action( 'breeze_clear_varnish' );
@@ -137,7 +137,7 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 
 				} else {
 					if ( is_multisite() && empty( $level ) || 'network' === $level ) {
-						$sites        = get_sites();
+						$sites        = get_sites( array( 'number' => 0 ) );
 						$list_of_urls = array();
 						foreach ( $sites as $blog_data ) {
 							$url            = get_home_url( $blog_data->blog_id );
@@ -162,7 +162,7 @@ class Breeze_WP_Cli_Core extends \WP_CLI_Command {
 			if ( 'local' === $assoc_args['cache'] ) {
 				// Clear local cache at network level.
 				if ( is_multisite() && empty( $level ) || 'network' === $level ) {
-					$sites = get_sites();
+					$sites = get_sites( array( 'number' => 0 ) );
 					foreach ( $sites as $site ) {
 						switch_to_blog( $site->blog_id );
 						//delete minify

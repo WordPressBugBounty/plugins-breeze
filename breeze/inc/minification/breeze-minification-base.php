@@ -347,7 +347,7 @@ abstract class Breeze_MinificationBase {
 		$is_network = ( is_network_admin() || ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] ) );
 
 		if ( is_multisite() && $is_network ) {
-			$sites = get_sites();
+			$sites = get_sites( array( 'number' => 0 ) );
 			foreach ( $sites as $site ) {
 				switch_to_blog( $site->blog_id );
 				$homepage = home_url() . '/?breeze';

@@ -43,6 +43,7 @@ if ( is_multisite() && is_network_admin() ) {
 	$sites = get_sites(
 		array(
 			'fields' => 'ids',
+			'number' => 0,
 		)
 	);
 

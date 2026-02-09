@@ -29,7 +29,6 @@ class Breeze_Woocommerce_Product_Cache {
 	 * @since 1.1.10
 	 */
 	public function recreate_cache_for_products( $order_id, $posted_data, $order ) {
-
 		if ( ! empty( $order_id ) ) {
 
 			// Checks if the Varnish server is ON.
@@ -124,11 +123,12 @@ class Breeze_Woocommerce_Product_Cache {
 
 				if ( ! empty( $product_list_cd ) ) {
 					// Clear Cloudflare cache for the product URLs.
-					Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $product_list_cd );
+					// Purge type: 'default', 'cron'
+					$cf_purge_type = apply_filters( 'breeze_cf_purge_type_on_order_update', 'cron' );
+					Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $product_list_cd, $cf_purge_type );
 				}
 			}
 		}
-
 	}
 
 	/**
@@ -184,5 +184,3 @@ add_action(
 		}
 	}
 );
-
-

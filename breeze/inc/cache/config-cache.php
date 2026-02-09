@@ -46,7 +46,7 @@ class Breeze_ConfigCache {
 			$blogs = get_sites(
 				array(
 					'fields' => 'ids',
-					'number' => apply_filters( 'breeze_subsites_fetch_count_modify', 100 ),
+					'number' => apply_filters( 'breeze_subsites_fetch_count_modify', 0 ),
 				)
 			);
 
@@ -329,7 +329,7 @@ FILE_STRING;
 				unset( $storage['woocommerce_geolocation_ajax'] );
 				// network oes not have this setting.
 				// we save for each sub-site.
-				$blogs = get_sites();
+				$blogs = get_sites( array( 'number' => 0 ) );
 				if ( ! empty( $blogs ) ) {
 					foreach ( $blogs as $blog_data ) {
 						$blog_id = $blog_data->blog_id;

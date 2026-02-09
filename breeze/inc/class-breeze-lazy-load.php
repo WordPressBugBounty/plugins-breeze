@@ -191,7 +191,7 @@ class Breeze_Lazy_Load {
 						$img_match_new = preg_replace( '/(<img\s+)/', '$1src="' . $placeholder . '" ', $img_match_new );
 
 						// Fetch the current image CSS classes.
-						preg_match( '/class=(?:"|\')(.+?)(?:"|\')/', $img_match_new, $class_value );
+						preg_match( '/class=(?:"|\')(.*?)(?:"|\')/', $img_match_new, $class_value );
 						$current_classes = ! empty( $class_value[1] ) ? $class_value[1] : '';
 
 						// Append breeze lazy-load CSS class.

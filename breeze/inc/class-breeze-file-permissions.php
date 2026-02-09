@@ -179,7 +179,7 @@ class Breeze_File_Permissions {
 					self::append_permission_error( $folder_min . __( ' folder is not writable.', 'breeze' ) );
 				}
 
-				$blogs = get_sites();
+				$blogs = get_sites( array( 'number' => 0 ) );
 				if ( ! empty( $blogs ) ) {
 					foreach ( $blogs as $blog_data ) {
 						$blog_id = $blog_data->blog_id;
@@ -323,13 +323,13 @@ class Breeze_File_Permissions {
 			return;
 		}
 
-		$message = esc_html__( 'The Breeze Cache System is disabled in the settings</strong>, the website performance might drop. You can enable the cache system in the Breeze settings ', 'breeze' );
+		$message = '<strong>' . esc_html__( 'The Breeze Cache System is disabled in the settings', 'breeze' ) . '</strong>' . esc_html__( ', the website performance might drop. You can enable the cache system in the Breeze settings ', 'breeze' );
 
 		$is_network   = is_multisite() && is_network_admin();
 		$settings_url = $is_network ? network_admin_url( 'settings.php?page=breeze' ) : admin_url( 'options-general.php?page=breeze' );
 
 		$notice  = '<div class="notice notice-warning is-dismissible breeze-cs" style="margin-left:2px">';
-		$notice .= '<p><strong>' . $message . '<a href="%s" id="breeze-cache-on">%s</a>.</p>';
+		$notice .= '<p>' . $message . '<a href="%s" id="breeze-cache-on">%s</a>.</p>';
 		$notice .= '</div>';
 
 		printf(

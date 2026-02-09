@@ -396,6 +396,16 @@ class Breeze_PurgeVarnish {
 			// Nothing
 			return;
 		}
+
+		/**
+		 * Filter to allow additional URLs to be purged when a post is updated.
+		 *
+		 * @param array  $listofurls The list of URLs to be purged.
+		 * @param int    $postId     The ID of the post being updated.
+		 * @param string $context    The purge context ('varnish' for Varnish cache).
+		 */
+		$listofurls = apply_filters( 'breeze_purge_post_cache_urls', $listofurls, $postId, 'varnish' );
+
 		// Now flush all the URLs we've collected provided the array isn't empty
 		if ( ! empty( $listofurls ) ) {
 			$this->urlsPurge = array_filter(

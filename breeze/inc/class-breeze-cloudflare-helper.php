@@ -14,9 +14,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Breeze_CloudFlare_Helper {
 
 	private $cw_platform = '';
+	private static $processed_home_urls = array();
 
 	function __construct() {
 		add_action( 'switch_theme', array( &$this, 'clear_cf_on_changing_theme' ), 11, 3 );
+		add_action( 'breeze_scheduled_purge', array( &$this, 'execute_purge' ), 10, 2 );
 	}
 
 	/**
@@ -90,13 +92,14 @@ final class Breeze_CloudFlare_Helper {
 	 * Needs at least one element.
 	 *
 	 * @param array $specific_urls Array with the list of URLs.
+	 * @param string $purge_type Purge type: 'default', 'cron'
 	 *
 	 * @return bool|string|null
 	 * @since 2.0.15
 	 * @access public
 	 * @static
 	 */
-	static public function purge_cloudflare_cache_urls( array $specific_urls = array() ) {
+	public static function purge_cloudflare_cache_urls( array $specific_urls = array(), string $purge_type = 'default' ) {
 		// If we do not have everything that we need, stop the process.
 		if ( true === self::is_log_enabled() ) {
 			error_log( '######### PURGE CLOUDFLARE ###: ' . var_export( 'Single URL START', true ) );
@@ -105,13 +108,13 @@ final class Breeze_CloudFlare_Helper {
 			return false;
 		}
 		// Remove any non URL items.
-		$specific_urls = ( new Breeze_CloudFlare_Helper )->remove_not_url_elements( $specific_urls );
+		$specific_urls = ( new Breeze_CloudFlare_Helper() )->remove_not_url_elements( $specific_urls );
 		if ( true === self::is_log_enabled() ) {
 			error_log( 'single url : ' . var_export( $specific_urls, true ) );
 		}
 
 		// Call cache reset.
-		return ( new Breeze_CloudFlare_Helper )->request_cache_reset( $specific_urls, 'purge-fpc-url' );
+		return ( new Breeze_CloudFlare_Helper() )->request_cache_reset( $specific_urls, 'purge-fpc-url', $purge_type );
 	}
 
 	/**
@@ -125,7 +128,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @static
 	 */
-	static public function reset_all_cache( array $home_url = array() ) {
+	public static function reset_all_cache( array $home_url = array() ) {
 		// If we do not have everything that we need, stop the process.
 		if ( false === self::is_cloudflare_enabled() ) {
 			return false;
@@ -148,11 +151,16 @@ final class Breeze_CloudFlare_Helper {
 			}
 		}
 
+		$home_url_key = hash( 'sha256', serialize( $home_url ) );
+		if ( isset( self::$processed_home_urls[ $home_url_key ] ) ) {
+			return true;
+		}
+
 		$purge_request_endpoint = 'purge-fpc-domain';
 
 		if ( is_multisite() ) {
 			if ( is_subdomain_install() ) {
-				$home_url = ( new Breeze_CloudFlare_Helper )->clear_domain_purge_urls( $home_url );
+				$home_url = ( new Breeze_CloudFlare_Helper() )->clear_domain_purge_urls( $home_url );
 				if ( true === self::is_log_enabled() ) {
 					error_log( '######### CF SubDomains: ' . var_export( $home_url, true ) );
 				}
@@ -168,13 +176,15 @@ final class Breeze_CloudFlare_Helper {
 				}
 			}
 		} else {
-			$home_url = ( new Breeze_CloudFlare_Helper )->clear_domain_purge_urls( $home_url );
+			$home_url = ( new Breeze_CloudFlare_Helper() )->clear_domain_purge_urls( $home_url );
 			if ( true === self::is_log_enabled() ) {
 				error_log( '######### CF Domain: ' . var_export( $home_url, true ) );
 			}
 		}
 
-		return ( new Breeze_CloudFlare_Helper )->request_cache_reset( $home_url, $purge_request_endpoint );
+		self::$processed_home_urls[ $home_url_key ] = true;
+
+		return ( new Breeze_CloudFlare_Helper() )->request_cache_reset( $home_url, $purge_request_endpoint );
 	}
 
 	/**
@@ -223,7 +233,6 @@ final class Breeze_CloudFlare_Helper {
 			},
 			ARRAY_FILTER_USE_BOTH
 		);
-
 	}
 
 	/**
@@ -235,7 +244,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @static
 	 */
-	static public function is_cloudflare_enabled(): bool {
+	public static function is_cloudflare_enabled(): bool {
 		$return_value = true;
 
 		if (
@@ -263,7 +272,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @since 2.0.19
 	 */
-	static public function is_cloudways_server(): bool {
+	public static function is_cloudways_server(): bool {
 
 		if (
 			false !== strpos( $_SERVER['DOCUMENT_ROOT'], 'cloudwaysapps' ) ||
@@ -276,7 +285,7 @@ final class Breeze_CloudFlare_Helper {
 		return false;
 	}
 
-	static public function is_fmp_server(): bool {
+	public static function is_fmp_server(): bool {
 
 		if (
 			! empty( getenv( 'FPC_ENV' ) ) &&
@@ -314,7 +323,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @since 2.0.19
 	 */
-	static public function is_staging_server(): bool {
+	public static function is_staging_server(): bool {
 
 		if (
 			false !== strpos( $_SERVER['DOCUMENT_ROOT'], 'cloudwaysstagingapps.com' )
@@ -336,7 +345,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @since 2.0.19
 	 */
-	static public function is_production_server(): bool {
+	public static function is_production_server(): bool {
 
 		if (
 			false !== strpos( $_SERVER['DOCUMENT_ROOT'], 'cloudwaysapps.com' )
@@ -348,8 +357,8 @@ final class Breeze_CloudFlare_Helper {
 			return true;
 		}
 
-			return false;
-		}
+		return false;
+	}
 
 	/**
 	 * Check if the server type is FP ( Flexible ).
@@ -357,12 +366,38 @@ final class Breeze_CloudFlare_Helper {
 	 * @return bool
 	 * @since 2.0.15
 	 */
-	static public function is_fp_server(): bool {
+	public static function is_fp_server(): bool {
 		if ( true === self::is_staging_server() || true === self::is_production_server() ) {
-		return true;
-	}
+			return true;
+		}
 
 		return false;
+	}
+
+	/**
+	 * Spawns a cron job to purge cache asynchronously and triggers it immediately without waiting.
+	 *
+	 * @param array $purge_url_list List of URLs for which to purge cache.
+	 * @param string $endpoint_path Endpoint path to clear URL cache or whole domain cache.
+	 *
+	 * @return void
+	 * @access private
+	 * @since 2.0.15
+	 */
+	private function spawn_cron( array $purge_url_list, string $endpoint_path ) {
+		// Schedule the purge for execution at the current time
+		wp_schedule_single_event( time() - 1, 'breeze_scheduled_purge', array(
+			$purge_url_list,
+			$endpoint_path
+		) );
+
+		$start_cron = spawn_cron();
+
+		if ( true === self::is_log_enabled() ) {
+			error_log( 'CF Purge cron registered!' );
+			error_log( 'List of URL(s) to be sent: ' . var_export( $purge_url_list, true ) );
+			error_log( 'Cron started (force): ' . var_export( $start_cron, true ) );
+		}
 	}
 
 	/**
@@ -370,12 +405,13 @@ final class Breeze_CloudFlare_Helper {
 	 *
 	 * @param array $purge_url_list list of URLs for which to purge cache;
 	 * @param string $endpoint_path Endpoint path to clear URL cache or whole domain cache.
+	 * @param string $purge_type Purge type: 'default', 'cron'
 	 *
 	 * @return bool|string|void
 	 * @access private
 	 * @since 2.0.15
 	 */
-	private function request_cache_reset( array $purge_url_list = array(), string $endpoint_path = 'purge-fpc-url' ) {
+	private function request_cache_reset( array $purge_url_list = array(), string $endpoint_path = 'purge-fpc-url', string $purge_type = 'default' ) {
 
 		if (
 			false === self::is_cloudflare_enabled() ||
@@ -386,6 +422,30 @@ final class Breeze_CloudFlare_Helper {
 
 		self::is_fmp_server();
 
+		if ( true === self::is_log_enabled() ) {
+			error_log( 'CF purge type: ' . var_export( strtoupper( $purge_type ), true ) );
+		}
+
+		if ( 'cron' === $purge_type ) {
+			$this->spawn_cron( $purge_url_list, $endpoint_path );
+
+			return true;
+		} else {
+			return $this->execute_purge( $purge_url_list, $endpoint_path );
+		}
+	}
+
+	/**
+	 * Executes the purge cache request.
+	 *
+	 * @param array $purge_url_list list of URLs for which to purge cache;
+	 * @param string $endpoint_path Endpoint path to clear URL cache or whole domain cache.
+	 *
+	 * @return bool|string
+	 * @access public
+	 * @since 2.0.15
+	 */
+	public function execute_purge( array $purge_url_list, string $endpoint_path ) {
 		// Remove any white spaces from URL list.
 		$purge_url_list = array_map( 'trim', $purge_url_list );
 		// Making sure there are no duplicates.
@@ -394,7 +454,7 @@ final class Breeze_CloudFlare_Helper {
 		$purge_url_list = array_values( array_filter( $purge_url_list ) );
 
 		if ( empty( $purge_url_list ) ) {
-			return;
+			return false;
 		}
 
 		$verify_host      = 2;
@@ -432,13 +492,11 @@ final class Breeze_CloudFlare_Helper {
 		}
 
 		$connection = curl_init( $call_endpoint_url );
-		curl_setopt( $connection, CURLOPT_RETURNTRANSFER, true );
 		curl_setopt( $connection, CURLOPT_SSL_VERIFYHOST, $verify_host );
 		curl_setopt( $connection, CURLOPT_SSL_VERIFYPEER, $ssl_verification );
 		curl_setopt( $connection, CURLOPT_POST, true );
 		curl_setopt( $connection, CURLOPT_USERAGENT, $rop_user_agent );
 		curl_setopt( $connection, CURLOPT_REFERER, home_url() );
-		curl_setopt( $connection, CURLOPT_TIMEOUT, 30 );
 
 		// Array to send to microservice.
 		$data_to_send = array(
@@ -474,14 +532,16 @@ final class Breeze_CloudFlare_Helper {
 		 */
 		curl_setopt( $connection, CURLOPT_MAXREDIRS, 2 );
 		curl_setopt( $connection, CURLOPT_FOLLOWLOCATION, true );
+		curl_setopt( $connection, CURLOPT_RETURNTRANSFER, true );
+		curl_setopt( $connection, CURLOPT_TIMEOUT, 30 );
 
 		$server_response_body = curl_exec( $connection );
-		$http_code = curl_getinfo( $connection, CURLINFO_HTTP_CODE );
+		$http_code            = curl_getinfo( $connection, CURLINFO_HTTP_CODE );
 		// Add curl error in logs.
-		if ( $server_response_body === false ) {
+		if ( false === $server_response_body ) {
 			$curl_error = curl_error( $connection );
 			$curl_errno = curl_errno( $connection );
-		
+
 			if ( true === self::is_log_enabled() ) {
 				error_log( 'cURL Error: ' . $curl_error . ' (Code: ' . $curl_errno . ')' );
 			}
@@ -504,7 +564,7 @@ final class Breeze_CloudFlare_Helper {
 	 * @access public
 	 * @static
 	 */
-	static public function is_log_enabled(): bool {
+	public static function is_log_enabled(): bool {
 		if (
 			defined( 'BREEZE_CF_DEBUG' ) &&
 			true === filter_var( BREEZE_CF_DEBUG, FILTER_VALIDATE_BOOLEAN )

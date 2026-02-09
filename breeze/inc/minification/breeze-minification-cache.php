@@ -252,6 +252,7 @@ class Breeze_MinificationCache {
 			$sites = get_sites(
 				array(
 					'fields' => 'ids',
+					'number' => 0,
 				)
 			);
 			foreach ( $sites as $blog_id ) {

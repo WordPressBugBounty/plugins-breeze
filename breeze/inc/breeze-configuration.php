@@ -591,165 +591,6 @@ class Breeze_Configuration {
 		wp_send_json( $response );
 	}
 
-	/*
-	 * function add expires header to .htaccess
-	 */
-	public static function add_expires_header( $clean = false, $conditional_regex = '' ) {
-		$args = array(
-			'before' => '#Expires headers configuration added by BREEZE WP CACHE plugin',
-			'after'  => '#End of expires headers configuration',
-		);
-
-		if ( $clean ) {
-			$args['clean'] = true;
-		} else {
-			$text_html_expiry = '   ExpiresByType text/html "access plus 0 seconds"' . PHP_EOL;
-
-			$args['content'] = '<IfModule mod_headers.c>' . PHP_EOL .
-								'   Header append Cache-Control "s-maxage=2592000"' . PHP_EOL .
-								'</IfModule>' . PHP_EOL .
-								'<IfModule mod_env.c>' . PHP_EOL .
-								'   SetEnv BREEZE_BROWSER_CACHE_ON 1' . PHP_EOL .
-								'</IfModule>' . PHP_EOL .
-								'<IfModule mod_expires.c>' . PHP_EOL .
-								'   ExpiresActive On' . PHP_EOL .
-								'   ExpiresDefault "access plus 1 month"' . PHP_EOL .
-
-								'   # Assets' . PHP_EOL .
-								'   ExpiresByType text/css "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType application/javascript "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType application/x-javascript "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType text/javascript "access plus 1 month"' . PHP_EOL .
-
-								'   # Media assets ' . PHP_EOL .
-								'   ExpiresByType audio/ogg "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/bmp "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/gif "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/jpeg "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/png "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/svg+xml "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType image/webp "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType video/mp4 "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType video/ogg "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType video/webm "access plus 1 year"' . PHP_EOL .
-								'   # Font assets ' . PHP_EOL .
-								'   ExpiresByType application/vnd.ms-fontobject "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType font/eot "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType font/opentype "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType application/x-font-ttf "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType application/font-woff "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType application/x-font-woff "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType font/woff "access plus 1 year"' . PHP_EOL .
-								'   ExpiresByType application/font-woff2 "access plus 1 year"' . PHP_EOL .
-
-								'   # Data interchange' . PHP_EOL .
-								'   ExpiresByType application/xml "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType application/json "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType application/ld+json "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType application/schema+json "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType application/vnd.geo+json "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType text/xml "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType application/rss+xml "access plus 1 hour"' . PHP_EOL .
-								'   ExpiresByType application/rdf+xml "access plus 1 hour"' . PHP_EOL .
-								'   ExpiresByType application/atom+xml "access plus 1 hour"' . PHP_EOL .
-
-								'   # Manifest files' . PHP_EOL .
-								'   ExpiresByType application/manifest+json "access plus 1 week"' . PHP_EOL .
-								'   ExpiresByType application/x-web-app-manifest+json "access plus 0 seconds"' . PHP_EOL .
-								'   ExpiresByType text/cache-manifest  "access plus 0 seconds"' . PHP_EOL .
-
-								'   # Favicon' . PHP_EOL .
-								'   ExpiresByType image/vnd.microsoft.icon "access plus 1 week"' . PHP_EOL .
-								'   ExpiresByType image/x-icon "access plus 1 week"' . PHP_EOL .
-								'   # HTML no caching' . PHP_EOL .
-								$text_html_expiry .
-
-								'   # Other' . PHP_EOL .
-								'   ExpiresByType application/xhtml-xml "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType application/pdf "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType application/x-shockwave-flash "access plus 1 month"' . PHP_EOL .
-								'   ExpiresByType text/x-cross-domain-policy "access plus 1 week"' . PHP_EOL .
-
-								'</IfModule>' . PHP_EOL;
-
-			$args['conditions'] = array(
-				'mod_expires',
-				'ExpiresActive',
-				'ExpiresDefault',
-				'ExpiresByType',
-			);
-
-			if ( ! empty( $conditional_regex ) ) {
-				$args['content'] = '<If "' . $conditional_regex . '">' . PHP_EOL . $args['content'] . '</If>' . PHP_EOL;
-			}
-		}
-
-		return self::write_htaccess( $args );
-	}
-
-	/*
-	 * function add gzip header to .htaccess
-	 */
-	public static function add_gzip_htacess( $clean = false, $conditional_regex = '' ) {
-		$args = array(
-			'before' => '# Begin GzipofBreezeWPCache',
-			'after'  => '# End GzipofBreezeWPCache',
-		);
-
-		if ( $clean ) {
-			$args['clean'] = true;
-		} else {
-			$args['content'] = '<IfModule mod_env.c>' . PHP_EOL .
-								'    SetEnv BREEZE_GZIP_ON 1' . PHP_EOL .
-								'</IfModule>' . PHP_EOL .
-								'<IfModule mod_deflate.c>' . PHP_EOL .
-								'	AddType x-font/woff .woff' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/plain' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE image/svg+xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/html' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/css' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/vtt' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/x-component' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE text/javascript' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/js' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-httpd-php' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-httpd-fastphp' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/atom+xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/json' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/ld+json' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-web-app-manifest+json' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/xhtml+xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/rss+xml' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/javascript' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-javascript' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-font-ttf' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/vnd.ms-fontobject' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE font/opentype' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE font/ttf' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE font/eot font/otf' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE font/otf' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE font/woff' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/x-font-woff' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE application/font-woff2' . PHP_EOL .
-								'	AddOutputFilterByType DEFLATE image/x-icon' . PHP_EOL .
-								'</IfModule>' . PHP_EOL;
-
-			$args['conditions'] = array(
-				'mod_deflate',
-				'AddOutputFilterByType',
-				'AddType',
-				'GzipofBreezeWPCache',
-			);
-
-			if ( ! empty( $conditional_regex ) ) {
-				$args['content'] = '<If "' . $conditional_regex . '">' . PHP_EOL . $args['content'] . '</If>' . PHP_EOL;
-			}
-		}
-
-		return self::write_htaccess( $args );
-	}
 
 	/**
 	 * Trigger update to htaccess file.
@@ -758,204 +599,42 @@ class Breeze_Configuration {
 	 *
 	 * @return bool
 	 */
-	public static function update_htaccess( $clean = false ) {
+	public static function update_htaccess( bool $clean = false ): bool {
+		$htaccess_init = new Breeze_Htaccess_Settings();
+
 		if ( $clean ) {
-			self::add_expires_header( $clean );
-			self::add_gzip_htacess( $clean );
+			$htaccess_init->update_gzip_htaccess( true );
+			$htaccess_init->update_expires_htaccess( true );
 
 			return true;
 		}
 
 		if ( is_multisite() ) {
-			// Multisite setup.
-			$supports_conditionals = breeze_is_supported( 'conditional_htaccess' );
-
-			if ( ! $supports_conditionals ) {
-				// If Apache htaccess conditional directives not available, inherit network-level settings.
-				$config = get_site_option( 'breeze_basic_settings', array() );
-
-				if ( isset( $config['breeze-active'] ) && '1' === $config['breeze-active'] ) {
-					self::add_expires_header( ! isset( $config['breeze-browser-cache'] ) || '1' !== $config['breeze-browser-cache'] );
-					self::add_gzip_htacess( ! isset( $config['breeze-gzip-compression'] ) || '1' !== $config['breeze-gzip-compression'] );
-				} else {
-					self::add_expires_header( true );
-					self::add_gzip_htacess( true );
-				}
+			$htaccess_init->update_gzip_htaccess( $clean );
+			$htaccess_init->update_expires_htaccess( $clean );
 
 				return true;
-			}
-
-			$has_browser_cache      = false;
-			$browser_cache_sites    = array();
-			$no_browser_cache_sites = array();
-			$browser_cache_regex    = '';
-			$has_gzip_compress      = false;
-			$gzip_compress_sites    = array();
-			$no_gzip_compress_sites = array();
-			$gzip_compress_regex    = '';
-
-			$blogs = get_sites(
-				array(
-					'fields' => 'ids',
-				)
-			);
-
-			global $breeze_network_subsite_settings;
-			$breeze_network_subsite_settings = true;
-
-			foreach ( $blogs as $blog_id ) {
-				switch_to_blog( $blog_id );
-				$site_url = preg_quote( preg_replace( '(^https?://)', '', site_url() ) );
-				if ( '1' === Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) {
-					if ( '1' === Breeze_Options_Reader::get_option_value( 'breeze-browser-cache' ) ) {
-						$has_browser_cache     = true;
-						$browser_cache_sites[] = $site_url;
-					} else {
-						$no_browser_cache_sites[] = $site_url;
-					}
-					if ( '1' === Breeze_Options_Reader::get_option_value( 'breeze-gzip-compression' ) ) {
-						$has_gzip_compress     = true;
-						$gzip_compress_sites[] = $site_url;
-					} else {
-						$no_gzip_compress_sites[] = $site_url;
-					}
-				} else {
-					$no_browser_cache_sites[] = $site_url;
-					$no_gzip_compress_sites[] = $site_url;
-				}
-				restore_current_blog();
-			}
-
-			$breeze_network_subsite_settings = false;
-
-			$rules = array(
-				'browser_cache' => 'add_expires_header',
-				'gzip_compress' => 'add_gzip_htacess',
-			);
-			// Loop through caching type rules.
-			foreach ( $rules as $var_name => $method_name ) {
-				$has_cache_var = 'has_' . $var_name;
-				if ( ! ${$has_cache_var} ) {
-					// No sites using rules, clean up.
-					self::$method_name( true );
-				} else {
-					$enabled_sites  = $var_name . '_sites';
-					$disabled_sites = 'no_' . $var_name . '_sites';
-					$regex_string   = '';
-
-					if ( empty( ${$disabled_sites} ) ) {
-						// Rule is active across sites, do not include conditional directives.
-						self::$method_name( $clean );
-						continue;
-					}
-
-					if ( defined( 'SUBDOMAIN_INSTALL' ) && SUBDOMAIN_INSTALL ) {
-						// Subdomain sites are matched using host alone.
-						$regex_string = '%{HTTP_HOST} =~ m#^(' . implode( '|', ${$enabled_sites} ) . ')#';
-					} else {
-						// Subdirectory sites are matched using "THE_REQUEST".
-						$network_site_url = preg_quote( preg_replace( '(^https?://)', '', untrailingslashit( network_site_url() ) ) );
-
-						// Remove host part from URLs.
-						${$enabled_sites} = array_filter(
-							array_map(
-								function ( $url ) use ( $network_site_url ) {
-									$modified = str_replace( $network_site_url, '', $url );
-
-									return empty( $modified ) ? '/' : $modified;
-								},
-								${$enabled_sites}
-							)
-						);
-
-						if ( ! empty( ${$enabled_sites} ) ) {
-							$regex_string = '%{THE_REQUEST} =~ m#^GET (' . implode( '|', ${$enabled_sites} ) . ')#';
-						}
-
-						// Remove main site URL from disabled sites array.
-						$network_site_url_index = array_search( $network_site_url, ${$disabled_sites} );
-						if ( false !== $network_site_url_index ) {
-							unset( ${$disabled_sites[ $network_site_url_index ]} );
-						}
-						// Remove host part from URLs.
-						${$disabled_sites} = array_filter(
-							array_map(
-								function ( $url ) use ( $network_site_url ) {
-									$modified = str_replace( $network_site_url, '', $url );
-
-									return empty( $modified ) ? '/' : $modified;
-								},
-								${$disabled_sites}
-							)
-						);
-						if ( ! empty( ${$disabled_sites} ) ) {
-							if ( ! empty( ${$enabled_sites} ) ) {
-								$regex_string .= ' && ';
-							}
-							$regex_string .= '%{THE_REQUEST} !~ m#^GET (' . implode( '|', ${$disabled_sites} ) . ')#';
-						}
-					}
-
-					// Add conditional rule.
-					self::$method_name( empty( $regex_string ), $regex_string );
-				}
-			}
 		} else {
 			// Single-site setup.
 			if ( '1' === Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) {
-				self::add_expires_header( '1' !== Breeze_Options_Reader::get_option_value( 'breeze-browser-cache' ) );
-				self::add_gzip_htacess( '1' !== Breeze_Options_Reader::get_option_value( 'breeze-gzip-compression' ) );
+				$is_gzip   = Breeze_Options_Reader::get_option_value( 'breeze-gzip-compression' );
+				$is_expire = Breeze_Options_Reader::get_option_value( 'breeze-browser-cache' );
+
+				$is_gzip   = ! filter_var( $is_gzip, FILTER_VALIDATE_BOOLEAN );
+				$is_expire = ! filter_var( $is_expire, FILTER_VALIDATE_BOOLEAN );
+
+				$htaccess_init->update_gzip_htaccess( $is_gzip );
+				$htaccess_init->update_expires_htaccess( $is_expire );
+
+				return true;
 			} else {
 				// Caching not activated, clean up.
-				self::add_expires_header( true );
-				self::add_gzip_htacess( true );
+				$htaccess_init->update_gzip_htaccess( true );
+				$htaccess_init->update_expires_htaccess( true );
 
 				return true;
 			}
 		}
-
-		return true;
-	}
-
-	/**
-	 * Add and remove custom blocks from .htaccess.
-	 *
-	 * @param array $args
-	 *
-	 * @return bool
-	 */
-	public static function write_htaccess( $args ) {
-		$htaccess_path = trailingslashit( ABSPATH ) . '.htaccess';
-
-		if ( ! is_super_admin() && 'cli' !== php_sapi_name() ) {
-			return false;
-		}
-		// open htaccess file
-		if ( file_exists( $htaccess_path ) ) {
-			$htaccess_content = file_get_contents( $htaccess_path );
-		}
-		if ( empty( $htaccess_content ) ) {
-			return false;
-		}
-
-		// Remove old rules.
-		$htaccess_content = preg_replace( "/{$args['before']}[\s\S]*{$args['after']}" . PHP_EOL . '/im', '', $htaccess_content );
-
-		if ( ! isset( $args['clean'] ) ) {
-			if ( isset( $args['conditions'] ) ) {
-				foreach ( $args['conditions'] as $condition ) {
-					if ( strpos( $htaccess_content, $condition ) !== false ) {
-						return false;
-					}
-				}
-			}
-
-			$htaccess_content = $args['before'] . PHP_EOL . $args['content'] . $args['after'] . PHP_EOL . $htaccess_content;
-		}
-
-		file_put_contents( $htaccess_path, $htaccess_content );
-
-		return true;
 	}
 
 	/**
@@ -1113,6 +792,7 @@ class Breeze_Configuration {
 				/**
 				 * Delete all Transients.
 				 */
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$all_transients = $wpdb->get_col(
 				/* translators: comment type, comment type */
 					$wpdb->prepare(
@@ -1131,7 +811,7 @@ class Breeze_Configuration {
 							$is_deleted     = delete_transient( $transient_name );
 						}
 					}
-
+					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$data_sql = $wpdb->query(
 						$wpdb->prepare(
 							"DELETE FROM `$wpdb->options` WHERE `option_name` LIKE %s OR `option_name` LIKE %s",
@@ -1144,6 +824,7 @@ class Breeze_Configuration {
 				wp_cache_delete( 'breeze_clean_count_transient', 'breeze_database' );
 				break;
 			case 'orphan_post_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( "SELECT post_id, meta_key FROM $wpdb->postmeta WHERE post_id NOT IN (SELECT ID FROM $wpdb->posts)" );
 				if ( $the_query ) {
 					foreach ( $the_query as $orphan_data ) {
@@ -1164,6 +845,7 @@ class Breeze_Configuration {
 				wp_cache_delete( 'breeze_clean_count_orphan_post_meta', 'breeze_database' );
 				break;
 			case 'oembed_cache':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_key FROM $wpdb->postmeta WHERE meta_key LIKE(%s)", '%_oembed_%' ) );
 				if ( $the_query ) {
 					foreach ( $the_query as $post_meta_data ) {
@@ -1183,6 +865,7 @@ class Breeze_Configuration {
 				wp_cache_delete( 'breeze_clean_count_oembed_cache', 'breeze_database' );
 				break;
 			case 'duplicated_post_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT GROUP_CONCAT(meta_id ORDER BY meta_id DESC) AS meta_ids, post_id, COUNT(*) AS count FROM $wpdb->postmeta GROUP BY post_id, meta_key, meta_value HAVING count > %d", 1 ) );
 				if ( $the_query ) {
 					foreach ( $the_query as $post_meta ) {
@@ -1219,6 +902,7 @@ class Breeze_Configuration {
 				wp_cache_delete( 'breeze_clean_count_comments_unapproved', 'breeze_database' );
 				break;
 			case 'comments_orphan_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT comment_id, meta_key FROM $wpdb->commentmeta WHERE comment_id NOT IN (SELECT comment_ID FROM $wpdb->comments)", '' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				if ( $the_query ) {
 					foreach ( $the_query as $orphan_data ) {
@@ -1237,6 +921,7 @@ class Breeze_Configuration {
 				wp_cache_delete( 'breeze_clean_count_comments_orphan_meta', 'breeze_database' );
 				break;
 			case 'comments_duplicate_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT GROUP_CONCAT(meta_id ORDER BY meta_id DESC) AS comment_ids, comment_id, COUNT(*) AS count FROM $wpdb->commentmeta GROUP BY comment_id, meta_key, meta_value HAVING count > %d", 1 ) );
 				if ( $the_query ) {
 					foreach ( $the_query as $comment_meta ) {
@@ -1271,6 +956,7 @@ class Breeze_Configuration {
 					delete_expired_transients( true );
 				}
 
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$select_expired = $wpdb->get_results(
 					$wpdb->prepare(
 						"
@@ -1292,8 +978,9 @@ class Breeze_Configuration {
 					} else {
 						$the_transient = str_replace( '_transient_timeout_', '_transient_', $the_timer );
 					}
-
+					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$wpdb->get_var( $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = %s", $the_transient ) );
+					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$wpdb->get_var( $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = %s", $the_timer ) );
 				}
 
@@ -1308,6 +995,7 @@ class Breeze_Configuration {
 				}
 
 				if ( is_multisite() && true === $is_network ) {
+					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$select_expired = $wpdb->get_results(
 						$wpdb->prepare(
 							"SELECT meta_key FROM $wpdb->sitemeta WHERE ( meta_key LIKE %s OR meta_key LIKE %s ) AND UNIX_TIMESTAMP(meta_value) < UNIX_TIMESTAMP(NOW())",
@@ -1332,12 +1020,14 @@ class Breeze_Configuration {
 
 				break;
 			case 'orphan_user_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( "SELECT user_id, meta_key FROM $wpdb->usermeta WHERE user_id NOT IN (SELECT ID FROM $wpdb->users)" );
 				if ( $the_query ) {
 					foreach ( $the_query as $orphan_data ) {
 						$user_id = (int) $orphan_data->user_id;
 						//  if $user_id is equal to zero then the entry was bugged/bad code, we delete the entry only.
 						if ( 0 === $user_id ) {
+							//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 							$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->usermeta WHERE user_id = %d AND meta_key = %s", $user_id, $orphan_data->meta_key ) );
 						} else {
 							// If $user_id ID exists, we can use WordPress function to delete the meta.
@@ -1347,6 +1037,7 @@ class Breeze_Configuration {
 				}
 				break;
 			case 'duplicated_user_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT GROUP_CONCAT(umeta_id ORDER BY umeta_id DESC) AS user_meta_ids, user_id, COUNT(*) AS count FROM $wpdb->usermeta GROUP BY user_id, meta_key, meta_value HAVING count > %d", 1 ) );
 				if ( $the_query ) {
 					foreach ( $the_query as $user_meta ) {
@@ -1354,6 +1045,7 @@ class Breeze_Configuration {
 						// We need to make sure that at least one entry is remaining.
 						array_pop( $user_meta_id_list );
 						$implode_id_list = implode( ',', $user_meta_id_list );
+						//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 						$wpdb->query(
 							$wpdb->prepare( "DELETE FROM $wpdb->usermeta WHERE umeta_id IN ({$implode_id_list}) AND user_id = %d", $user_meta->user_id ) // phpcs:ignore
 						);
@@ -1361,12 +1053,14 @@ class Breeze_Configuration {
 				}
 				break;
 			case 'orphan_term_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( "SELECT term_id, meta_key FROM $wpdb->termmeta WHERE term_id NOT IN (SELECT term_id FROM $wpdb->terms)" );
 				if ( $the_query ) {
 					foreach ( $the_query as $orphan_data ) {
 						$term_id = (int) $orphan_data->term_id;
 						//  if $term_id is equal to zero then the entry was bugged/bad code, we delete the entry only.
 						if ( 0 === $term_id ) {
+							//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 							$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->termmeta WHERE term_id = %d AND meta_key = %s", $term_id, $orphan_data->meta_key ) );
 						} else {
 							// If $term_id ID exists, we can use WordPress function to delete the meta.
@@ -1376,6 +1070,7 @@ class Breeze_Configuration {
 				}
 				break;
 			case 'duplicated_term_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$the_query = $wpdb->get_results( $wpdb->prepare( "SELECT GROUP_CONCAT(meta_id ORDER BY meta_id DESC) AS term_meta_ids, term_id, COUNT(*) AS count FROM $wpdb->termmeta GROUP BY term_id, meta_key, meta_value HAVING count > %d", 1 ) );
 				if ( $the_query ) {
 					foreach ( $the_query as $term_meta ) {
@@ -1383,6 +1078,7 @@ class Breeze_Configuration {
 						// We need to make sure that at least one entry is remaining.
 						array_pop( $term_meta_id_list );
 						$implode_id_list = implode( ',', $term_meta_id_list );
+						//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 						$wpdb->query(
 							$wpdb->prepare( "DELETE FROM $wpdb->termmeta WHERE meta_id IN ({$implode_id_list}) AND term_id = %d", $term_meta->term_id ) // phpcs:ignore
 						);
@@ -1614,17 +1310,21 @@ class Breeze_Configuration {
 				break;
 			case 'comments_orphan_meta':
 				// Check for meta with no existing comment as parent.
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$return = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->commentmeta WHERE comment_id NOT IN (SELECT comment_ID FROM $wpdb->comments)" );
 				break;
 			case 'comments_duplicate_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$return = $wpdb->get_var(
 					$wpdb->prepare( "SELECT COUNT(meta_id) AS COUNT FROM $wpdb->commentmeta GROUP BY comment_id, meta_key, meta_value HAVING count > %d", 1 )
 				);
 				break;
 			case 'orphan_post_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$return = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->postmeta WHERE post_id NOT IN (SELECT ID FROM $wpdb->posts)" );
 				break;
 			case 'duplicated_post_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$query = $wpdb->get_col( $wpdb->prepare( "SELECT COUNT(meta_id) AS COUNT FROM $wpdb->postmeta GROUP BY post_id, meta_key, meta_value HAVING count > %d", 1 ) );
 				if ( is_array( $query ) ) {
 					$return = array_sum( array_map( 'absint', $query ) );
@@ -1633,6 +1333,7 @@ class Breeze_Configuration {
 				}
 				break;
 			case 'oembed_cache':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$return = $wpdb->get_var(
 					$wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->postmeta WHERE meta_key LIKE(%s)", '%_oembed_%' )
 				);
@@ -1642,6 +1343,7 @@ class Breeze_Configuration {
 				$threshold = time() - MINUTE_IN_SECONDS; // phpcs:ignore
 
 				// count transient expiration records, expired
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$return = $wpdb->get_var(
 					$wpdb->prepare(
 						"
@@ -1657,9 +1359,11 @@ class Breeze_Configuration {
 
 				break;
 			case 'orphan_user_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$return = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->usermeta WHERE user_id NOT IN (SELECT ID FROM $wpdb->users)" );
 				break;
 			case 'duplicated_user_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$query = $wpdb->get_col(
 					$wpdb->prepare( "SELECT COUNT(umeta_id) AS count FROM $wpdb->usermeta GROUP BY user_id, meta_key, meta_value HAVING count > %d", 1 )
 				);
@@ -1670,9 +1374,11 @@ class Breeze_Configuration {
 				}
 				break;
 			case 'orphan_term_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$return = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->termmeta WHERE term_id NOT IN (SELECT term_id FROM $wpdb->terms)" );
 				break;
 			case 'duplicated_term_meta':
+				//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 				$query = $wpdb->get_var(
 					$wpdb->prepare( "SELECT COUNT(meta_id) AS count FROM $wpdb->termmeta GROUP BY term_id, meta_key, meta_value HAVING count > %d", 1 )
 				);
@@ -1686,6 +1392,7 @@ class Breeze_Configuration {
 				break;
 			case 'optimize_database':
 				if ( defined( 'WP_NETWORK_ADMIN' ) || ! is_multisite() ) {
+					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 					$return = $wpdb->get_var(
 						$wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE `TABLE_SCHEMA`=%s AND (`ENGINE`=%s OR `ENGINE`=%s OR `ENGINE`=%s)', DB_NAME, 'InnoDB', 'MyISAM', 'ARCHIVE' )
 					);
@@ -1693,6 +1400,7 @@ class Breeze_Configuration {
 					$blog_id = (int) $wpdb->blogid;
 					$return  = 0;
 					if ( 1 === $blog_id ) {
+						//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 						$sql_get    = $wpdb->get_results(
 							$wpdb->prepare( 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE `TABLE_SCHEMA`=%s AND (`ENGINE`=%s OR `ENGINE`=%s OR `ENGINE`=%s)', DB_NAME, 'InnoDB', 'MyISAM', 'ARCHIVE' ),
 							OBJECT
@@ -1709,6 +1417,7 @@ class Breeze_Configuration {
 							}
 						}
 					} else {
+						//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 						$return = $wpdb->get_var(
 							$wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE `TABLE_SCHEMA`=%s AND (`ENGINE`=%s OR `ENGINE`=%s OR `ENGINE`=%s) AND `TABLE_NAME` LIKE %s', DB_NAME, 'InnoDB', 'MyISAM', 'ARCHIVE', $wpdb->prefix . '%' )
 						);
@@ -2026,6 +1735,7 @@ class Breeze_Configuration {
 			$sites = get_sites(
 				array(
 					'fields' => 'ids',
+					'number' => 0,
 				)
 			);
 
@@ -2221,7 +1931,7 @@ class Breeze_Configuration {
 				$save_advanced['breeze-delay-js-scripts'] = $breeze_delay_js_scripts;
 
 				// Update each blog to default
-				$blogs = get_sites();
+				$blogs = get_sites( array( 'number' => 0 ) );
 				foreach ( $blogs as $blog ) {
 
 					update_blog_option( $blog->blog_id, 'breeze_basic_settings', $basic );
@@ -2290,7 +2000,7 @@ class Breeze_Configuration {
 			restore_current_blog();
 
 		} elseif ( 'network' === $blog_id ) { // Multisite network
-			$blogs = get_sites();
+			$blogs = get_sites( array( 'number' => 0 ) );
 			foreach ( $blogs as $blog ) {
 				switch_to_blog( $blog_id );
 				//automatic config start cache

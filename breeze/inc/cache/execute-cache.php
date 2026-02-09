@@ -223,6 +223,55 @@ if ( ! $check_exclude ) {
 }
 
 /**
+ * Determine whether PHP gzip should be bypassed for multisite + Varnish.
+ *
+ * @return bool
+ */
+function breeze_should_bypass_php_gzip() {
+	if ( ! is_multisite() ) {
+		return false;
+	}
+
+	if ( empty( $_SERVER['HTTP_X_VARNISH'] ) ) {
+		return false;
+	}
+
+	if ( empty( $_SERVER['HTTP_X_APPLICATION'] ) ) {
+		return false;
+	}
+
+	$application = trim( (string) $_SERVER['HTTP_X_APPLICATION'] );
+	if ( '' === $application || 'varnishpass' === $application || 'bypass' === $application ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Determine whether Breeze should gzip responses at the PHP layer.
+ *
+ * @return bool
+ */
+function breeze_should_gzip_output() {
+	$setting_enabled = ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] );
+	$should_gzip     = $setting_enabled;
+
+	$ini_output_compression = (string) ini_get( 'zlib.output_compression' );
+	$array_values           = array( '1', 'On', 'on' );
+	if ( in_array( $ini_output_compression, $array_values, true ) ) {
+		$should_gzip = false;
+	}
+
+	$should_bypass = breeze_should_bypass_php_gzip();
+	if ( $should_bypass ) {
+		$should_gzip = false;
+	}
+
+	return (bool) apply_filters( 'breeze_should_gzip_output', $should_gzip, $setting_enabled, $should_bypass, $ini_output_compression );
+}
+
+/**
  * Cache output before it goes to the browser
  *
  * @param string $buffer
@@ -443,7 +492,8 @@ function breeze_cache( $buffer, $flags ) {
 	$is_suffix = breeze_currency_switcher_cache();
 
 	if ( strpos( $breeze_current_url_path, '_breeze_cache_' ) !== false ) {
-		if ( ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] ) && function_exists( 'gzencode' ) ) {
+		$should_gzip = function_exists( 'gzencode' ) && breeze_should_gzip_output();
+		if ( $should_gzip ) {
 
 			$wp_filesystem->put_contents( $path . breeze_mobile_detect() . hash( 'sha512', $breeze_current_url_path . '/index.gzip.html' ) . $is_suffix . '.html', $data );
 			$wp_filesystem->touch( $path . breeze_mobile_detect() . hash( 'sha512', $breeze_current_url_path . '/index.gzip.html' ) . $is_suffix . '.html', $modified_time );
@@ -459,19 +509,19 @@ function breeze_cache( $buffer, $flags ) {
 	//set cache provider header if not exists cache file
 	header( 'Cache-Provider:CLOUDWAYS-CACHE-' . $X1 . 'C' );
 	header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $modified_time ) . ' GMT' );
+	if (
+		! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] ) &&
+		breeze_should_bypass_php_gzip()
+	) {
+		header( 'Vary: Accept-Encoding' );
+	}
 
-	if ( function_exists( 'ob_gzhandler' ) && ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] ) ) {
-		$ini_output_compression = ini_get( 'zlib.output_compression' );
-		$array_values           = array( '1', 'On', 'on' );
-		if ( in_array( $ini_output_compression, $array_values ) ) {
+	if ( function_exists( 'ob_gzhandler' ) && breeze_should_gzip_output() ) {
+		if ( defined( 'RedisCachePro\Version' ) ) {
 			return $buffer;
-		} else {
-			if ( defined( 'RedisCachePro\Version' ) ) {
-				return $buffer;
-			} else {
-				return ob_gzhandler( $buffer, $flags );
-			}
 		}
+
+		return ob_gzhandler( $buffer, $flags );
 	} else {
 		return $buffer;
 	}
@@ -522,7 +572,8 @@ function breeze_serve_cache( $filename, $breeze_current_url_path, $X1, $opts ) {
 		return;
 	}
 	$is_suffix = breeze_currency_switcher_cache();
-	if ( function_exists( 'gzencode' ) && ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] ) ) {
+	$should_gzip = function_exists( 'gzencode' ) && breeze_should_gzip_output();
+	if ( $should_gzip ) {
 		$file_name = hash( 'sha512', $filename . '/index.gzip.html' ) . $is_suffix . '.html';
 	} else {
 		$file_name = hash( 'sha512', $filename . '/index.html' ) . $is_suffix . '.html';
@@ -546,7 +597,7 @@ function breeze_serve_cache( $filename, $breeze_current_url_path, $X1, $opts ) {
 			$client_support_gzip = true;
 
 			//check gzip request from client
-			if ( isset( $_SERVER['HTTP_ACCEPT_ENCODING'] ) && ( strpos( $_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip' ) === false || strpos( $_SERVER['HTTP_ACCEPT_ENCODING'], 'deflate' ) === false ) ) {
+			if ( empty( $_SERVER['HTTP_ACCEPT_ENCODING'] ) || false === stripos( $_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip' ) ) {
 				$client_support_gzip = false;
 			}
 
@@ -555,8 +606,12 @@ function breeze_serve_cache( $filename, $breeze_current_url_path, $X1, $opts ) {
 					header( $header_name . ': ' . $header_value );
 				}
 			}
+			if ( ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] )
+				&& breeze_should_bypass_php_gzip() ) {
+				header( 'Vary: Accept-Encoding' );
+			}
 
-			if ( $client_support_gzip && function_exists( 'gzdecode' ) && ! empty( $GLOBALS['breeze_config']['cache_options']['breeze-gzip-compression'] ) ) {
+			if ( $client_support_gzip && function_exists( 'gzdecode' ) && breeze_should_gzip_output() ) {
 				//if file is zip
 
 				$content = gzencode( $datas['body'], 9 );
@@ -776,4 +831,3 @@ function breeze_cc_process_match( $match ) {
 		return '<a ' . $match[1] . '>';
 	}
 }
-

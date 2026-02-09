@@ -288,8 +288,8 @@ INLINEJS;
 						// Sanitize JavaScript code for output - validate UTF-8 and ensure safe output
 						$sanitized_js = wp_check_invalid_utf8( $inline_js );
 						$sanitized_js = preg_replace( '/[\x00-\x1F\x7F]/u', '', $sanitized_js );
-						// For JavaScript code blocks, use wp_kses_post which allows safe content
-						printf( '<script type="text/javascript">%s</script>', wp_kses_post( $sanitized_js ) );
+						//phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						printf( '<script type="text/javascript">%s</script>', $sanitized_js );
 					},
 					99
 				);
@@ -356,7 +356,11 @@ INLINEJS;
 		wp_enqueue_script( 'breeze-backend', plugins_url( 'assets/js/breeze-main' . $min . '.js', __DIR__ ), array( 'jquery' ), BREEZE_VERSION, true ); // BREEZE_VERSION
 		wp_enqueue_style( 'breeze-notice', plugins_url( 'assets/css/breeze-admin-global.css', __DIR__ ), array(), BREEZE_VERSION );
 		$current_screen = get_current_screen();
-		if ( $current_screen->base == 'settings_page_breeze' || $current_screen->base == 'settings_page_breeze-network' ) {
+		if (
+			'settings_page_breeze' === $current_screen->base ||
+			'settings_page_breeze-network' === $current_screen->base ||
+			'admin_page_breeze-network' === $current_screen->base
+		) {
 			// add css
 			wp_enqueue_style( 'breeze-fonts', plugins_url( 'assets/css/breeze-fonts.css', __DIR__ ), array(), BREEZE_VERSION ); // BREEZE_VERSION
 			wp_enqueue_style( 'breeze-style', plugins_url( 'assets/css/breeze-admin.css', __DIR__ ), array( 'breeze-fonts' ), BREEZE_VERSION ); // BREEZE_VERSION
@@ -855,7 +859,7 @@ INLINEJS;
 				$network_wide = is_network_admin();
 			}
 
-			$blogs = get_sites();
+			$blogs = get_sites( array( 'number' => 0 ) );
 			foreach ( $blogs as $blog ) {
 				$is_inherit_already = get_blog_option( (int) $blog->blog_id, 'breeze_inherit_settings', '' );
 				if ( '' === $is_inherit_already ) {
@@ -1028,7 +1032,7 @@ INLINEJS;
 		$check_varnish = is_varnish_cache_started();
 		if ( $check_varnish ) {
 			if ( is_multisite() ) {
-				$sites = get_sites();
+				$sites = get_sites( array( 'number' => 0 ) );
 				foreach ( $sites as $site ) {
 					switch_to_blog( $site->blog_id );
 					self::unschedule_events();
@@ -1065,6 +1069,7 @@ INLINEJS;
 				$sites = get_sites(
 					array(
 						'fields' => 'ids',
+						'number' => 0,
 					)
 				);
 
@@ -1276,7 +1281,7 @@ INLINEJS;
 		$response   = null;
 
 		if ( is_multisite() && $is_network ) {
-			$sites = get_sites();
+			$sites = get_sites( array( 'number' => 0 ) );
 			foreach ( $sites as $site ) {
 				switch_to_blog( $site->blog_id );
 				$homepage = home_url() . '/?breeze';

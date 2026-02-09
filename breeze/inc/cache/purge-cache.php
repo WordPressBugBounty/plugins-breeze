@@ -28,6 +28,10 @@ class Breeze_PurgeCache {
 	 * Temporary page/post/cpt ID list of already cache cleared.
 	 */
 	private array $cleared_extra_items = array();
+	/**
+	 * An array to store purged CF posts.
+	 */
+	private static array $purged_cf_posts = array();
 
 	public function set_action() {
 		add_action( 'pre_post_update', array( $this, 'purge_post_on_update' ), 10, 1 );
@@ -214,6 +218,12 @@ class Breeze_PurgeCache {
 	public function purge_post_on_update_content( int $post_id, WP_Post $post, bool $update ) {
 		if ( true === $update ) {
 
+			// Prevent multiple purges for the same post in one request
+			if ( in_array( $post_id, self::$purged_cf_posts, true ) ) {
+				return;
+			}
+			self::$purged_cf_posts[] = $post_id;
+
 			$post_type = get_post_type( $post_id );
 
 			if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || 'revision' === $post_type ) {
@@ -228,7 +238,9 @@ class Breeze_PurgeCache {
 				// Purge local cache for the URLs list.
 				$this->clear_local_cache_for_urls( $list_of_urls );
 				// Purge CF cache.
-				Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls );
+				// Purge type: 'default', 'cron'
+				$cf_purge_type = apply_filters( 'breeze_cf_purge_type_on_post_update', 'cron' );
+				Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls, $cf_purge_type );
 			}
 		}
 	}
@@ -375,6 +387,20 @@ class Breeze_PurgeCache {
 				$homepage
 			);
 		}
+
+		/**
+		 * Filter to allow additional URLs to be purged when a post is updated.
+		 *
+		 * @param array  $list_of_urls The list of URLs to be purged.
+		 * @param int    $post_id      The ID of the post being updated.
+		 * @param string $context      The purge context ('local' for file + Cloudflare cache, 'varnish' for Varnish).
+		 *
+		 * @return array Modified list of URLs to purge.
+		 */
+		$list_of_urls = apply_filters( 'breeze_purge_post_cache_urls', $list_of_urls, $post_id, 'local' );
+
+		// Remove any duplicate URLs to prevent redundant cache purging operations
+		$list_of_urls = array_unique( $list_of_urls );
 
 		return $list_of_urls;
 	}

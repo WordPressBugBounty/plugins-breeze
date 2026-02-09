@@ -193,7 +193,7 @@ class Breeze_Upgrade {
 		}
 
 		if ( is_multisite() ) {
-			$blogs = get_sites();
+			$blogs = get_sites( array( 'number' => 0 ) );
 			if ( ! empty( $blogs ) ) {
 				foreach ( $blogs as $blog_data ) {
 					$blog_id = $blog_data->blog_id;
@@ -238,7 +238,7 @@ class Breeze_Upgrade {
 			// For multi-site we need to also reset the root config-file.
 			Breeze_ConfigCache::factory()->write_config_cache( true );
 
-			$blogs = get_sites();
+			$blogs = get_sites( array( 'number' => 0 ) );
 			if ( ! empty( $blogs ) ) {
 				foreach ( $blogs as $blog_data ) {
 					$blog_id = $blog_data->blog_id;

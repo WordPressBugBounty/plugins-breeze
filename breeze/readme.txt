@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.2.24
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,23 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.3.0 =
+
+* Fix: URLs excluded from cache that contain hash (#) fragments are now correctly skipped during preload.
+* Fix: Modified regex to better fetch images through CSS classes.
+* Fix: Corrected warnings and errors to follow WordPress coding rules.
+* Fix: Resolved SyntaxError occurring when the native lazyload option is enabled.
+* Fix: Resolved a "Double-Compression" conflict on WordPress Multisite environments using Varnish. Breeze now detects the X-Varnish header and intelligently bypasses PHP-level Gzip to prevent malformed HTML streams.
+* Fix: Prevented redundant Cloudflare cache purge requests from triggering multiple times during a single post update.
+* Fix: Resolved an issue where the "Preload Links" feature caused WooCommerce cart items to be removed automatically upon hovering over the "Remove" button.
+* Fix: Improved screen detection logic for the Breeze back‑end CSS file, ensuring it loads correctly in all relevant admin contexts.
+* Fix: Removed the multisite sub‑site limit. The system previously enforced a default maximum of 100 sub‑sites.
+* Improved: Refined .htaccess rule syntax and underlying logic. In certain rare cases, the previous implementation could trigger a 500 server error.
+* Improved: Optimized performance for post updates and WooCommerce order processing by offloading Cloudflare cache purges to a background cron job.
+* Added: Control PHP Gzip compression programmatically with breeze_should_gzip_output filter
+* Added: Introduced breeze_cf_purge_type_on_post_update and breeze_cf_purge_type_on_order_update filters to programmatically toggle between background (cron) and synchronous (default) purging.
+* Added: Introduced the breeze_purge_post_cache_urls filter, allowing developers to programmatically add extra URLs to the purge queue. When using this filter, ensure all custom URLs are returned with a trailing slash (/).
 
 = 2.2.24 =
 
@@ -828,4 +845,5 @@ Update Breeze through WordPress Admin > Dashboard >Updates. The settings will re
 
 
 PHP 7.4, PHP 8 recommended for better performance, WordPress 6.0+
+
 

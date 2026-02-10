@@ -285,13 +285,15 @@ jQuery( document ).ready(
                     security: breeze_token_name.breeze_purge_varnish
                 },
                 success: function (res) {
-                    var message = (res && res.responseJSON && res.responseJSON.data) ? res.responseJSON.data : '';
+                    // var message = (res && res.responseJSON && res.responseJSON.data) ? res.responseJSON.data : '';
+					var message = (res && res.data) ? res.data : '';
                     $div.removeClass("notice-info");
                     $div.addClass("notice-success");
                     $div.find("p").text(message);
                 },
                 error: function (res) {
-                    var message = (res && res.responseJSON && res.responseJSON.data) ? res.responseJSON.data : 'An error occurred';
+                    // var message = (res && res.responseJSON && res.responseJSON.data) ? res.responseJSON.data : 'An error occurred';
+					var message = (res && res.data) ? res.data : '';
                     $div.removeClass("notice-info");
                     $div.addClass("notice-error");
                     $div.find("p").text(message);

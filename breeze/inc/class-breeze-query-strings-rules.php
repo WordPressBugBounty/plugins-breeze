@@ -109,6 +109,19 @@ class Breeze_Query_Strings_Rules {
 	public function fetch_ignored_list() {
 		$this->ignored_list = apply_filters( 'breeze_ignored_query_strings_list', $this->ignored_list );
 
+		// Append cached query strings from Breeze config settings to the ignored list.
+		if (
+			isset( $GLOBALS['breeze_config'], $GLOBALS['breeze_config']['cached-query-strings'] ) &&
+			! empty( $GLOBALS['breeze_config']['cached-query-strings'] ) &&
+			is_array( $GLOBALS['breeze_config']['cached-query-strings'] )
+		) {
+			$this->ignored_list = array_merge(
+				$this->ignored_list,
+				array_values( $GLOBALS['breeze_config']['cached-query-strings'] )
+			);
+			$this->ignored_list = array_unique( $this->ignored_list );
+		}
+
 		return $this->ignored_list;
 	}
 
@@ -360,14 +373,14 @@ class Breeze_Query_Strings_Rules {
 			}
 
 			// Fetch all the query vars that are in the must cache list and found in current URL, user defined.
-			if ( 
-				in_array( $index, $user_defined_query_vars, true ) 
-				|| ! empty( breeze_is_string_in_array_values( $index, $user_defined_query_vars ) )
-			) {
-				$found_items['user_cached_no'] ++;
-				$found_items['user_cached_items'][ $index ] = $value;
-				unset( $not_found_anywhere[ $index ] );
-			}
+			// if ( 
+			// 	in_array( $index, $user_defined_query_vars, true ) 
+			// 	|| ! empty( breeze_is_string_in_array_values( $index, $user_defined_query_vars ) )
+			// ) {
+			// 	$found_items['user_cached_no'] ++;
+			// 	$found_items['user_cached_items'][ $index ] = $value;
+			// 	unset( $not_found_anywhere[ $index ] );
+			// }
 		}
 
 		$found_items['extra_query_no']   = count( $not_found_anywhere );

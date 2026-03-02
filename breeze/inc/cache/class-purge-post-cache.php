@@ -50,6 +50,10 @@ class Purge_Post_Cache {
 	 * @return array Modified actions array with the 'Clear Cache' option.
 	 */
 	public function clear_cache_option( $actions, $post ) {
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return $actions;
+		}
+
 		$url         = $this->clear_cache_action_url( $post );
 		$clear_cache = array( 'clear-cache' => "<a href='$url'>Clear Cache</a>" );
 

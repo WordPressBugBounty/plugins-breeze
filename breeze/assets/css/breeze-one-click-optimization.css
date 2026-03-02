@@ -1,0 +1,316 @@
+/**
+ * Breeze One-Click Optimization CSS
+ */
+#wpbody-content .breeze-one-click-optimization-section .br-section-title img {
+    max-width: 26px;
+    vertical-align: text-top;
+    margin-right: 11px;
+}
+
+#wpbody-content .breeze-one-click-optimization-section .br-section-title {
+    border-bottom: none;
+    height: 65px;
+}
+
+.breeze-one-click-optimization-section .br-section-title + p {
+    margin-bottom: 32px;
+    margin-top: 14px;
+    color: #3C434A;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.breeze-top-notice.optimization-notice {
+    position: relative;
+    background-color: #F8F8F8;
+    border-left: 5px solid #11ACDF;
+    padding: 24px;
+    margin-bottom: 0;
+    margin-top: 22px;
+    border-radius: 0;
+}
+
+.breeze-top-notice.optimization-notice .close-notice {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+}
+
+.breeze-top-notice.optimization-notice .explore-optimization {
+    margin-top: 16px;
+    background: #2171B1;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 17px;
+    padding: 8px 16px;
+    border: none;
+}
+
+.compatibility-notice {
+    background-color: #FFF8E5;
+    border-left: 5px solid #FFB901;
+}
+
+.compatibility-notice#breeze-compatibility-notice p {
+    margin-bottom: 16px;
+}
+
+.compatibility-notice#breeze-compatibility-notice .compatibility-issue p {
+    margin: 0;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.optimization-success {
+    background-color: #EDF7ED;
+    border-left: 5px solid #65B25C;
+}
+
+.optimization-notice {
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.optimization-notice h3 {
+    margin: 0 0 4px;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 17px;
+    color: #3C434A;
+}
+
+.optimization-notice p {
+    color: #3C434A;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 17px;
+    margin: 0;
+}
+
+.optimization-levels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.optimization-levels.detected-compatibility-issue {
+    opacity: 0.4;
+}
+
+.optimization-level {
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border-left: 1px solid #D8D8D8;
+    border-right: 1px solid #D8D8D8;
+    border-bottom: 1px solid #D8D8D8;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.level-header {
+    border-bottom: 1px solid #D8D8D8;
+    padding: 12px 12px 7px;
+    margin-bottom: 17px;
+}
+
+.level-header h3 {
+    color: #091E42;
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.level-description {
+    color: #3C434A;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 14px;
+}
+
+.level-features {
+    padding: 0 12px 17px;
+}
+
+.level-features ul {
+    margin-left: 25px;
+    margin-bottom: 0;
+    margin-top: 0;
+}
+
+.level-features li {
+    margin-bottom: 10px;
+    position: relative;
+    color: #091E42;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 14px;
+}
+
+.level-features li:before {
+    content: "";
+    background-image: url("../images/check.svg");
+    position: absolute;
+    right: calc(100% + 5px);
+    width: 20px;
+    height: 20px;
+    background-repeat: no-repeat;
+    background-size: contain;
+    top: -2px;
+}
+
+.level-action {
+    padding: 0 14px 20px;
+    margin-top: auto;
+}
+
+.level-action button.apply-optimization {
+    width: 100%;
+    background: #2171B1 !important;
+    border-radius: 3px;
+    color: #FFFFFF;
+    padding: 8px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 17px;
+    border: none;
+    box-shadow: none;
+}
+
+.restore-settings {
+    background-color: #F8F8F8;
+    padding: 20px 16px;
+    border-radius: 5px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+    color: #3C434A;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.restore-settings p {
+    margin: 0;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+#restore-settings-button {
+    border: 1px solid #2171B1;
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: transparent !important;
+    color: #2171B1;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 17px;
+}
+
+.compatibility-issue {
+    background-color: #fff;
+    border: 1px solid #D8D8D8;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+}
+
+.compatibility-issue h4 {
+    margin-top: 0;
+    margin-bottom: 2px;
+    color: #D54D21;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 17px;
+}
+
+.compatibility-actions {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#breeze-compatibility-notice .compatibility-actions button {
+    background-color: white;
+    border-radius: 3px;
+    border: 1px solid #2171B1;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 17px;
+    color: #0173AA;
+}
+
+#breeze-compatibility-notice .compatibility-actions button.button-primary {
+    background-color: #0173AA;
+    color: white;
+}
+
+/* Optimization level specific colors */
+.optimization-level.basic {
+    border-top: 6px solid #0173AA;
+}
+
+.optimization-level.advanced {
+    border-top: 6px solid #FFB901;
+}
+
+.optimization-level.expert {
+    border-top: 6px solid #D54D21;
+}
+
+/* Applied optimization styles */
+.applied-tag {
+    background-color: #EDF7ED;
+    border-radius: 100px;
+    padding: 3px 6px;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 12px;
+    color: #00875A;
+    margin-left: 7px;
+}
+
+.applied-tag::before {
+    content: "";
+    background-image: url("../images/check_circle.svg");
+    width: 12px;
+    height: 12px;
+    position: relative;
+    top: 1px;
+    background-repeat: no-repeat;
+    background-size: contain;
+    display: inline-flex;
+    vertical-align: text-top;
+    margin-right: 2px;
+}
+
+button.apply-optimization.br-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Restore notification styles */
+.breeze-restore-notice {
+    background-color: #ecf7ed;
+    border-left: 4px solid #46b450;
+    padding: 15px;
+    margin-bottom: 30px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .optimization-level {
+        flex: 100%;
+    }
+}

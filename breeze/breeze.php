@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.3.1
+ * Version: 2.4.0
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.3.1' );
+	define( 'BREEZE_VERSION', '2.4.0' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -110,6 +110,7 @@ register_deactivation_hook( __FILE__, array( 'Breeze_Admin', 'plugin_deactive_ho
 require_once BREEZE_PLUGIN_DIR . 'inc/breeze-admin.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-prefetch.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-preload-fonts.php';
+require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-one-click-optimization.php';
 
 
 // Load Store Local Files class.
@@ -273,3 +274,32 @@ require_once BREEZE_PLUGIN_DIR . 'inc/wp-cli/class-breeze-wp-cli-core.php';
 
 // Reset to default
 add_action( 'breeze_reset_default', array( 'Breeze_Admin', 'plugin_deactive_hook' ), 80 );
+
+/**
+ * Get all password protected page URLs
+ *
+ * @return array Array of password protected page URLs
+ */
+function breeze_get_password_protected_page_urls()
+{
+	$password_protected_urls = array();
+
+	// Use WordPress API instead of direct SQL for safety and maintainability
+	$post_ids = get_posts(array(
+		'post_type'      => array('post', 'page'),
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'has_password'   => true,
+		'fields'         => 'ids', // Only get IDs
+		'no_found_rows'  => true,  // Skip pagination count for performance
+	));
+
+	foreach ($post_ids as $post_id) {
+		$url = get_permalink($post_id);
+		if ($url) {
+			$password_protected_urls[] = $url;
+		}
+	}
+
+	return $password_protected_urls;
+}

@@ -662,6 +662,7 @@ class Breeze_Configuration {
 				$revisions_query = new WP_Query(
 					array(
 						'post_type'      => 'revision',
+						'post_status'    => 'inherit',
 						'posts_per_page' => -1,
 						'fields'         => 'ids',
 					)
@@ -1224,6 +1225,7 @@ class Breeze_Configuration {
 				$revisions_query = new WP_Query(
 					array(
 						'post_type'      => 'revision',
+						'post_status'    => 'inherit',
 						'posts_per_page' => -1,
 						'fields'         => 'ids',
 						'no_found_rows'  => false,

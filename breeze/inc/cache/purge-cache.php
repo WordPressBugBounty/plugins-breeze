@@ -50,6 +50,7 @@ class Breeze_PurgeCache {
 
 		add_action( 'switch_theme', array( &$this, 'clear_local_cache_on_switch' ), 9, 3 );
 		add_action( 'customize_save_after', array( &$this, 'clear_customizer_cache' ), 11, 1 );
+		add_action( 'purge_post_cache', array( $this, 'purge_post_cache' ), 10, 1 );
 	}
 
 	/**
@@ -174,6 +175,81 @@ class Breeze_PurgeCache {
 		// File based caching only
 		if ( ! empty( Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) ) {
 			self::breeze_cache_flush( $do_cache_reset, $clear_wp_cache );
+		}
+	}
+
+	/**
+	 * Programmatically purge cache for a specific post.
+	 *
+	 * This function can be called directly using:
+	 * do_action('purge_post_cache', $post_id);
+	 *
+	 * @param int $post_id The ID of the post to purge cache for.
+	 *
+	 * @return void
+	 */
+	public function purge_post_cache( $post_id ) {
+
+		// Validate post ID
+		if ( empty( $post_id ) || ! is_numeric( $post_id ) ) {
+			return;
+		}
+
+		$post_type = get_post_type( $post_id );
+
+		// Skip if post doesn't exist or is a revision
+		if ( false === $post_type || 'revision' === $post_type ) {
+			return;
+		}
+
+		// File based caching only
+		if ( ! empty( Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) ) {
+			// Collect all URLs related to this post
+			$list_of_urls = self::collect_urls_for_cache_purge( $post_id );
+
+			if ( ! empty( $list_of_urls ) ) {
+				// Remove homepage from the purge list (both with and without trailing slash)
+				$homepage_with_slash = trailingslashit( home_url() );
+				$homepage_without_slash = untrailingslashit( home_url() );
+				$list_of_urls = array_filter( $list_of_urls, function( $url ) use ( $homepage_with_slash, $homepage_without_slash ) {
+					$trimmed_url = trim( $url );
+					return $trimmed_url !== $homepage_with_slash && $trimmed_url !== $homepage_without_slash;
+				} );
+
+				if ( ! empty( $list_of_urls ) ) {
+					// Purge local cache for the URLs list
+					$this->clear_local_cache_for_urls( $list_of_urls );
+					// Purge Cloudflare cache
+					Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls );
+					// Purge Varnish cache
+					$varnish = new Breeze_PurgeVarnish();
+					foreach ( $list_of_urls as $url_path ) {
+						$item_url = untrailingslashit( $url_path ) . '/?breeze';
+						$varnish->purge_cache( $item_url );
+					}
+				}
+			}
+
+			// Also clear object cache if needed
+			$clear_wp_cache = true;
+			if ( true === self::is_pro_plugin_ob_cache_enabled() ) {
+				$clear_wp_cache = false;
+			}
+
+			$do_cache_reset = true;
+			if ( 'tribe_events' === $post_type ) {
+				$do_cache_reset = false;
+			}
+
+			// Set global post for breeze_cache_flush if needed
+			global $post;
+			$original_post = $post;
+			$post = get_post( $post_id );
+			
+			self::breeze_cache_flush( $do_cache_reset, $clear_wp_cache );
+			
+			// Restore original post
+			$post = $original_post;
 		}
 	}
 

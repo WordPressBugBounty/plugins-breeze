@@ -242,6 +242,10 @@ $myListTable = new Breeze_Db_Summary_List_Table();
 
 ?>
 <section>
+    <?php
+    Breeze_One_Click_Optimization::one_click_optimization_notice();
+    ?>
+
 	<div class="br-section-title">
 		<img src="<?php echo esc_url( $icon ); ?>"/>
 		<?php esc_html_e( 'DATABASE OPTIONS', 'breeze' ); ?>

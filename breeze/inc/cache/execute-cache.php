@@ -310,6 +310,25 @@ function breeze_cache( $buffer, $flags ) {
 		return $buffer;
 	}
 
+	// Exclude password protected pages from caching
+	if ( function_exists( '\breeze_get_password_protected_page_urls' ) ) {
+		$password_protected_urls = \breeze_get_password_protected_page_urls();
+		if ( ! empty( $password_protected_urls ) ) {
+			$domain      = ( ( ( ! empty( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] !== 'off' ) || $_SERVER['SERVER_PORT'] == 443 ) ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
+			$current_url = rtrim( mb_strtolower( $domain . rawurldecode( $_SERVER['REQUEST_URI'] ) ), '/' );
+
+			foreach ( $password_protected_urls as $protected_url ) {
+				$protected_url_normalized = rtrim( mb_strtolower( $protected_url ), '/' );
+				if ( strpos( $current_url, $protected_url_normalized ) === 0 ) {
+					$next_char = mb_substr( $current_url, mb_strlen( $protected_url_normalized ), 1 );
+					if ( in_array( $next_char, array( '', '/', '?', '#' ) ) ) {
+						return $buffer;
+					}
+				}
+			}
+		}
+	}
+
 	// Filter to modify cache buffer before caching
 	$buffer = apply_filters( 'breeze_cache_buffer_before_processing', $buffer );
 

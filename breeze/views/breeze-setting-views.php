@@ -40,11 +40,6 @@ $breeze_option_tabs = array(
 		'tab-name' => __( 'DATABASE OPTIONS', 'breeze' ),
 		'tab-icon' => 'database',
 	),
-	//	array(
-	//      'tab-slug' => 'varnish',
-	//      'tab-name' => __( 'VARNISH', 'breeze' ),
-	//      'tab-icon' => 'varnish',
-	//  ),
 	array(
 		'tab-slug' => 'cdn',
 		'tab-name' => __( 'CDN', 'breeze' ),
@@ -59,6 +54,11 @@ $breeze_option_tabs = array(
 		'tab-slug' => 'tools',
 		'tab-name' => __( 'TOOLS', 'breeze' ),
 		'tab-icon' => 'tools',
+	),
+	array(
+		'tab-slug' => 'one-click-optimization',
+		'tab-name' => __( 'ONE-CLICK OPTIMIZATION', 'breeze' ),
+		'tab-icon' => 'one-click-optimization',
 	),
 	array(
 		'tab-slug' => 'faq',

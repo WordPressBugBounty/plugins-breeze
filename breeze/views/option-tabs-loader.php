@@ -23,6 +23,7 @@ class Breeze_Tab_Loader {
 			'faq',
 			'varnish',
 			'heartbeat',
+			'one-click-optimization',
 		);
 
 		$requested_tab = ( isset( $_GET['request_tab'] ) ? $_GET['request_tab'] : 'basic' );

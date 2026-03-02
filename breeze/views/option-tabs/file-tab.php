@@ -29,7 +29,12 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/file-active.png';
 	<?php if ( true === $is_custom ) { ?>
         <div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
-    <section>
+
+    <?php
+    Breeze_One_Click_Optimization::one_click_optimization_notice();
+    ?>
+
+	<section>
         <div class="br-section-title">
             <img src="<?php echo esc_url( $icon ); ?>"/>
 			<?php esc_html_e( 'FILE OPTIMIZATION', 'breeze' ); ?>

@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.3.1
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,17 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.4.0 =
+
+* Fixed: Cache clearing during bulk plugin updates from 3rd-party tools like WP-Manager.
+* Fixed: Corrected the post revisions count displayed under the Database options tab.
+* Fixed: Improved compatibility with Polylang to ensure cache is properly purged for respective language versions.
+* Fixed: Password-protected pages now prompt for a password instead of being served from cache.
+* Added: Ability to programmatically clear cache for a specific post.
+* Added: One-Click Optimization feature to quickly apply recommended cache and performance settings.
+* Improved: Cache handling updated so query strings no longer create separate cache files.
+* Improved: Enhanced security by restricting the “Clear Cache” option for specific posts from users with limited WordPress permissions.
 
 = 2.3.1 =
 

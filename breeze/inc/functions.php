@@ -958,3 +958,50 @@ function breeze_is_folder_empty( string $dir = '' ): bool {
 
 	return empty( $files );  // True if the dirlist is empty, false otherwise
 }
+
+/**
+ * Check if a translation plugin is activated.
+ *
+ * @return string
+ */
+function breeze_has_i18n() {
+	global $polylang;
+
+	if ( ! empty( $polylang ) && function_exists( 'pll_languages_list' ) ) {
+		$languages = pll_languages_list();
+
+		if ( empty( $languages ) ) {
+			return '';
+		}
+
+		// Polylang.
+		return 'polylang';
+	}
+}
+
+/**
+ * Get Home URL of active language.
+ *
+ * @return string
+ */
+function breeze_i18n_home_url() {
+	$translation_plugin = breeze_has_i18n();
+
+	$home_url = home_url();
+
+	if ( ! $translation_plugin ) {
+		return $home_url;
+	}
+
+	switch ( $translation_plugin ) {
+		case 'polylang':
+			$polylang = function_exists( 'PLL' ) ? PLL() : $GLOBALS['polylang'];
+
+			if ( ! empty( $polylang->options['force_lang'] ) && isset( $polylang->links ) ) {
+				$home_url = pll_home_url();
+			}
+			break;
+	}
+
+	return $home_url;
+}

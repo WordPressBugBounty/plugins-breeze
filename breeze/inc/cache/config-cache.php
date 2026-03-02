@@ -24,6 +24,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Breeze_ConfigCache {
+	/**
+	 * Invalidate OPcache entry for a file so config updates are visible immediately.
+	 *
+	 * @param string $file Absolute file path.
+	 *
+	 * @return void
+	 */
+	private static function invalidate_opcode_cache_file( $file ) {
+		if ( empty( $file ) || ! is_string( $file ) ) {
+			return;
+		}
+
+		clearstatcache( true, $file );
+
+		if ( function_exists( 'opcache_invalidate' ) ) {
+			opcache_invalidate( $file, true );
+		}
+	}
 
 	/**
 	 * Create advanced-cache file
@@ -232,7 +250,12 @@ FILE_STRING;
 						"\n" . '	include_once \'' . BREEZE_PLUGIN_DIR . 'inc/cache/execute-cache.php\';' .
 						"\n" . '}' . "\n";
 
-		return $wp_filesystem->put_contents( $file, $file_string );
+		$result = $wp_filesystem->put_contents( $file, $file_string );
+		if ( $result ) {
+			self::invalidate_opcode_cache_file( $file );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -576,7 +599,12 @@ FILE_STRING;
 
 		$config_file_string = '<?php ' . "\n\r" . "defined( 'ABSPATH' ) || exit;" . "\n\r" . 'return ' . var_export( $config, true ) . '; ' . "\n\r";
 
-		return $wp_filesystem->put_contents( $config_file, $config_file_string, FS_CHMOD_FILE );
+		$result = $wp_filesystem->put_contents( $config_file, $config_file_string, FS_CHMOD_FILE );
+		if ( $result ) {
+			self::invalidate_opcode_cache_file( $config_file );
+		}
+
+		return $result;
 	}
 
 	/**

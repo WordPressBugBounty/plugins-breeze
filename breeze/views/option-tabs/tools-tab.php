@@ -32,6 +32,11 @@ if ( is_multisite() ) {
 	<?php if ( true === $is_custom ) { ?>
 		<div class="br-overlay-disable"><?php esc_html_e( 'Settings are inherited', 'breeze' ); ?></div>
 	<?php } ?>
+
+    <?php
+    Breeze_One_Click_Optimization::one_click_optimization_notice();
+    ?>
+
 	<div class="br-section-title">
 		<img src="<?php echo esc_url( $icon ); ?>"/>
 		<?php esc_html_e( 'TOOLS', 'breeze' ); ?>

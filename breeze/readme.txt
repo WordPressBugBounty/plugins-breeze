@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.1
+Stable tag: 2.4.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,10 +160,13 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.4.2 =
+
+* Fixed: Enhanced security measures to prevent unauthorized access to cached content.
+
 = 2.4.1 =
 
 * Added: changelog.txt and moved the complete changelog history to it.
-[See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 
 = 2.4.0 =
 
@@ -175,6 +178,8 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 * Added: One-Click Optimization feature to quickly apply recommended cache and performance settings.
 * Improved: Cache handling updated so query strings no longer create separate cache files.
 * Improved: Enhanced security by restricting the “Clear Cache” option for specific posts from users with limited WordPress permissions.
+
+[See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 
 == Upgrade Notice ==
 

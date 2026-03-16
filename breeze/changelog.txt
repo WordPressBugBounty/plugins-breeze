@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.4.2 =
+
+* Fixed: Enhanced security measures to prevent unauthorized access to cached content.
+
 = 2.4.1 =
 
 * Created changelog.txt and moved the complete changelog history to it.

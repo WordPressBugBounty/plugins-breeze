@@ -134,14 +134,22 @@ if ( ! empty( $_COOKIE ) ) {
 		}
 	}
 
-	if ( $user_logged ) {
-		foreach ( $_COOKIE as $k => $v ) {
-			if ( strpos( $k, 'wordpress_logged_in_' ) !== false ) {
-				$nameuser = substr( $v, 0, strpos( $v, '|' ) );
-				if ( substr_count( $breeze_current_url_path, '?' ) > 0 ) {
-					$filename = $breeze_current_url_path . '&' . strtolower( $nameuser );
-				} else {
-					$filename = $breeze_current_url_path . '?' . strtolower( $nameuser );
+	// Use cookie for user-specific cache only when verifiable (wp_validate_auth_cookie not loaded here). Otherwise keep guest to avoid trusting unverified cookie.
+	if ($user_logged && function_exists('wp_validate_auth_cookie')) {
+		foreach ($_COOKIE as $k => $v) {
+			if (strpos($k, 'wordpress_logged_in_') !== false) {
+				// Verify the cookie is authentic using WordPress core
+				$user_id = \wp_validate_auth_cookie($v, 'logged_in');
+				if ($user_id) {
+					$user = \get_userdata($user_id);
+					if ($user) {
+						$nameuser = $user->user_login;
+						if (substr_count($breeze_current_url_path, '?') > 0) {
+							$filename = $breeze_current_url_path . '&' . strtolower($nameuser);
+						} else {
+							$filename = $breeze_current_url_path . '?' . strtolower($nameuser);
+						}
+					}
 				}
 			}
 		}

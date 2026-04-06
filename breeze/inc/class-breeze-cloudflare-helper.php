@@ -182,9 +182,96 @@ final class Breeze_CloudFlare_Helper {
 			}
 		}
 
+		// Adjust endpoint based on WPML language URL format settings.
+		$breeze_helper          = new Breeze_CloudFlare_Helper();
+		$purge_request_endpoint = $breeze_helper->get_wpml_adjusted_endpoint( $purge_request_endpoint );
+
+		// If endpoint was changed to sub-dir, we need to process URLs accordingly.
+		if ( 'purge-fpc-sub-dir' === $purge_request_endpoint && ! is_multisite() ) {
+			if ( ! empty( $home_url ) ) {
+				foreach ( $home_url as &$url ) {
+					$url = untrailingslashit( $url );
+				}
+				if ( true === self::is_log_enabled() ) {
+					error_log( '######### CF WPML SubDirectory: ' . var_export( $home_url, true ) );
+				}
+			}
+		}
+
 		self::$processed_home_urls[ $home_url_key ] = true;
 
-		return ( new Breeze_CloudFlare_Helper() )->request_cache_reset( $home_url, $purge_request_endpoint );
+		return $breeze_helper->request_cache_reset( $home_url, $purge_request_endpoint );
+	}
+
+	/**
+	 * Adjust the purge endpoint based on WPML language URL format settings.
+	 *
+	 * This method checks if WPML is active and configured to always show language
+	 * directories in URLs. If both conditions are met, it changes the endpoint
+	 * from 'purge-fpc-domain' to 'purge-fpc-sub-dir'.
+	 *
+	 * @param string $current_endpoint The current purge request endpoint.
+	 *
+	 * @return string The adjusted endpoint based on WPML settings.
+	 * @since 2.0.20
+	 * @access private
+	 */
+	private function get_wpml_adjusted_endpoint( string $current_endpoint ): string {
+		// Only adjust if current endpoint is 'purge-fpc-domain'.
+		if ( 'purge-fpc-domain' !== $current_endpoint ) {
+			return $current_endpoint;
+		}
+
+		// Check if WPML is active.
+		if ( ! defined( 'ICL_SITEPRESS_VERSION' ) ) {
+			if ( true === self::is_log_enabled() ) {
+				error_log( 'WPML is not active, keeping endpoint: ' . $current_endpoint );
+			}
+			return $current_endpoint;
+		}
+
+		// Get WPML settings.
+		$wpml_settings = get_option( 'icl_sitepress_settings' );
+
+		if ( empty( $wpml_settings ) ) {
+			if ( true === self::is_log_enabled() ) {
+				error_log( 'WPML settings not found, keeping endpoint: ' . $current_endpoint );
+			}
+			return $current_endpoint;
+		}
+
+		// Check language negotiation type (must be 1 for directories).
+		$language_negotiation_type = isset( $wpml_settings['language_negotiation_type'] ) ? absint( $wpml_settings['language_negotiation_type'] ) : 0;
+
+		// Check if directory for default language is enabled.
+		$directory_for_default_language = isset( $wpml_settings['urls']['directory_for_default_language'] ) ? (bool) $wpml_settings['urls']['directory_for_default_language'] : false;
+
+		if ( true === self::is_log_enabled() ) {
+			error_log( 'WPML language_negotiation_type: ' . var_export( $language_negotiation_type, true ) );
+			error_log( 'WPML directory_for_default_language: ' . var_export( $directory_for_default_language, true ) );
+		}
+
+		// If both conditions are met, change endpoint to subdirectory purge.
+		if ( 1 === $language_negotiation_type && true === $directory_for_default_language ) {
+			$adjusted_endpoint = 'purge-fpc-sub-dir';
+			if ( true === self::is_log_enabled() ) {
+				error_log( 'WPML language directories detected, changing endpoint from ' . $current_endpoint . ' to ' . $adjusted_endpoint );
+			}
+			return $adjusted_endpoint;
+		}
+
+		if ( true === self::is_log_enabled() ) {
+			error_log( 'WPML conditions not met, keeping endpoint: ' . $current_endpoint );
+		}
+
+		return $current_endpoint;
+	}
+
+	/** @return bool True if any purge URL contains a WPML directory language segment (e.g. /sk/). */
+	private function purge_urls_have_wpml_language_directory( array $purge_url_list ): bool {
+		$langs = defined( 'ICL_SITEPRESS_VERSION' ) ? apply_filters( 'wpml_active_languages', null, array( 'skip_missing' => 0 ) ) : null;
+
+		return is_array( $langs ) && ! empty( $langs ) && (bool) preg_grep( '#/(?:' . implode( '|', array_map( function ( $c ) { return preg_quote( strtolower( $c ), '#' ); }, array_keys( $langs ) ) ) . ')(?:/|$)#i', $purge_url_list );
 	}
 
 	/**
@@ -455,6 +542,21 @@ final class Breeze_CloudFlare_Helper {
 
 		if ( empty( $purge_url_list ) ) {
 			return false;
+		}
+
+		$has_wpml_lang_in_url = $this->purge_urls_have_wpml_language_directory( $purge_url_list );
+
+		// Sub-dir purge API expects full URLs with https (domain purge uses scheme-stripped host paths).
+		if ( 'purge-fpc-sub-dir' === $endpoint_path || $has_wpml_lang_in_url ) {
+			foreach ( $purge_url_list as &$url ) {
+				$url = trim( $url );
+				if ( 0 !== stripos( $url, 'http://' ) && 0 !== stripos( $url, 'https://' ) ) {
+					$url = 'https://' . ltrim( $url, '/' );
+				} else {
+					$url = set_url_scheme( $url, 'https' );
+				}
+			}
+			unset( $url );
 		}
 
 		$verify_host      = 2;

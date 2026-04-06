@@ -179,9 +179,15 @@ $breeze_query_vars_list = $query_instance->check_query_var_group( $current_url )
 
 if ( false === $check_exclude && 0 !== (int) $breeze_query_vars_list['extra_query_no'] ) {
 	header( 'Cache-control: must-revalidate, max-age=0' );
-
 	return;
+}
 
+// Check for user's currency and generate ETag to handle currency-specific caching
+if (isset($_COOKIE['wcml_client_currency'])) {
+    // Create unique hash based on currency and request URI
+    $hash = hash('sha1', $_COOKIE['wcml_client_currency'] . $_SERVER['REQUEST_URI']);
+    // Add currency-specific ETag header
+    header('ETag: "currency-' . $hash . '"');
 }
 
 //load cache
@@ -519,6 +525,11 @@ function breeze_cache( $buffer, $flags ) {
 	$is_suffix = breeze_currency_switcher_cache();
 
 	if ( strpos( $breeze_current_url_path, '_breeze_cache_' ) !== false ) {
+		$trimmed = trim( $buffer );
+		$is_json = ( $trimmed !== '' && ( $trimmed[0] === '{' || $trimmed[0] === '[' ) && json_decode( $buffer ) !== null );
+		if ( $is_json ) {
+			return $buffer;
+		}
 		$should_gzip = function_exists( 'gzencode' ) && breeze_should_gzip_output();
 		if ( $should_gzip ) {
 

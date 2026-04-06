@@ -417,6 +417,20 @@ FILE_STRING;
 		}
 
 		/**
+		 * Foo Events.
+		 */
+		if ( class_exists( 'FooEventsPOS' ) ) {
+			$pos_page_slug = FooEvents_POS_Integration::fooeventspos_get_app_slug();
+
+			$exclude_foo_events_give_pages = Breeze_Ecommerce_Cache::factory()->exclude_fooevents_pos_pages();
+
+			if ( ! empty( $exclude_foo_events_give_pages ) ) {
+				$ecommerce_exclude_urls   = array_merge( $exclude_foo_events_give_pages, $ecommerce_exclude_urls );
+				$ecommerce_exclude_urls[] = '/' . $pos_page_slug . '/*';
+			}
+		}
+
+		/**
 		 * Big Commerce
 		 */
 		if ( function_exists( 'bigcommerce' ) ) {
@@ -586,11 +600,12 @@ FILE_STRING;
 
 		if ( is_multisite() && ! is_network_admin() && breeze_does_inherit_settings() ) {
 			// Site inherits network-level setting, do not create separate configuration file and remove existing configuration file.
-			if ( $wp_filesystem->exists( $config_file ) ) {
-				$wp_filesystem->delete( $config_file, true );
-			}
 
 			if ( false === $create_root_config ) {
+                if ( $wp_filesystem->exists( $config_file ) ) {
+                    $wp_filesystem->delete( $config_file, true );
+                }
+
 				return;
 			}
 		}

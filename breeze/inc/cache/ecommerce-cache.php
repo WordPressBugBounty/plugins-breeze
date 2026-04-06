@@ -462,8 +462,7 @@ class Breeze_Ecommerce_Cache {
 			$cart_id      = wc_get_page_id( 'cart' );
 			$checkout_id  = wc_get_page_id( 'checkout' );
 			$myaccount_id = wc_get_page_id( 'myaccount' );
-			if ( 
-				$page_id == $cart_id
+			if ( $page_id == $cart_id
 				|| $page_id == $checkout_id
 				|| $page_id == $myaccount_id
 			) {
@@ -506,6 +505,74 @@ class Breeze_Ecommerce_Cache {
 			// Process urls to return
 			$urls = array_unique( $urls );
 			$urls = array_map( array( $this, 'rtrim_urls' ), $urls );
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Excludes from cache pages from FooEvents POS plugin.
+	 *
+	 * @return array
+	 * @since 1.1.9
+	 * @access public
+	 */
+	public function exclude_fooevents_pos_pages() {
+		$urls  = array();
+		$regex = '*';
+
+		// Check if FooEvents POS plugin is active
+		if ( defined( 'FOOEVENTS_POS_VERSION' ) || class_exists( 'FooEventsPOS' ) || is_plugin_active( 'fooevents_pos/fooevents-pos.php' ) ) {
+
+			// Get FooEvents POS settings/options
+			$fooevents_pos_settings = get_option( 'fooevents_pos_settings', array() );
+
+			// Common POS page patterns that should be excluded
+			$pos_patterns = array(
+				'/pos/',
+				'/pos/*',
+				'/fooevents-pos/',
+				'/fooevents-pos/*',
+				'/?fooevents_pos=*',
+				'/?page=fooevents-pos*',
+			);
+
+			// Add the patterns to URLs array
+			foreach ( $pos_patterns as $pattern ) {
+				$urls[] = $pattern;
+			}
+
+			// Check for specific POS page ID if exists in settings
+			if ( isset( $fooevents_pos_settings['pos_page_id'] ) && ! empty( $fooevents_pos_settings['pos_page_id'] ) ) {
+				$pos_page_id = absint( $fooevents_pos_settings['pos_page_id'] );
+
+				if ( ! empty( $pos_page_id ) && 'publish' === get_post_status( $pos_page_id ) ) {
+					$urls[] = $this->get_basic_urls( $pos_page_id, $regex );
+					// Get url through multi-languages plugin
+					$urls = $this->get_translate_urls( $urls, $pos_page_id, $regex );
+				}
+			}
+
+			// Check for other potential FooEvents POS page IDs
+			$pos_checkout_page = get_option( 'fooevents_pos_checkout_page', 0 );
+			if ( ! empty( $pos_checkout_page ) && 'publish' === get_post_status( $pos_checkout_page ) ) {
+				$urls[] = $this->get_basic_urls( $pos_checkout_page, $regex );
+				// Get url through multi-languages plugin
+				$urls = $this->get_translate_urls( $urls, $pos_checkout_page, $regex );
+			}
+
+			$pos_admin_page = get_option( 'fooevents_pos_admin_page', 0 );
+			if ( ! empty( $pos_admin_page ) && 'publish' === get_post_status( $pos_admin_page ) ) {
+				$urls[] = $this->get_basic_urls( $pos_admin_page, $regex );
+				// Get url through multi-languages plugin
+				$urls = $this->get_translate_urls( $urls, $pos_admin_page, $regex );
+			}
+
+			// Process urls to return
+			if ( ! empty( $urls ) ) {
+				$urls = array_unique( $urls );
+				$urls = array_map( array( $this, 'rtrim_urls' ), $urls );
+			}
 		}
 
 		return $urls;

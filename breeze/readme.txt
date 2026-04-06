@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.2
+Stable tag: 2.4.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,24 +160,20 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
-= 2.4.2 =
+= 2.4.3 =
 
-* Fixed: Enhanced security measures to prevent unauthorized access to cached content.
-
-= 2.4.1 =
-
-* Added: changelog.txt and moved the complete changelog history to it.
-
-= 2.4.0 =
-
-* Fixed: Cache clearing during bulk plugin updates from 3rd-party tools like WP-Manager.
-* Fixed: Corrected the post revisions count displayed under the Database options tab.
-* Fixed: Improved compatibility with Polylang to ensure cache is properly purged for respective language versions.
-* Fixed: Password-protected pages now prompt for a password instead of being served from cache.
-* Added: Ability to programmatically clear cache for a specific post.
-* Added: One-Click Optimization feature to quickly apply recommended cache and performance settings.
-* Improved: Cache handling updated so query strings no longer create separate cache files.
-* Improved: Enhanced security by restricting the “Clear Cache” option for specific posts from users with limited WordPress permissions.
+* Improvement: Fixed Cloudflare cache purge failing during WP-Cron when FPC_ENV environment variable is unavailable.
+* Compatibility: Added TranslatePress compatibility. Translated URL variants are now included when purging post cache.
+* New: Added breeze_collect_urls_for_cache_purge filter to modify the list of URLs before sending the purge request.
+* Fix: Fixed Varnish purge not using the default server address when no IP is configured.
+* Compatibility: Added compatibility with WooCommerce Multilingual & Multicurrency (WCML).
+* Improvement: Separate cache files are now generated per currency when WCML is active.
+* Improvement: Added currency-specific ETag headers to improve cache validation.
+* Compatibility: Improved compatibility with the FooEvents POS plugin.
+* Improvement: Handling of configuration file updates for better reliability and performance.
+* Improvement: Enhanced compatibility with WPML (WordPress Multilingual Plugin) to ensure smoother operation and better support for multilingual sites.
+* Fixed: Prevented JSON responses from being cached to ensure dynamic data is always returned correctly.
+* Improved: Enhanced Cloudflare cache purge handling with clearer response messages and improved feedback transparency.
 
 [See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 

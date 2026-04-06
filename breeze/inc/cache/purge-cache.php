@@ -458,27 +458,17 @@ class Breeze_PurgeCache {
 		$homepage = trailingslashit( home_url() );
 		if ( ! in_array( $homepage, $list_of_urls, true ) ) {
 			// Clear the cache for homepage
-			array_push(
-				$list_of_urls,
-				$homepage
-			);
+			$list_of_urls[] = $homepage;
 		}
 
 		/**
-		 * Filter to allow additional URLs to be purged when a post is updated.
-		 *
-		 * @param array  $list_of_urls The list of URLs to be purged.
+		 * Filter the list of URLs to be purged.
+		 * @param array $list_of_urls The current list of URLs.
 		 * @param int    $post_id      The ID of the post being updated.
-		 * @param string $context      The purge context ('local' for file + Cloudflare cache, 'varnish' for Varnish).
-		 *
-		 * @return array Modified list of URLs to purge.
 		 */
-		$list_of_urls = apply_filters( 'breeze_purge_post_cache_urls', $list_of_urls, $post_id, 'local' );
+		$list_of_urls = apply_filters( 'breeze_collect_urls_for_cache_purge', $list_of_urls, $post_id );
 
-		// Remove any duplicate URLs to prevent redundant cache purging operations
-		$list_of_urls = array_unique( $list_of_urls );
-
-		return $list_of_urls;
+		return array_unique( $list_of_urls );
 	}
 
 	/**

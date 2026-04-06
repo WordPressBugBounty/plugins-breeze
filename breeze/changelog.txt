@@ -1,5 +1,20 @@
 == Changelog ==
 
+= 2.4.3 =
+
+* Improvement: Fixed Cloudflare cache purge failing during WP-Cron when FPC_ENV environment variable is unavailable.
+* Compatibility: Added TranslatePress compatibility. Translated URL variants are now included when purging post cache.
+* New: Added breeze_collect_urls_for_cache_purge filter to modify the list of URLs before sending the purge request.
+* Fix: Fixed Varnish purge not using the default server address when no IP is configured.
+* Compatibility: Added compatibility with WooCommerce Multilingual & Multicurrency (WCML).
+* Improvement: Separate cache files are now generated per currency when WCML is active.
+* Improvement: Added currency-specific ETag headers to improve cache validation.
+* Compatibility: Improved compatibility with the FooEvents POS plugin.
+* Improvement: Handling of configuration file updates for better reliability and performance.
+* Improvement: Enhanced compatibility with WPML (WordPress Multilingual Plugin) to ensure smoother operation and better support for multilingual sites.
+* Fixed: Prevented JSON responses from being cached to ensure dynamic data is always returned correctly.
+* Improved: Enhanced Cloudflare cache purge handling with clearer response messages and improved feedback transparency.
+
 = 2.4.2 =
 
 * Fixed: Enhanced security measures to prevent unauthorized access to cached content.

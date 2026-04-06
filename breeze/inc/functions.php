@@ -385,6 +385,11 @@ function breeze_currency_switcher_cache() {
 		}
 	}
 
+    // Set WCML currency
+    if ( isset( $_COOKIE['wcml_client_currency'] ) ) {
+        $currency = $_COOKIE['wcml_client_currency'];
+    }
+
 	if ( empty( $currency ) ) {
 		if ( isset( $GLOBALS['_SERVER'], $GLOBALS['_SERVER']['REQUEST_URI'] ) ) {
 			$the_path = trim( $GLOBALS['_SERVER']['REQUEST_URI'], '/' );

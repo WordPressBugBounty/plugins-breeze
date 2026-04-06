@@ -138,9 +138,15 @@ class Breeze_PurgeVarnish {
 		} elseif ( 429 === $res ) {
 			$message = __( 'Too many purge requests. Please try again in a few minutes.', 'breeze' );
 			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
+		} elseif ( 410 === $res ) {
+			$message = __( 'Nothing to Purge No cached domains found for this application. Please contact support for assistance!', 'breeze' );
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 408 === $res ) {
 			$message = __( 'Unable to connect to Cloudflare. Please try again or contact support.', 'breeze' );
 			$class   = 'notice notice-warning is-dismissible breeze-notice message-clear-cache-top';
+		} elseif ( 406 === $res ) {
+			$message = __( 'No valid domain found in the purge request. Please contact support for assistance!', 'breeze' );
+			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
 		} elseif ( 401 === $res ) {
 			$message = __( 'Invalid token. Please contact support for more details.', 'breeze' );
 			$class   = 'notice notice-error is-dismissible breeze-notice message-clear-cache-top';
@@ -194,7 +200,7 @@ class Breeze_PurgeVarnish {
 		$host = $parseUrl['host'];
 
 		$varnish_ip   = Breeze_Options_Reader::get_option_value( 'breeze-varnish-server-ip' );
-		$varnish_host = isset( $varnish_ip ) ? $varnish_ip : '127.0.0.1';
+		$varnish_host = isset( $varnish_ip ) && ! empty( $varnish_ip ) ? $varnish_ip : '127.0.0.1';
 		$purgeme      = $varnish_host . $path . $pregex;
 		if ( ! empty( $parseUrl['query'] ) && $parseUrl['query'] != 'breeze' ) {
 			$purgeme .= '?' . $parseUrl['query'];

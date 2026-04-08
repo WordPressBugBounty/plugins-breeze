@@ -47,6 +47,21 @@ if ( isset( $GLOBALS['breeze_config'], $GLOBALS['breeze_config']['disable_per_ad
 		}
 	}
 
+	$breeze_any_role_logged_in_cache = false;
+	if ( is_array( $GLOBALS['breeze_config']['disable_per_adminuser'] ) ) {
+		foreach ( $GLOBALS['breeze_config']['disable_per_adminuser'] as $flag ) {
+			if ( true === filter_var( $flag, FILTER_VALIDATE_BOOLEAN ) ) {
+				$breeze_any_role_logged_in_cache = true;
+				break;
+			}
+		}
+	}
+
+	// No Breeze role cookie after upgrade: still allow cache if "Cache logged-in users" is on for some role.
+	if ( true === $breeze_user_logged && empty( $folder_cache ) && ! $breeze_any_role_logged_in_cache ) {
+		return;
+	}
+
 	if ( ! empty( $folder_cache ) ) {
 		$is_active = false;
 		foreach ( $folder_cache as $cache_role ) {

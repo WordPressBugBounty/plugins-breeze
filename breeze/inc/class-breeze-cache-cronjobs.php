@@ -87,17 +87,21 @@ class Breeze_Cache_CronJobs {
 	 * @return string The updated HTML content with replaced gravatar URLs.
 	 */
 	public function breeze_replace_gravatar_image( string $gravatar ): string {
-		preg_match_all( '/srcset=["\']?((?:.(?!["\']?\s+(?:\S+)=|\s*\/?[>"\']))+.)["\']?/', $gravatar, $srcset );
-		if ( isset( $srcset[1] ) && isset( $srcset[1][0] ) ) {
-			$url             = explode( ' ', $srcset[1][0] )[0];
+		// Require quoted attribute values preceded by whitespace to prevent
+		// matching attacker-controlled text inside other attributes (e.g. alt).
+		if ( preg_match( '/\ssrcset=["\']([^"\']+)["\']/', $gravatar, $srcset_match ) ) {
+			$url             = explode( ' ', trim( $srcset_match[1] ) )[0];
 			$local_gravatars = $this->fetch_gravatar_from_remote( $url );
-			$gravatar        = str_replace( $url, $local_gravatars, $gravatar );
+			if ( $local_gravatars !== $url ) {
+				$gravatar = str_replace( $url, $local_gravatars, $gravatar );
+			}
 		}
-		preg_match_all( '/src=["\']?((?:.(?!["\']?\s+(?:\S+)=|\s*\/?[>"\']))+.)["\']?/', $gravatar, $src );
-		if ( isset( $src[1] ) && isset( $src[1][0] ) ) {
-			$url             = explode( ' ', $src[1][0] )[0];
+		if ( preg_match( '/\ssrc=["\']([^"\']+)["\']/', $gravatar, $src_match ) ) {
+			$url             = explode( ' ', trim( $src_match[1] ) )[0];
 			$local_gravatars = $this->fetch_gravatar_from_remote( $url );
-			$gravatar        = str_replace( $url, $local_gravatars, $gravatar );
+			if ( $local_gravatars !== $url ) {
+				$gravatar = str_replace( $url, $local_gravatars, $gravatar );
+			}
 		}
 		if ( ! is_string( $gravatar ) ) {
 			$gravatar = '';
@@ -120,31 +124,55 @@ class Breeze_Cache_CronJobs {
 		if ( empty( $url ) ) {
 			return '';
 		}
-		$blog_id             = $this->get_blog_id();
-		$local_gravatar_name = basename( wp_parse_url( $url, PHP_URL_PATH ) );
-		$saved_gravatar      = $this->check_for_content( 'gravatars', $local_gravatar_name );
+
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( 'gravatar.com' !== $host && '.gravatar.com' !== substr( $host, -13 ) ) {
+			return $url;
+		}
+
+		$blog_id        = $this->get_blog_id();
+		$gravatar_name  = basename( wp_parse_url( $url, PHP_URL_PATH ) );
+		$filetype       = wp_check_filetype( $gravatar_name );
+		$allowed_images = array( 'image/jpeg', 'image/png', 'image/gif' );
+
+		if ( ! empty( $filetype['type'] ) && ! in_array( $filetype['type'], $allowed_images, true ) ) {
+			return $url;
+		}
+
+		if ( empty( $filetype['ext'] ) || ! in_array( $filetype['type'], $allowed_images, true ) ) {
+			$gravatar_name .= '.jpg';
+		}
+
+		$saved_gravatar = $this->check_for_content( 'gravatars', $gravatar_name );
 		if ( ! empty( $saved_gravatar ) ) {
 			return $saved_gravatar;
 		}
+
 		$wp_filesystem       = breeze_get_filesystem();
 		$gravatar_local_path = $this->get_local_extra_cache_directory( 'gravatars' );
-		$gravatar_name       = basename( wp_parse_url( $url, PHP_URL_PATH ) );
+
 		if ( ! file_exists( $gravatar_local_path . $gravatar_name ) ) {
-			// Making sure the download_url functions is loaded.
 			if ( ! function_exists( 'download_url' ) ) {
 				require_once wp_normalize_path( ABSPATH . '/wp-admin/includes/file.php' );
 			}
-			// Downloads a URL to a local temporary file using the WordPress HTTP API.
+
 			$temp_gravatar = download_url( $url );
-			if ( ! is_wp_error( $temp_gravatar ) ) {
-				// Move the file to the breeze gravatar cache folder.
-				$is_saved = $wp_filesystem->move( $temp_gravatar, $gravatar_local_path . $gravatar_name, true ); // overwriting the destination file.
-				if ( ! $is_saved ) {
-					// if the download and save did not work, return the original url.
-					return $url;
-				}
-				@unlink( $temp_gravatar );
+			if ( is_wp_error( $temp_gravatar ) ) {
+				return $url;
 			}
+
+			$file_check = wp_check_filetype_and_ext( $temp_gravatar, $gravatar_name );
+			if ( empty( $file_check['type'] ) || 0 !== strpos( $file_check['type'], 'image/' ) ) {
+				@unlink( $temp_gravatar );
+				return $url;
+			}
+
+			$is_saved = $wp_filesystem->move( $temp_gravatar, $gravatar_local_path . $gravatar_name, true );
+			if ( ! $is_saved ) {
+				@unlink( $temp_gravatar );
+				return $url;
+			}
+			@unlink( $temp_gravatar );
 		}
 
 		return content_url( '/cache/breeze-extra/gravatars/' . $blog_id . $gravatar_name );

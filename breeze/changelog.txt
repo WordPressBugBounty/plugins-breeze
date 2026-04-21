@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.4.5 =
+
+* Fix: Enhanced Gravatar handling by enforcing official sources only, ensuring only valid images are cached.
+
 = 2.4.4 =
 
 * Fix: Resolved an issue where logged-in user caching would break after plugin upgrades due to missing role cookies.

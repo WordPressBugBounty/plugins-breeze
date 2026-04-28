@@ -89,13 +89,13 @@ class Breeze_PurgeCache {
 			// CLear Cloudflare, if enabled.
 			Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $pages_list );
 
-			// Remove local cache file.
+			// Remove local cache file and purge Varnish.
+			$varnish = new Breeze_PurgeVarnish();
 			foreach ( $pages_list as $url_path ) {
 				$this->clear_local_cache_for_urls( array( $url_path ) );
 
-				$main     = new Breeze_PurgeVarnish();
 				$item_url = untrailingslashit( $url_path ) . '/?breeze';
-				$main->purge_cache( $item_url );
+				$varnish->purge_cache( $item_url );
 			}
 		}
 	}
@@ -107,6 +107,7 @@ class Breeze_PurgeCache {
 	 *
 	 * @return void
 	 */
+	
 	public function clear_customizer_cache( $element ) {
 
 		do_action( 'breeze_clear_all_cache' );

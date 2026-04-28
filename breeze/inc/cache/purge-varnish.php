@@ -223,17 +223,19 @@ class Breeze_PurgeVarnish {
 				'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
 			),
 			'sslverify' => $ssl_verification,
+			'blocking'  => false,
+			'timeout'   => 1,
 		);
-		$response     = wp_remote_request( $schema . $purgeme, $request_args );
-		if ( is_wp_error( $response ) || $response['response']['code'] != '200' ) {
-			if ( $schema === 'https://' ) {
-				$schema = 'http://';
-			} else {
-				$schema = 'https://';
+
+		$response = wp_remote_request( $schema . $purgeme, $request_args );
+		if ( is_wp_error( $response ) ) {
+			if ( true === Breeze_CloudFlare_Helper::is_log_enabled() ) {
+				error_log( '######### PURGE VARNISH FAILED ###: ' . $response->get_error_message() . ' | URL: ' . $schema . $purgeme );
 			}
-			$response = wp_remote_request( $schema . $purgeme, $request_args );
+			return $response;
 		}
-		return $response;
+
+		return array( 'response' => array( 'code' => 200 ) );
 	}
 
 	// check permission

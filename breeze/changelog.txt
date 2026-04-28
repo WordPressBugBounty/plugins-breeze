@@ -1,5 +1,13 @@
 == Changelog ==
 
+= 2.4.6 =
+
+* Fix: Resolved high CPU usage when clearing minification cache on sites with many cached files.
+* Fix: Fixed incorrect cache clearing on multisite installations.
+* Fix: Fixed gzip cache files not being saved correctly.
+* Improvement: Varnish cache purge requests no longer slow down page loading.
+* Compatibility: Added a warning when using HTML minification with the WP Ghost plugin.
+
 = 2.4.5 =
 
 * Fix: Enhanced Gravatar handling by enforcing official sources only, ensuring only valid images are cached.

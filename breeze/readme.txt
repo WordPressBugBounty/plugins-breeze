@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.5
+Stable tag: 2.4.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.4.6 =
+
+* Fix: Resolved high CPU usage when clearing minification cache on sites with many cached files.
+* Fix: Fixed incorrect cache clearing on multisite installations.
+* Fix: Fixed gzip cache files not being saved correctly.
+* Improvement: Varnish cache purge requests no longer slow down page loading.
+* Compatibility: Added a warning when using HTML minification with the WP Ghost plugin.
 
 = 2.4.5 =
 

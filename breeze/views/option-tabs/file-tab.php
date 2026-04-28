@@ -23,6 +23,8 @@ $excluded_css_check_extension = true;
 $excluded_js_check_extension  = true;
 $excluded_url_list            = true;
 
+$breeze_wp_ghost_active = defined( 'HMWP_VERSION' ) || defined( 'HMWP_PATH' ) || class_exists( 'HMWP', false );
+
 $icon = BREEZE_PLUGIN_URL . 'assets/images/file-active.png';
 ?>
 <form data-section="file">
@@ -80,6 +82,11 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/file-active.png';
 							esc_html_e( 'Minification is known to cause issues on the frontend.', 'breeze' );
 							?>
                         </p>
+						<?php if ( $breeze_wp_ghost_active ) { ?>
+							<p class="br-notice">
+								<?php esc_html_e( 'WP Ghost is active. Disable HTML Minify to avoid layout issues, as it is not compatible with WP Ghost.', 'breeze' ); ?>
+							</p>
+						<?php } ?>
                     </div>
                 </div>
             </div>

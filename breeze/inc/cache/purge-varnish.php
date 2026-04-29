@@ -206,15 +206,7 @@ class Breeze_PurgeVarnish {
 			$purgeme .= '?' . $parseUrl['query'];
 		}
 
-		$ssl_verification = apply_filters( 'breeze_ssl_check_certificate', true );
-
-		if ( ! is_bool( $ssl_verification ) ) {
-			$ssl_verification = true;
-		}
-
-		if ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) {
-			$ssl_verification = false;
-		}
+		$ssl_verification = apply_filters( 'breeze_ssl_check_certificate', false );
 
 		$request_args = array(
 			'method'    => $purge_method,

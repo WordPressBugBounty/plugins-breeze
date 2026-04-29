@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.4.7 =
+
+* Fix: Improved Varnish cache purge handling for better compatibility and reliability on HTTPS-enabled sites.
+
 = 2.4.6 =
 
 * Fix: Resolved high CPU usage when clearing minification cache on sites with many cached files.

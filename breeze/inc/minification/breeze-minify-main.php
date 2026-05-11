@@ -72,10 +72,18 @@ class Breeze_Minify {
 
 	/**
 	 * Check whether to execute caching functions or not.
-	 * Will not execute for purge cache or heartbeat actions.
+	 * Will not execute for non-GET requests, purge cache, or heartbeat actions.
 	 */
 	public static function should_cache() {
-		if ( isset( $_GET['breeze_purge_cloudflare'] ) || isset( $_GET['breeze_purge'] ) || ( isset( $_POST['action'] ) && 'heartbeat' === $_POST['action'] ) ) {
+		if (
+			( isset( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== $_SERVER['REQUEST_METHOD'] ) ||
+			isset( $_GET['breeze_purge_cloudflare'] ) ||
+			isset( $_GET['breeze_purge'] ) ||
+			(
+				isset( $_POST['action'] ) &&
+				'heartbeat' === $_POST['action']
+			)
+		) {
 			return false;
 		}
 
@@ -86,6 +94,12 @@ class Breeze_Minify {
 	 * Start buffer
 	 */
 	public function breeze_start_buffering() {
+		// CRITICAL: Skip minification if circuit breaker is open (cache system is failing)
+		// When cache is bypassed due to failures, we don't want to add minification overhead
+		if ( ! empty( $GLOBALS['breeze_bypass_cache'] ) ) {
+			return; // Circuit breaker open - skip all minification
+		}
+
 		$ao_noptimize = false;
 
 		// check for DONOTMINIFY constant as used by e.g. WooCommerce POS

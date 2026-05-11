@@ -1100,7 +1100,7 @@ jQuery( document ).ready(
 			}
 		},
 		1000
-	);
+	); 
 
 	$( window ).on(
 		'resize',

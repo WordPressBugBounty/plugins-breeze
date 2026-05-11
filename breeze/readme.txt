@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.7
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,40 +160,17 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
-= 2.4.7 =
+= 2.5.0 =
 
-* Fix: Improved Varnish cache purge handling for better compatibility and reliability on HTTPS-enabled sites.
+* Fix: DNS Prefetch no longer chops off the first letter of domain names.
+* New: Smart Cache Protection automatically pauses caching when errors are detected, keeping your site responsive.
+* Improvement: Minification is paused while Smart Cache Protection is active to save resources.
+* Improvement: Minification now skips form submissions and other non-page requests, making your site lighter and faster.
+* Fix: Cache files are now written safely, preventing corruption under heavy traffic.
+* Improvement: Cache error logs now include the page URL and free disk space for easier troubleshooting.
+* New: Added 304 Not Modified support. Returning visitors get an instant response instead of re-downloading unchanged pages, saving bandwidth.
+* Improvement: Faster cache lookups using a shorter, quicker key for cached page filenames.
 
-= 2.4.6 =
-
-* Fix: Resolved high CPU usage when clearing minification cache on sites with many cached files.
-* Fix: Fixed incorrect cache clearing on multisite installations.
-* Fix: Fixed gzip cache files not being saved correctly.
-* Improvement: Varnish cache purge requests no longer slow down page loading.
-* Compatibility: Added a warning when using HTML minification with the WP Ghost plugin.
-
-= 2.4.5 =
-
-* Fix: Enhanced Gravatar handling by enforcing official sources only, ensuring only valid images are cached.
-
-= 2.4.4 =
-
-* Fix: Resolved an issue where logged-in user caching would break after plugin upgrades due to missing role cookies.
-
-= 2.4.3 =
-
-* Improvement: Fixed Cloudflare cache purge failing during WP-Cron when FPC_ENV environment variable is unavailable.
-* Compatibility: Added TranslatePress compatibility. Translated URL variants are now included when purging post cache.
-* New: Added breeze_collect_urls_for_cache_purge filter to modify the list of URLs before sending the purge request.
-* Fix: Fixed Varnish purge not using the default server address when no IP is configured.
-* Compatibility: Added compatibility with WooCommerce Multilingual & Multicurrency (WCML).
-* Improvement: Separate cache files are now generated per currency when WCML is active.
-* Improvement: Added currency-specific ETag headers to improve cache validation.
-* Compatibility: Improved compatibility with the FooEvents POS plugin.
-* Improvement: Handling of configuration file updates for better reliability and performance.
-* Improvement: Enhanced compatibility with WPML (WordPress Multilingual Plugin) to ensure smoother operation and better support for multilingual sites.
-* Fixed: Prevented JSON responses from being cached to ensure dynamic data is always returned correctly.
-* Improved: Enhanced Cloudflare cache purge handling with clearer response messages and improved feedback transparency.
 
 [See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 

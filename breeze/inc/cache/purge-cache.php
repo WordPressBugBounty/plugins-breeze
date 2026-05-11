@@ -484,8 +484,8 @@ class Breeze_PurgeCache {
 
 		if ( ! empty( $list_of_urls ) ) {
 			foreach ( $list_of_urls as $local_url ) {
-				if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $local_url ) ) ) {
-					$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $local_url ), true );
+				if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha256', $local_url ) ) ) {
+					$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha256', $local_url ), true );
 				}
 			}
 		}

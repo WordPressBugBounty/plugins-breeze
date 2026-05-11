@@ -1010,3 +1010,143 @@ function breeze_i18n_home_url() {
 
 	return $home_url;
 }
+
+/**
+ * Get password-protected URLs index file path.
+ *
+ * @param int $blog_id_requested Optional specific blog ID.
+ *
+ * @return string
+ */
+function breeze_get_password_protected_urls_index_file( $blog_id_requested = 0 ) {
+	$config_dir = rtrim( (string) WP_CONTENT_DIR, '/\\' ) . '/breeze-config';
+	$filename   = 'breeze-protected-urls.php';
+
+	if ( is_multisite() ) {
+		if ( empty( $blog_id_requested ) ) {
+			$blog_id_requested = isset( $GLOBALS['breeze_config']['blog_id'] ) ? (int) $GLOBALS['breeze_config']['blog_id'] : 0;
+		}
+
+		if ( ! empty( $blog_id_requested ) ) {
+			$filename = 'breeze-protected-urls-' . (int) $blog_id_requested . '.php';
+		}
+	}
+
+	return $config_dir . '/' . $filename;
+}
+
+/**
+ * Read normalized password-protected paths from index file.
+ *
+ * @param int $blog_id_requested Optional specific blog ID.
+ *
+ * @return array<int,string>
+ */
+function breeze_get_password_protected_url_paths_from_index( $blog_id_requested = 0 ) {
+	$index_file = breeze_get_password_protected_urls_index_file( $blog_id_requested );
+	if ( ! is_file( $index_file ) ) {
+		return array();
+	}
+
+	$index_payload = include $index_file;
+	if ( ! is_array( $index_payload ) || empty( $index_payload['paths_by_post_id'] ) || ! is_array( $index_payload['paths_by_post_id'] ) ) {
+		return array();
+	}
+
+	return array_values( $index_payload['paths_by_post_id'] );
+}
+
+/**
+ * Check if current request path belongs to a password-protected URL path.
+ *
+ * @return bool
+ */
+function breeze_is_current_request_password_protected_cached() {
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/';
+	$request_path = parse_url( $request_uri, PHP_URL_PATH );
+	if ( ! is_string( $request_path ) ) {
+		return false;
+	}
+
+	$decoded_path = rawurldecode( $request_path );
+	$current_path = rtrim( $decoded_path, '/' );
+	if ( '' === $current_path ) {
+		$current_path = '/';
+	}
+
+	if ( function_exists( 'mb_strtolower' ) ) {
+		$current_path = mb_strtolower( $current_path );
+	} else {
+		$current_path = strtolower( $current_path );
+	}
+
+	$protected_paths = breeze_get_password_protected_url_paths_from_index();
+	if ( empty( $protected_paths ) ) {
+		return false;
+	}
+
+	foreach ( $protected_paths as $protected_path ) {
+		$protected_path = rtrim( (string) $protected_path, '/' );
+		if ( '' === $protected_path ) {
+			$protected_path = '/';
+		}
+
+		if ( function_exists( 'mb_strtolower' ) ) {
+			$protected_path = mb_strtolower( $protected_path );
+		} else {
+			$protected_path = strtolower( $protected_path );
+		}
+
+		if ( '' === $protected_path ) {
+			continue;
+		}
+
+		// Match only the exact normalized path to avoid excluding descendant paths.
+		if ( $current_path === $protected_path ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Get all password-protected page URLs.
+ *
+ * This function now reads from Breeze's prebuilt index when available.
+ * A fallback query is kept for compatibility when index files are missing.
+ *
+ * @return array<int,string> Array of password-protected page URLs.
+ */
+function breeze_get_password_protected_page_urls() {
+	$protected_paths = breeze_get_password_protected_url_paths_from_index();
+	if ( ! empty( $protected_paths ) ) {
+		$protected_urls = array();
+		foreach ( $protected_paths as $protected_path ) {
+			$protected_urls[] = home_url( $protected_path );
+		}
+
+		return $protected_urls;
+	}
+
+	$protected_urls = array();
+	$post_ids       = get_posts(
+		array(
+			'post_type'      => get_post_types( array( 'public' => true ), 'names' ),
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'has_password'   => true,
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		)
+	);
+
+	foreach ( $post_ids as $post_id ) {
+		$url = get_permalink( $post_id );
+		if ( $url ) {
+			$protected_urls[] = $url;
+		}
+	}
+
+	return $protected_urls;
+}

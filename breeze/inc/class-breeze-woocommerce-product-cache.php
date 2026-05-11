@@ -101,8 +101,8 @@ class Breeze_Woocommerce_Product_Cache {
 					foreach ( $archive_urls as $url ) {
 						$wp_filesystem = breeze_get_filesystem();
 						// Clear the cache for the product page.
-						if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url ) ) ) {
-							$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url ), true );
+						if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha256', $url ) ) ) {
+							$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha256', $url ), true );
 						}
 						// Clear Varnish server cache for this URL.
 						breeze_varnish_purge_cache( $url, $do_varnish_purge );

@@ -18,7 +18,9 @@ require_once( BREEZE_PLUGIN_DIR . 'inc/class-breeze-htaccess-settings.php' );
 require_once( BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php' );
 // Load Store Local Files class.
 require_once( BREEZE_PLUGIN_DIR . 'inc/class-breeze-store-files-locally.php' );
+require_once( BREEZE_PLUGIN_DIR . 'inc/class-breeze-protected-urls-index.php' );
 
 require_once( BREEZE_PLUGIN_DIR . 'inc/breeze-admin.php' );
 
 Breeze_Admin::plugin_uninstall_hook();
+Breeze_Protected_Urls_Index::delete_index_files_on_uninstall();

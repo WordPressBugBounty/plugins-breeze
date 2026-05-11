@@ -248,6 +248,9 @@ FILE_STRING;
 						"\n" . 'if ( empty( $GLOBALS[\'breeze_config\'] ) || empty( $GLOBALS[\'breeze_config\'][\'cache_options\'][\'breeze-active\'] ) ) { return; }' .
 						"\n" . 'if ( @file_exists( \'' . BREEZE_PLUGIN_DIR . 'inc/cache/execute-cache.php\' ) ) {' .
 						"\n" . '	include_once \'' . BREEZE_PLUGIN_DIR . 'inc/cache/execute-cache.php\';' .
+						"\n" . '	if ( class_exists( \'\Breeze\Cache\Execute_Cache\' ) ) {' .
+						"\n" . '		\Breeze\Cache\Execute_Cache::bootstrap();' .
+						"\n" . '		}' .
 						"\n" . '}' . "\n";
 
 		$result = $wp_filesystem->put_contents( $file, $file_string );

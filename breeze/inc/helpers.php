@@ -556,10 +556,125 @@ function breeze_read_write_file( $file_path = '', $content = '' ) {
 	return $wp_filesystem->put_contents( $file_path, $content );
 }
 
+/**
+ * Thread-safe cache file write with proper locking.
+ *
+ * Writes to a temporary file with an exclusive lock, then performs an
+ * atomic rename to the final cache path. This prevents partial writes
+ * and race conditions under high concurrency.
+ *
+ * @param string $file_path      Full path to cache file.
+ * @param string $data           Data to write.
+ * @param int    $modified_time  Timestamp for file modification.
+ * @param bool   $non_blocking   If true, skip if lock is busy instead of waiting.
+ *
+ * @return bool True on success, false on failure.
+ */
+function breeze_safe_cache_write( $file_path, $data, $modified_time, $non_blocking = false ) {
+	if ( empty( $file_path ) ) {
+		return false;
+	}
+
+	// Unpredictable temp name + exclusive create ('xb') prevents symlink/TOCTOU
+	// attacks on shared hosts: an attacker can no longer pre-plant a symlink at
+	// the temp path to redirect our write to a sensitive file.
+	try {
+		$random_suffix = bin2hex( random_bytes( 8 ) );
+	} catch ( \Exception $e ) {
+		error_log( '[Breeze] Failed to generate random temp suffix: ' . $e->getMessage() );
+		return false;
+	}
+	$temp_file = $file_path . '.tmp.' . $random_suffix;
+
+	try {
+		// Open temp file for writing
+		$fp = fopen( $temp_file, 'xb' );
+		if ( false === $fp ) {
+			$last_error = error_get_last();
+			$message    = isset( $last_error['message'] ) ? ' Error: ' . $last_error['message'] : '';
+			error_log( '[Breeze] Failed to open temp file: ' . $temp_file . $message );
+
+			// "Disk full" is the most common cause of write failures in production.
+			// Log free space alongside the error so it's instantly visible in error_log.
+			$free_space = @disk_free_space( dirname( $temp_file ) );
+			if ( false !== $free_space ) {
+				error_log( '[Breeze] Free disk space: ' . round( $free_space / 1024 / 1024, 2 ) . ' MB' );
+			}
+
+			return false;
+		}
+
+		// Try to acquire lock
+		$lock_flags = LOCK_EX;
+		if ( $non_blocking ) {
+			$lock_flags |= LOCK_NB;  // Non-blocking flag
+		}
+
+		if ( ! flock( $fp, $lock_flags ) ) {
+			if ( $non_blocking ) {
+				// Lock is busy - skip this write
+				fclose( $fp );
+				@unlink( $temp_file );
+				return false;  // Not an error - just busy
+			} else {
+				// Blocking mode failed - this is an error
+				$last_error = error_get_last();
+				$message    = isset( $last_error['message'] ) ? ' Error: ' . $last_error['message'] : '';
+				error_log( '[Breeze] Failed to acquire lock: ' . $temp_file . $message );
+				fclose( $fp );
+				@unlink( $temp_file );
+				return false;
+			}
+		}
+
+		// Write data
+		$result = fwrite( $fp, $data );
+
+		// Release lock and close
+		flock( $fp, LOCK_UN );
+		fclose( $fp );
+
+		if ( false === $result ) {
+			$last_error = error_get_last();
+			$message    = isset( $last_error['message'] ) ? ' Error: ' . $last_error['message'] : '';
+			error_log( '[Breeze] Failed to write to temp file: ' . $temp_file . $message );
+			@unlink( $temp_file );
+			return false;
+		}
+
+		// Set modification time
+		if ( ! touch( $temp_file, $modified_time ) ) {
+			$last_error = error_get_last();
+			$message    = isset( $last_error['message'] ) ? ' Error: ' . $last_error['message'] : '';
+			error_log( '[Breeze] Failed to touch temp file: ' . $temp_file . $message );
+			@unlink( $temp_file );
+			return false;
+		}
+
+		// Atomic rename
+		if ( ! rename( $temp_file, $file_path ) ) {
+			$last_error = error_get_last();
+			$message    = isset( $last_error['message'] ) ? ' Error: ' . $last_error['message'] : '';
+			error_log( '[Breeze] Failed to rename temp file: ' . $temp_file . $message );
+			@unlink( $temp_file );
+			return false;
+		}
+
+		return true;
+
+	} catch ( \Exception $e ) {
+		error_log( '[Breeze] Exception writing cache: ' . $e->getMessage() );
+		if ( file_exists( $temp_file ) ) {
+			@unlink( $temp_file );
+		}
+		return false;
+	}
+}
+
 
 function breeze_lock_cache_process( $path = '' ) {
 	$filename    = 'process.lock';
-	$create_lock = fopen( $path . $filename, 'w' );
+	$create_lock = fopen( $path . $filename, 'xb' );
 	if ( false === $create_lock ) {
 		return false;
 	}
@@ -614,8 +729,8 @@ function breeze_varnish_purge_cache( $url = '', $purge_varnish = false, $check_v
 	$wp_filesystem = breeze_get_filesystem();
 
 	// Clear the local cache using the product URL.
-	if ( ! empty( $url ) && $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha512', $url ) ) ) {
-		$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha512', $url ), true );
+	if ( ! empty( $url ) && $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha256', $url ) ) ) {
+		$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha256', $url ), true );
 	}
 
 	if ( false === $purge_varnish && true === $check_varnish ) {

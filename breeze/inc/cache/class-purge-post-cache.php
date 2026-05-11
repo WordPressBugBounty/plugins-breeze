@@ -106,8 +106,8 @@ class Purge_Post_Cache {
 
 		$cache_base_path = breeze_get_cache_base_path( false, $the_blog_id );
 
-		if ( $wp_filesystem->exists( $cache_base_path . hash( 'sha512', $url_path ) ) ) {
-			$wp_filesystem->rmdir( $cache_base_path . hash( 'sha512', $url_path ), true );
+		if ( $wp_filesystem->exists( $cache_base_path . hash( 'sha256', $url_path ) ) ) {
+			$wp_filesystem->rmdir( $cache_base_path . hash( 'sha256', $url_path ), true );
 		}
 		// Clear the varnish cache.
 		do_action( 'breeze_clear_varnish' );

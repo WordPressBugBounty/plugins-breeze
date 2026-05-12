@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.1 =
+
+* Fix: Images no longer fail to load when the "Lazy load" option is enabled. The bundled lazy-load library file was empty in 2.5.0 and has been restored.
+
 = 2.5.0 =
 
 * Fix: DNS Prefetch no longer chops off the first letter of domain names.

@@ -985,15 +985,8 @@ class Breeze_Configuration {
 					$wpdb->get_var( $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = %s", $the_timer ) );
 				}
 
-				$is_network = false;
-
-				if ( isset( $_GET['is-network'] ) ) {
-					$is_network = filter_var( $_GET['is-network'], FILTER_VALIDATE_BOOLEAN );
-				}
-
-				if ( isset( $_POST['is-network'] ) ) {
-					$is_network = filter_var( $_POST['is-network'], FILTER_VALIDATE_BOOLEAN );
-				}
+				// Only treat the request as network-scoped for Super Admins.
+				$is_network = breeze_request_wants_network_scope() && breeze_user_can_manage_network();
 
 				if ( is_multisite() && true === $is_network ) {
 					//phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -1769,13 +1762,16 @@ class Breeze_Configuration {
 	public static function reset_to_default_ajax() {
 		breeze_is_restricted_access();
 		check_ajax_referer( '_breeze_reset_default', 'security' );
+		// set_as_network_screen() routes the reset to the current site when
+		// the current user is not operating at the network scope.
 		set_as_network_screen();
 
-		$is_blog_id = 0;
-		if ( true === filter_var( $_POST['is-network'], FILTER_VALIDATE_BOOLEAN ) ) {
+		$is_blog_id     = 0;
+		$is_network_req = breeze_request_wants_network_scope() && breeze_user_can_manage_network();
+		if ( true === $is_network_req ) {
 			$is_blog_id = 'network';
 		}
-		$response = self::reset_to_default( $is_blog_id, $_POST['is-network'] );
+		$response = self::reset_to_default( $is_blog_id, $is_network_req ? 'true' : 'false' );
 		wp_send_json( $response );
 	}
 

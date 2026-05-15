@@ -1305,8 +1305,11 @@ INLINEJS;
 	public function breeze_clear_varnish() {
 		$main = new Breeze_PurgeVarnish();
 
-		$is_network = ( is_network_admin() || ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] ) );
-		$response   = null;
+		// Apply the purge network-wide only when the current user is operating
+		// at the network scope; otherwise purge just the current site.
+		$network_requested = ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] );
+		$is_network        = is_network_admin() || ( $network_requested && breeze_user_can_manage_network() );
+		$response          = null;
 
 		if ( is_multisite() && $is_network ) {
 			$sites = get_sites( array( 'number' => 0 ) );

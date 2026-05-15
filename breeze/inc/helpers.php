@@ -19,21 +19,92 @@
  */
 defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
 
+/**
+ * Determine whether the current user is operating at the network scope.
+ *
+ * Returns true for Super Admins, users with `manage_network_options`, and
+ * WP-CLI. Used to route multisite-wide Breeze actions to the correct scope
+ * while site administrators continue to act on their own site.
+ *
+ * @return bool
+ */
+function breeze_user_can_manage_network() {
+	if ( ! is_multisite() ) {
+		return false;
+	}
+
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		return true;
+	}
+
+	// User identity functions (`wp_get_current_user`, `is_super_admin`, etc.)
+	// are pluggable and only available once WordPress has loaded
+	// `wp-includes/pluggable.php`. A few Breeze callers initialise during the
+	// plugin-load phase before that file is included; when the user cannot yet
+	// be identified, default to the site scope. The user-aware request paths
+	// (admin-ajax, page renders, REST) all run after pluggable.php and are
+	// unaffected.
+	if ( ! function_exists( 'wp_get_current_user' ) ) {
+		return false;
+	}
+
+	// Capability check first — picks up environments where Network Admin
+	// privileges are granted via capabilities rather than membership in the
+	// `site_admins` list.
+	if ( current_user_can( 'manage_network_options' ) ) {
+		return true;
+	}
+
+	$user_id = get_current_user_id();
+	if ( empty( $user_id ) ) {
+		return false;
+	}
+
+	return is_super_admin( $user_id );
+}
+
+/**
+ * Read the user-supplied `is-network` request flag.
+ *
+ * Returns the raw boolean intent of the request; callers MUST gate the
+ * actual scope change with {@see breeze_user_can_manage_network()}.
+ *
+ * @return bool
+ */
+function breeze_request_wants_network_scope() {
+	if ( ! isset( $_GET['is-network'] ) && ! isset( $_POST['is-network'] ) ) {
+		return false;
+	}
+
+	if ( isset( $_POST['is-network'] ) ) {
+		return filter_var( wp_unslash( $_POST['is-network'] ), FILTER_VALIDATE_BOOLEAN );
+	}
+
+	return filter_var( wp_unslash( $_GET['is-network'] ), FILTER_VALIDATE_BOOLEAN );
+}
+
+/**
+ * Apply network-admin scope to the current request when the current user
+ * is operating at the network level.
+ *
+ * Reads the `is-network` request flag as a strict boolean and only defines
+ * `WP_NETWORK_ADMIN` when `is_multisite()` is true and the current user is
+ * a Super Admin. For all other requests the hint is ignored and the caller
+ * renders in site-local scope. Settings tabs continue to load for site
+ * administrators; writes are scoped to the site via
+ * {@see breeze_update_option()}.
+ */
 function set_as_network_screen() {
-	if ( isset( $_GET['is-network'] ) || isset( $_POST['is-network'] ) ) {
-		$is_network = false;
+	if ( ! isset( $_GET['is-network'] ) && ! isset( $_POST['is-network'] ) ) {
+		return;
+	}
 
-		if ( isset( $_GET['is-network'] ) ) {
-			$is_network = filter_var( $_GET['is-network'], FILTER_VALIDATE_BOOLEAN );
-		}
+	if ( true !== breeze_request_wants_network_scope() ) {
+		return;
+	}
 
-		if ( isset( $_POST['is-network'] ) ) {
-			$is_network = filter_var( $_POST['is-network'], FILTER_VALIDATE_BOOLEAN );
-		}
-
-		if ( true === $is_network && ! defined( 'WP_NETWORK_ADMIN' ) ) {
-			define( 'WP_NETWORK_ADMIN', true );
-		}
+	if ( breeze_user_can_manage_network() && ! defined( 'WP_NETWORK_ADMIN' ) ) {
+		define( 'WP_NETWORK_ADMIN', true );
 	}
 }
 
@@ -50,7 +121,10 @@ function breeze_get_option( $option_name, $is_local = false ) {
 
 	global $breeze_network_subsite_settings;
 
-	if ( is_network_admin() && ! $breeze_network_subsite_settings ) {
+	// Reads are routed to the network option only on real Network Admin
+	// screens and when the current user is operating at the network scope;
+	// otherwise the site-local value is returned.
+	if ( is_network_admin() && ! $breeze_network_subsite_settings && breeze_user_can_manage_network() ) {
 		$is_local = false;
 	} elseif ( ! breeze_does_inherit_settings() ) {
 		$inherit = false;
@@ -70,15 +144,22 @@ function breeze_get_option( $option_name, $is_local = false ) {
 }
 
 /**
- * Update site options accounting for multisite.
+ * Update Breeze options at the appropriate scope on multisite.
+ *
+ * Writes use `update_site_option` only when the current user is a Super
+ * Admin acting in the Network Admin context. All other requests use
+ * `update_option` so each site's settings remain isolated.
  *
  * @param string $option_name
  * @param mixed  $value
  * @param bool   $is_local
  */
 function breeze_update_option( $option_name, $value, $is_local = false ) {
-	if ( is_network_admin() ) {
+	if ( is_network_admin() && breeze_user_can_manage_network() ) {
 		$is_local = false;
+	} else {
+		// Default to a site-local write for non-network requests.
+		$is_local = true;
 	}
 
 	if ( ! is_multisite() || $is_local ) {

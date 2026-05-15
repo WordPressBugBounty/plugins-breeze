@@ -58,6 +58,36 @@ class Breeze_Settings_Import_Export {
 					$level = '';
 					if ( is_multisite() ) {
 						$level = ( isset( $_POST['network_level'] ) ) ? trim( $_POST['network_level'] ) : '';
+
+						// Map `network_level` to a scope the current user can act on:
+						//   - 'network'             -> Super Admins only
+						//   - numeric (other blog)  -> Super Admins, or the own
+						//                              blog id for site administrators
+						//   - anything else         -> the current site
+						$current_blog_id = (int) get_current_blog_id();
+						if ( 'network' === $level ) {
+							if ( ! breeze_user_can_manage_network() ) {
+								wp_send_json_error(
+									new WP_Error(
+										'authority_issue',
+										__( 'Only Network (Super) Administrators can import settings at the network level.', 'breeze' )
+									)
+								);
+							}
+						} elseif ( is_numeric( $level ) ) {
+							$target_blog_id = (int) $level;
+							if ( $target_blog_id !== $current_blog_id && ! breeze_user_can_manage_network() ) {
+								wp_send_json_error(
+									new WP_Error(
+										'authority_issue',
+										__( 'You can only import settings for the site you administer.', 'breeze' )
+									)
+								);
+							}
+							$level = (string) $target_blog_id;
+						} else {
+							$level = '';
+						}
 					}
 					if ( ! isset( $json['breeze_file_settings'] ) && ! isset( $json['breeze_preload_settings'] ) ) {
 						$action = self::replace_options_old_to_new( $json, $level );
@@ -95,7 +125,33 @@ class Breeze_Settings_Import_Export {
 		breeze_is_restricted_access();
 		$level = '';
 		if ( is_multisite() ) {
-			$level = ( isset( $_GET['network_level'] ) ) ? $_GET['network_level'] : '';
+			$level = ( isset( $_GET['network_level'] ) ) ? trim( wp_unslash( $_GET['network_level'] ) ) : '';
+
+			// Network-level and cross-site exports are limited to Super Admins.
+			$current_blog_id = (int) get_current_blog_id();
+			if ( 'network' === $level ) {
+				if ( ! breeze_user_can_manage_network() ) {
+					wp_send_json_error(
+						new WP_Error(
+							'authority_issue',
+							__( 'Only Network (Super) Administrators can export settings at the network level.', 'breeze' )
+						)
+					);
+				}
+			} elseif ( is_numeric( $level ) ) {
+				$target_blog_id = (int) $level;
+				if ( $target_blog_id !== $current_blog_id && ! breeze_user_can_manage_network() ) {
+					wp_send_json_error(
+						new WP_Error(
+							'authority_issue',
+							__( 'You can only export settings for the site you administer.', 'breeze' )
+						)
+					);
+				}
+				$level = (string) $target_blog_id;
+			} else {
+				$level = '';
+			}
 		}
 		$response = self::read_options( $level );
 

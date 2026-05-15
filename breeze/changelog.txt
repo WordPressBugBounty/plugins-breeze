@@ -1,5 +1,10 @@
 == Changelog ==
 
+= 2.5.2 =
+
+* Improved: Refined multisite handling across settings, cache management, import/export, and reset actions for more consistent behavior and better scope control.
+* Improved: Enhanced cache handling and validation for more reliable content delivery and request processing.
+
 = 2.5.1 =
 
 * Fix: Images no longer fail to load when the "Lazy load" option is enabled. The bundled lazy-load library file was empty in 2.5.0 and has been restored.

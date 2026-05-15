@@ -344,7 +344,10 @@ abstract class Breeze_MinificationBase {
 		//clear varnish cache
 		$varnish_cache = new Breeze_PurgeVarnish();
 
-		$is_network = ( is_network_admin() || ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] ) );
+		// Honor the `is_network` flag only when the current user is operating
+		// at the network scope; otherwise scope the purge to the current site.
+		$network_requested = ( ! empty( $_POST['is_network'] ) && 'true' === $_POST['is_network'] );
+		$is_network        = is_network_admin() || ( $network_requested && function_exists( 'breeze_user_can_manage_network' ) && breeze_user_can_manage_network() );
 
 		if ( is_multisite() && $is_network ) {
 			$sites = get_sites( array( 'number' => 0 ) );

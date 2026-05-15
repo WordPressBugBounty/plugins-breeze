@@ -543,6 +543,12 @@ final class Cache_Circuit_Breaker {
  */
 final class Execute_Cache {
 
+	/** @var int Maximum accepted auth cookie value length. */
+	private const MAX_AUTH_COOKIE_VALUE_LENGTH = 1024;
+
+	/** @var int Expected auth cookie name length (`wordpress_logged_in_` + 32 hex). */
+	private const LOGGED_IN_COOKIE_NAME_LENGTH = 52;
+
 	/**
 	 * Main entry point, equivalent to the top-level logic in `execute-cache.php`.
 	 *
@@ -812,54 +818,18 @@ final class Execute_Cache {
 
 		$user_logged = false;
 
-		// Cookie-based logged in detection (matches legacy logic).
-		if ( ! empty( $_COOKIE ) ) {
-			foreach ( $_COOKIE as $key => $value ) {
-				if ( false !== strpos( (string) $key, 'wordpress_logged_in_' ) ) {
-					$user_logged = true;
-					break;
-				}
+		// Cookie-based logged-in detection with hardening against forged cookie names/values.
+		$logged_in_cache_suffix = self::get_logged_in_cache_suffix_from_cookies();
+		if ( '' !== $logged_in_cache_suffix ) {
+			$user_logged = true;
+			if ( substr_count( $cache_key_url, '?' ) > 0 ) {
+				$filename = $cache_key_url . '&' . $logged_in_cache_suffix;
+			} else {
+				$filename = $cache_key_url . '?' . $logged_in_cache_suffix;
 			}
+		}
 
-			// If logged in via cookie, override filename with username-based suffix.
-			if ( $user_logged ) {
-				foreach ( $_COOKIE as $cookie_name => $cookie_value ) {
-					if ( false === strpos( (string) $cookie_name, 'wordpress_logged_in_' ) ) {
-						continue;
-					}
-			
-					$username_for_cache_key = '';
-			
-					if ( function_exists( 'wp_validate_auth_cookie' ) && function_exists( 'get_userdata' ) ) {
-						$validated_user_id = wp_validate_auth_cookie( (string) $cookie_value, 'logged_in' );
-						if ( $validated_user_id ) {
-							$validated_user = get_userdata( $validated_user_id );
-							if ( $validated_user && ! empty( $validated_user->user_login ) ) {
-								$username_for_cache_key = (string) $validated_user->user_login;
-							}
-						}
-					}
-			
-					// Fallback for early bootstrap when pluggable functions are unavailable.
-					if ( '' === $username_for_cache_key ) {
-						$cookie_separator_position = strpos( (string) $cookie_value, '|' );
-						if ( false !== $cookie_separator_position ) {
-							$username_for_cache_key = substr( (string) $cookie_value, 0, $cookie_separator_position );
-						}
-					}
-			
-					if ( '' !== $username_for_cache_key ) {
-						if ( substr_count( $cache_key_url, '?' ) > 0 ) {
-							$filename = $cache_key_url . '&' . strtolower( $username_for_cache_key );
-						} else {
-							$filename = $cache_key_url . '?' . strtolower( $username_for_cache_key );
-						}
-					}
-			
-					// Use the first matching logged-in cookie.
-					break;
-				}
-			}
+		if ( ! empty( $_COOKIE ) ) {
 
 			// If user commented on this post, do not cache (matches legacy rule).
 			if ( ! empty( $_COOKIE['breeze_commented_posts'] ) && is_array( $_COOKIE['breeze_commented_posts'] ) ) {
@@ -882,6 +852,111 @@ final class Execute_Cache {
 			$user_logged,
 			$config
 		);
+	}
+
+	/**
+	 * Build a logged-in cache suffix from WordPress auth cookies.
+	 *
+	 * This function runs in early bootstrap where pluggable auth helpers may
+	 * not be available. To avoid trusting forgeable username prefixes, it uses
+	 * a session-bound HMAC of the full cookie value.
+	 *
+	 * @return string Empty string when no valid logged-in cookie is found.
+	 */
+	public static function get_logged_in_cache_suffix_from_cookies(): string {
+		$logged_in_cookie_value = self::get_wp_logged_in_cookie_value();
+		if ( '' === $logged_in_cookie_value ) {
+			return '';
+		}
+
+		$secret = '';
+		if ( defined( 'LOGGED_IN_SALT' ) && is_string( LOGGED_IN_SALT ) ) {
+			$secret = trim( LOGGED_IN_SALT );
+		}
+
+		if ( '' === $secret ) {
+			return '';
+		}
+
+		return 'user_' . hash_hmac( 'sha256', $logged_in_cookie_value, $secret );
+	}
+
+	/**
+	 * Return the first valid WordPress logged-in cookie value.
+	 *
+	 * @return string Cookie value or empty string when not found/invalid.
+	 */
+	private static function get_wp_logged_in_cookie_value(): string {
+		if ( empty( $_COOKIE ) || ! is_array( $_COOKIE ) ) {
+			return '';
+		}
+
+		foreach ( $_COOKIE as $cookie_name => $cookie_value ) {
+			$cookie_name  = (string) $cookie_name;
+			$cookie_value = (string) $cookie_value;
+
+			// Core format uses wordpress_logged_in_<32-hex-cookiehash>.
+			if (
+				self::LOGGED_IN_COOKIE_NAME_LENGTH !== strlen( $cookie_name ) ||
+				1 !== preg_match( '/^wordpress_logged_in_[a-f0-9]{32}$/', $cookie_name )
+			) {
+				continue;
+			}
+
+			if (
+				'' === $cookie_value ||
+				strlen( $cookie_value ) > self::MAX_AUTH_COOKIE_VALUE_LENGTH ||
+				false !== strpos( $cookie_value, "\0" )
+			) {
+				continue;
+			}
+
+			// Expected auth cookie payload: username|expiration|token|hmac.
+			$cookie_parts = explode( '|', $cookie_value, 5 );
+			if ( 4 !== count( $cookie_parts ) ) {
+				continue;
+			}
+
+			$username   = trim( (string) $cookie_parts[0] );
+			$expiration = trim( (string) $cookie_parts[1] );
+			$token      = trim( (string) $cookie_parts[2] );
+			$hmac       = trim( (string) $cookie_parts[3] );
+
+			if (
+				'' === $username ||
+				'' === $expiration ||
+				'' === $token ||
+				'' === $hmac
+			) {
+				continue;
+			}
+
+			// Username segment must be a safe printable value without separators.
+			if ( 1 !== preg_match( '/^[^\x00-\x1F\x7F|]{1,191}$/', $username ) ) {
+				continue;
+			}
+
+			// Expiration must be a valid future Unix timestamp.
+			if ( ! ctype_digit( $expiration ) ) {
+				continue;
+			}
+			$expiration_timestamp = (int) $expiration;
+			if ( $expiration_timestamp <= time() ) {
+				continue;
+			}
+
+			// Session token and HMAC format validation.
+			if ( 1 !== preg_match( '/^[A-Za-z0-9]{20,255}$/', $token ) ) {
+				continue;
+			}
+			if ( 1 !== preg_match( '/^[a-f0-9]{40}$|^[a-f0-9]{64}$/', $hmac ) ) {
+				continue;
+			}
+
+			return $cookie_value;
+		}
+
+		return '';
 	}
 
 	/**
@@ -1722,12 +1797,12 @@ final class Page_Cache_Handler {
 		$cache_key_url = $this->context->cache_key_url;
 
 		if ( \is_user_logged_in() ) {
-			$current_user = \wp_get_current_user();
-			if ( $current_user && ! empty( $current_user->user_login ) ) {
+			$logged_in_cache_suffix = Execute_Cache::get_logged_in_cache_suffix_from_cookies();
+			if ( '' !== $logged_in_cache_suffix ) {
 				if ( substr_count( $cache_key_url, '?' ) > 0 ) {
-					$cache_key_url .= '&' . $current_user->user_login;
+					$cache_key_url .= '&' . $logged_in_cache_suffix;
 				} else {
-					$cache_key_url .= '?' . $current_user->user_login;
+					$cache_key_url .= '?' . $logged_in_cache_suffix;
 				}
 			}
 		} else {

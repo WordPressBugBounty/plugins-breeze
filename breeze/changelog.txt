@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.3 =
+
+* Compatibility: Verified compatibility with WordPress 7.0.
+
 = 2.5.2 =
 
 * Improved: Refined multisite handling across settings, cache management, import/export, and reset actions for more consistent behavior and better scope control.

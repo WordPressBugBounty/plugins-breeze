@@ -296,7 +296,8 @@ class Breeze_Store_Files {
 			return false;
 		}
 
-		$original_file_content = file_get_contents( $url );
+		$response              = wp_safe_remote_get( esc_url_raw( $url ) );
+		$original_file_content = wp_remote_retrieve_body( $response );
 
 		if ( ! $original_file_content ) {
 			return false;

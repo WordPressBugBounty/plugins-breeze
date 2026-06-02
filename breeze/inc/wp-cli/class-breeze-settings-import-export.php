@@ -274,6 +274,13 @@ class Breeze_Settings_Import_Export {
 						if ( 'breeze_cdn_integration' === $meta_key ) {
 							$meta_value = $this->breeze_sanitize_imported_settings( $meta_value );
 						}
+						if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+							$current_advanced               = get_site_option( 'breeze_advanced_settings' );
+							$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+								isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+								is_array( $current_advanced ) ? $current_advanced : array()
+							);
+						}
 						update_site_option( $meta_key, $meta_value );
 					} else {
 						// $meta_key was not imported
@@ -291,6 +298,13 @@ class Breeze_Settings_Import_Export {
 						if ( 'breeze_cdn_integration' === $meta_key ) {
 							$meta_value = $this->breeze_sanitize_imported_settings( $meta_value );
 						}
+						if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+							$current_advanced               = get_blog_option( $blog_id, 'breeze_advanced_settings' );
+							$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+								isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+								is_array( $current_advanced ) ? $current_advanced : array()
+							);
+						}
 						update_blog_option( $blog_id, $meta_key, $meta_value );
 					} else {
 						// $meta_key was not imported
@@ -306,6 +320,13 @@ class Breeze_Settings_Import_Export {
 				if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 					if ( 'breeze_cdn_integration' === $meta_key ) {
 						$meta_value = $this->breeze_sanitize_imported_settings( $meta_value );
+					}
+					if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+						$current_advanced               = get_option( 'breeze_advanced_settings' );
+						$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+							isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+							is_array( $current_advanced ) ? $current_advanced : array()
+						);
 					}
 					update_option( $meta_key, $meta_value );
 				} else {
@@ -368,6 +389,14 @@ class Breeze_Settings_Import_Export {
 					// Validate options.
 					$meta_value = self::validate_option_group( $meta_value, $meta_key );
 
+					if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+						$current_advanced               = get_site_option( 'breeze_advanced_settings' );
+						$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+							isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+							is_array( $current_advanced ) ? $current_advanced : array()
+						);
+					}
+
 					if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 						update_site_option( $meta_key, $meta_value );
 						WP_CLI::line( $meta_key . ' - ' . WP_CLI::colorize( '%Yimported%n' ) );
@@ -393,6 +422,14 @@ class Breeze_Settings_Import_Export {
 					// Validate options.
 					$meta_value = self::validate_option_group( $meta_value, $meta_key );
 
+					if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+						$current_advanced               = get_blog_option( $blog_id, 'breeze_advanced_settings' );
+						$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+							isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+							is_array( $current_advanced ) ? $current_advanced : array()
+						);
+					}
+
 					if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 						self::ttl_exception( $meta_key, $meta_value );
 						update_blog_option( $blog_id, $meta_key, $meta_value );
@@ -412,6 +449,14 @@ class Breeze_Settings_Import_Export {
 
 				// Validate options.
 				$meta_value = self::validate_option_group( $meta_value, $meta_key );
+
+				if ( 'breeze_advanced_settings' === $meta_key && is_array( $meta_value ) ) {
+					$current_advanced               = get_option( 'breeze_advanced_settings' );
+					$meta_value['breeze-api-token'] = self::sanitize_imported_api_token(
+						isset( $meta_value['breeze-api-token'] ) ? $meta_value['breeze-api-token'] : '',
+						is_array( $current_advanced ) ? $current_advanced : array()
+					);
+				}
 
 				if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 					update_option( $meta_key, $meta_value );
@@ -577,6 +622,11 @@ class Breeze_Settings_Import_Export {
 						WP_CLI::line( ' breeze_cdn_integration - ' . WP_CLI::colorize( '%Yimported%n' ) );
 						WP_CLI::line( ' breeze_varnish_cache - ' . WP_CLI::colorize( '%Yimported%n' ) );
 					}
+					$current_advanced             = get_site_option( 'breeze_advanced_settings' );
+					$advanced['breeze-api-token'] = self::sanitize_imported_api_token(
+						isset( $advanced['breeze-api-token'] ) ? $advanced['breeze-api-token'] : '',
+						is_array( $current_advanced ) ? $current_advanced : array()
+					);
 					update_site_option( 'breeze_basic_settings', $basic );
 					update_site_option( 'breeze_file_settings', $file );
 					update_site_option( 'breeze_preload_settings', $preload );
@@ -603,6 +653,11 @@ class Breeze_Settings_Import_Export {
 						WP_CLI::line( ' breeze_varnish_cache - ' . WP_CLI::colorize( '%Yimported%n' ) );
 					}
 
+					$current_advanced             = get_blog_option( $blog_id, 'breeze_advanced_settings' );
+					$advanced['breeze-api-token'] = self::sanitize_imported_api_token(
+						isset( $advanced['breeze-api-token'] ) ? $advanced['breeze-api-token'] : '',
+						is_array( $current_advanced ) ? $current_advanced : array()
+					);
 					update_blog_option( $blog_id, 'breeze_basic_settings', $basic );
 					update_blog_option( $blog_id, 'breeze_file_settings', $file );
 					update_blog_option( $blog_id, 'breeze_preload_settings', $preload );
@@ -625,6 +680,11 @@ class Breeze_Settings_Import_Export {
 					WP_CLI::line( ' breeze_cdn_integration - ' . WP_CLI::colorize( '%Yimported%n' ) );
 					WP_CLI::line( ' breeze_varnish_cache - ' . WP_CLI::colorize( '%Yimported%n' ) );
 				}
+				$current_advanced             = get_option( 'breeze_advanced_settings' );
+				$advanced['breeze-api-token'] = self::sanitize_imported_api_token(
+					isset( $advanced['breeze-api-token'] ) ? $advanced['breeze-api-token'] : '',
+					is_array( $current_advanced ) ? $current_advanced : array()
+				);
 				update_option( 'breeze_basic_settings', $basic );
 				update_option( 'breeze_file_settings', $file );
 				update_option( 'breeze_preload_settings', $preload );
@@ -861,6 +921,21 @@ class Breeze_Settings_Import_Export {
 		}
 
 		return '0';
+	}
+
+	/** Strong = >=32 chars, alphanumeric, >=8 distinct chars. @since 2.5.4 */
+	private static function is_strong_api_token( $token ) {
+		$token = (string) $token;
+		return strlen( $token ) >= 32 && preg_match( '/^[A-Za-z0-9]+$/', $token ) && count( count_chars( $token, 1 ) ) >= 8;
+	}
+
+	/** Keep imported token if strong, else fall back to stored, else mint a fresh one. @since 2.5.4 */
+	private static function sanitize_imported_api_token( $incoming, array $current_advanced = array() ) {
+		if ( self::is_strong_api_token( $incoming ) ) {
+			return (string) $incoming;
+		}
+		$stored = isset( $current_advanced['breeze-api-token'] ) ? $current_advanced['breeze-api-token'] : '';
+		return self::is_strong_api_token( $stored ) ? (string) $stored : Breeze_Configuration::breeze_generate_token();
 	}
 
 	/**

@@ -51,6 +51,12 @@ class Breeze_PurgeCache {
 		add_action( 'switch_theme', array( &$this, 'clear_local_cache_on_switch' ), 9, 3 );
 		add_action( 'customize_save_after', array( &$this, 'clear_customizer_cache' ), 11, 1 );
 		add_action( 'purge_post_cache', array( $this, 'purge_post_cache' ), 10, 1 );
+
+		// Purge full cache when navigation menus are created, updated or deleted.
+		// Menus typically appear sitewide, so a full purge is the safest option.
+		add_action( 'wp_update_nav_menu', array( &$this, 'clear_cache_on_menu_change' ), 10, 1 );
+		add_action( 'wp_create_nav_menu', array( &$this, 'clear_cache_on_menu_change' ), 10, 1 );
+		add_action( 'wp_delete_nav_menu', array( &$this, 'clear_cache_on_menu_change' ), 10, 1 );
 	}
 
 	/**
@@ -110,6 +116,22 @@ class Breeze_PurgeCache {
 	
 	public function clear_customizer_cache( $element ) {
 
+		do_action( 'breeze_clear_all_cache' );
+	}
+
+	/**
+	 * Clear all cache when a navigation menu is created, updated or deleted.
+	 *
+	 * Navigation menus usually render on every page (header/footer), so any
+	 * change to a menu can invalidate the cached HTML for the whole site.
+	 * Triggers `breeze_clear_all_cache` so local, Varnish and Cloudflare
+	 * cache layers are all flushed.
+	 *
+	 * @param int $menu_id The ID of the menu that was changed.
+	 *
+	 * @return void
+	 */
+	public function clear_cache_on_menu_change( $menu_id ) {
 		do_action( 'breeze_clear_all_cache' );
 	}
 

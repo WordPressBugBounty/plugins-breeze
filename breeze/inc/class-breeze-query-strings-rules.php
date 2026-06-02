@@ -57,6 +57,7 @@ class Breeze_Query_Strings_Rules {
 		'gdftrk',
 		'gdffi',
 		'_ke',
+		'_kx',
 		'redirect_log_mongo_id',
 		'redirect_mongo_id',
 		'sb_referer_host',
@@ -109,19 +110,6 @@ class Breeze_Query_Strings_Rules {
 	public function fetch_ignored_list() {
 		$this->ignored_list = apply_filters( 'breeze_ignored_query_strings_list', $this->ignored_list );
 
-		// Append cached query strings from Breeze config settings to the ignored list.
-		if (
-			isset( $GLOBALS['breeze_config'], $GLOBALS['breeze_config']['cached-query-strings'] ) &&
-			! empty( $GLOBALS['breeze_config']['cached-query-strings'] ) &&
-			is_array( $GLOBALS['breeze_config']['cached-query-strings'] )
-		) {
-			$this->ignored_list = array_merge(
-				$this->ignored_list,
-				array_values( $GLOBALS['breeze_config']['cached-query-strings'] )
-			);
-			$this->ignored_list = array_unique( $this->ignored_list );
-		}
-
 		return $this->ignored_list;
 	}
 
@@ -133,6 +121,19 @@ class Breeze_Query_Strings_Rules {
 
 	public function fetch_always_cache_list() {
 		$this->always_cache_query = apply_filters( 'breeze_always_cache_query_strings', $this->always_cache_query );
+
+		// Append user-defined "Cache Query Strings" from Breeze settings so each value generates a separate cache.
+		if (
+			isset( $GLOBALS['breeze_config'], $GLOBALS['breeze_config']['cached-query-strings'] ) &&
+			! empty( $GLOBALS['breeze_config']['cached-query-strings'] ) &&
+			is_array( $GLOBALS['breeze_config']['cached-query-strings'] )
+		) {
+			$this->always_cache_query = array_merge(
+				$this->always_cache_query,
+				array_values( $GLOBALS['breeze_config']['cached-query-strings'] )
+			);
+			$this->always_cache_query = array_unique( $this->always_cache_query );
+		}
 
 		// woocommerce_geolocation_ajax
 		if ( isset( $GLOBALS['breeze_config']['woocommerce_geolocation_ajax_inherit'] ) && ! empty( $GLOBALS['breeze_config']['woocommerce_geolocation_ajax_inherit'] ) ) {

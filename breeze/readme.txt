@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.3
+Stable tag: 2.5.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.5.4 =
+
+* Fix: Improved handling of locally stored remote files using WordPress standard APIs.
+* Fix: Improved query string cache processing and variation handling.
+* Improved: Enhanced validation handling during settings import.
+* Improved: Enhanced cache handling for navigation menus when menus are created, updated, or deleted.
+* Added: Support for additional ignored query string parameters.
 
 = 2.5.3 =
 

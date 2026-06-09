@@ -51,6 +51,21 @@ class Breeze_Admin {
 
 		if ( is_admin() || 'cli' === php_sapi_name() ) {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
+			add_action(
+				'admin_init',
+				function () {
+					if ( ! is_admin() ) {
+						return;
+					}
+
+					if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_network' ) ) {
+						return;
+					}
+
+					Breeze_CloudFlare_Helper::maybe_warmup_microservice_options();
+				},
+				20
+			);
 
 			// register menu
 			add_action( 'admin_menu', array( $this, 'register_menu_page' ) );
@@ -1118,6 +1133,8 @@ INLINEJS;
 				delete_site_option( 'breeze_exclude_url_pages' );
 				delete_site_option( 'breeze_hide_notice' );
 				delete_site_option( 'breeze_version' );
+				delete_site_option( 'breeze_cf_microservice_url' );
+				delete_site_option( 'breeze_cf_platform' );
 
 				// Delete transients.
 				delete_transient( 'breeze_custom_varnish_server_active' );
@@ -1141,6 +1158,8 @@ INLINEJS;
 					delete_option( 'breeze_exclude_url_pages' );
 					delete_option( 'breeze_hide_notice' );
 					delete_option( 'breeze_version' );
+					delete_option( 'breeze_cf_microservice_url' );
+					delete_option( 'breeze_cf_platform' );
 					restore_current_blog();
 				}
 			} else {
@@ -1161,6 +1180,8 @@ INLINEJS;
 				delete_option( 'breeze_exclude_url_pages' );
 				delete_option( 'breeze_hide_notice' );
 				delete_option( 'breeze_version' );
+				delete_option( 'breeze_cf_microservice_url' );
+				delete_option( 'breeze_cf_platform' );
 
 				// Delete transients.
 				delete_transient( 'breeze_custom_varnish_server_active' );

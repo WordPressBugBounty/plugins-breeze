@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.5 =
+
+* Fix: Cloudflare cache now reliably purges when scheduled posts are published, ensuring newly published content is immediately visible without waiting for the cache to expire.
+
 = 2.5.4 =
 
 * Fix: Improved handling of locally stored remote files using WordPress standard APIs.

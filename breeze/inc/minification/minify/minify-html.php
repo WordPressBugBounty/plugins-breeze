@@ -93,8 +93,7 @@ class Minify_HTML {
 			$this->_isXhtml = ( false !== strpos( $this->_html, '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML' ) );
 		}
 
-		$this->_replacementHash = 'MINIFYHTML' . hash('sha512', $_SERVER['REQUEST_TIME']);
-		//$this->_replacementHash = 'MINIFYHTML' . md5( $_SERVER['REQUEST_TIME'] );
+		$this->_replacementHash = $this->generate_replacement_hash();
 		$this->_placeholders    = array();
 
 		// replace SCRIPTs (and minify) with placeholders
@@ -166,12 +165,18 @@ class Minify_HTML {
 		// use newlines before 1st attribute in open tags (to limit line lengths)
 		//$this->_html = preg_replace('/(<[a-z\\-]+)\\s+([^>]+>)/i', "$1\n$2", $this->_html);
 
-		// fill placeholders
-		$this->_html = str_replace(
-			array_keys( $this->_placeholders ),
-			array_values( $this->_placeholders ),
+		// Restore only placeholders generated for this exact process run.
+		$placeholder_pattern = '/%' . preg_quote( $this->_replacementHash, '/' ) . '(\d+)%/';
+		$restored_html       = preg_replace_callback(
+			$placeholder_pattern,
+			array( $this, '_restorePlaceholderCB' ),
 			$this->_html
 		);
+
+		if ( null !== $restored_html ) {
+			$this->_html = $restored_html;
+		}
+
 		return $this->_html;
 	}
 
@@ -185,6 +190,19 @@ class Minify_HTML {
 		$placeholder                         = '%' . $this->_replacementHash . count( $this->_placeholders ) . '%';
 		$this->_placeholders[ $placeholder ] = $content;
 		return $placeholder;
+	}
+
+	protected function _restorePlaceholderCB( $matches ) {
+		$placeholder = $matches[0];
+		if ( isset( $this->_placeholders[ $placeholder ] ) ) {
+			return $this->_placeholders[ $placeholder ];
+		}
+
+		return $placeholder;
+	}
+
+	protected function generate_replacement_hash() {
+		return 'MINIFYHTML' . bin2hex( random_bytes( 32 ) );
 	}
 
 	protected $_isXhtml         = null;

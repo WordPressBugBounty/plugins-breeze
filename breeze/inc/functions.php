@@ -22,6 +22,33 @@ define( 'BREEZE_PLUGIN_FULL_PATH', dirname( __DIR__ ) . '/' );
 require_once BREEZE_PLUGIN_FULL_PATH . 'inc/class-breeze-query-strings-rules.php';
 
 /**
+ * Exclude default WordPress comment section markers from HTML minification.
+ *
+ * @param string $exclude_html Comma-separated exclusion list.
+ * @return string
+ */
+function breeze_exclude_default_wp_comments_from_html_minification( $exclude_html ) {
+	$default_comment_markers = array(
+		'comments',
+		'respond',
+		'commentform',
+		'comment-form',
+		'wp-block-comment-template',
+	);
+
+	$exclude_items = array();
+	if ( ! empty( $exclude_html ) ) {
+		$exclude_items = array_filter( array_map( 'trim', explode( ',', $exclude_html ) ) );
+	}
+
+	$exclude_items = array_merge( $exclude_items, $default_comment_markers );
+	$exclude_items = array_unique( $exclude_items );
+
+	return implode( ',', $exclude_items );
+}
+add_filter( 'breeze_filter_html_exclude', 'breeze_exclude_default_wp_comments_from_html_minification' );
+
+/**
  * Get base path for the page cache directory.
  *
  * @param bool $is_network Whether to include the blog ID in the path on multisite.

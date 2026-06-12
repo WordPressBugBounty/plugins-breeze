@@ -13,6 +13,7 @@ class Breeze_MinificationHtml extends Breeze_MinificationBase {
 	private $show_original_content = 0;
 	private $do_process            = false;
 	private $forcexhtml            = false;
+	private $internal_exclude_tag  = 'breeze-wp-comments-exclude';
 
 	public function read( $options ) {
 		$this_path_url = $this->get_cache_file_url( '' );
@@ -55,10 +56,7 @@ class Breeze_MinificationHtml extends Breeze_MinificationBase {
 		if ( class_exists( 'Minify_HTML' ) ) {
 			// wrap the to-be-excluded strings in noptimize tags
 			foreach ( $this->exclude as $exclString ) {
-				if ( strpos( $this->content, $exclString ) !== false ) {
-					$replString    = '<!--noptimize-->' . $exclString . '<!--/noptimize-->';
-					$this->content = str_replace( $exclString, $replString, $this->content );
-				}
+				$this->content = $this->wrap_html_exclusion_in_noptimize( $this->content, $exclString );
 			}
 
 			// noptimize me
@@ -80,6 +78,7 @@ class Breeze_MinificationHtml extends Breeze_MinificationBase {
 
 			// restore noptimize
 			$this->content = $this->restore_noptimize( $this->content );
+			$this->content = $this->cleanup_internal_html_exclusion_wrappers( $this->content );
 
 			// remove the noptimize-wrapper from around the excluded strings
 			foreach ( $this->exclude as $exclString ) {
@@ -94,6 +93,98 @@ class Breeze_MinificationHtml extends Breeze_MinificationBase {
 
 		// Didn't minify :(
 		return false;
+	}
+
+	/**
+	 * Wrap excluded content in noptimize comments.
+	 *
+	 * For default WP comments markers, we wrap the complete block to keep that
+	 * section unchanged while minifying the rest of the document.
+	 *
+	 * @param string $content The HTML content.
+	 * @param string $exclude_string Exclusion marker.
+	 * @return string
+	 */
+	private function wrap_html_exclusion_in_noptimize( $content, $exclude_string ) {
+		$marker_pattern = $this->build_exclusion_marker_pattern( $exclude_string );
+		if ( ! preg_match( '#' . $marker_pattern . '#i', $content ) ) {
+			return $content;
+		}
+
+		$already_wrapped_pattern = '#<!--\s?' . preg_quote( $this->internal_exclude_tag, '#' ) . '\s?-->[\s\S]*?'
+			. $marker_pattern
+			. '[\s\S]*?<!--\s?/\s?' . preg_quote( $this->internal_exclude_tag, '#' ) . '\s?-->#i';
+
+		if ( preg_match( $already_wrapped_pattern, $content ) ) {
+			return $content;
+		}
+
+		$block_patterns = array(
+			'#<form\b[^>]*' . $marker_pattern . '[^>]*>[\s\S]*?</form>#i',
+			'#<(?:div|section|article|aside)\b[^>]*' . $marker_pattern . '[^>]*>[\s\S]*?</(?:div|section|article|aside)>#i',
+			'#<(?:ol|ul)\b[^>]*' . $marker_pattern . '[^>]*>[\s\S]*?</(?:ol|ul)>#i',
+		);
+
+		foreach ( $block_patterns as $pattern ) {
+			$updated_content = preg_replace_callback(
+				$pattern,
+				function ( $matches ) {
+					$matched_block = $matches[0];
+					if ( false !== strpos( $matched_block, '<!--noptimize-->' ) ) {
+						return $matched_block;
+					}
+
+					return '<!--noptimize--><!--' . $this->internal_exclude_tag . '-->'
+						. $matched_block
+						. '<!--/' . $this->internal_exclude_tag . '--><!--/noptimize-->';
+				},
+				$content
+			);
+
+			if ( null !== $updated_content && $updated_content !== $content ) {
+				return $updated_content;
+			}
+		}
+
+		return $content;
+	}
+
+	/**
+	 * Build a regex-safe exclusion marker pattern.
+	 *
+	 * Standalone marker words should not match inside larger words, e.g.
+	 * "comments" should not match "comments-list".
+	 *
+	 * @param string $exclude_string Exclusion marker.
+	 * @return string
+	 */
+	private function build_exclusion_marker_pattern( $exclude_string ) {
+		if ( strpos( $exclude_string, '=' ) !== false || strpos( $exclude_string, '"' ) !== false || strpos( $exclude_string, "'" ) !== false ) {
+			return preg_quote( $exclude_string, '#' );
+		}
+
+		return '(?<![A-Za-z0-9_-])' . preg_quote( $exclude_string, '#' ) . '(?![A-Za-z0-9_-])';
+	}
+
+	/**
+	 * Remove internal wrappers used for HTML exclusion.
+	 *
+	 * @param string $content HTML content after noptimize restore.
+	 * @return string
+	 */
+	private function cleanup_internal_html_exclusion_wrappers( $content ) {
+		$pattern = '#<!--\s?noptimize\s?-->\s*<!--\s?'
+			. preg_quote( $this->internal_exclude_tag, '#' )
+			. '\s?-->([\s\S]*?)<!--\s?/\s?'
+			. preg_quote( $this->internal_exclude_tag, '#' )
+			. '\s?-->\s*<!--\s?/\s?noptimize\s?-->#i';
+
+		$updated_content = preg_replace( $pattern, '$1', $content );
+		if ( null !== $updated_content ) {
+			return $updated_content;
+		}
+
+		return $content;
 	}
 
 	// Does nothing

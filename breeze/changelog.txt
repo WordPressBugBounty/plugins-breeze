@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.7 =
+
+* Fix: Prevented prefetched links containing query strings from being rewritten with a trailing slash, avoiding incorrect URLs and unnecessary requests.
+
 = 2.5.6 =
 
 * Improvement: Enhanced comment section handling when HTML minification is enabled to improve compatibility and output reliability

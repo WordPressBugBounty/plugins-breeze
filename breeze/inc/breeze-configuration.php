@@ -331,10 +331,106 @@ class Breeze_Configuration {
 			}
 		}
 
+		$cache_warmup_enabled = ( isset( $post_item['breeze-cache-warmup-enabled'] ) ? '1' : '0' );
+		$is_network_scope     = is_multisite()
+			&& function_exists( 'breeze_request_wants_network_scope' )
+			&& function_exists( 'breeze_user_can_manage_network' )
+			&& breeze_request_wants_network_scope()
+			&& breeze_user_can_manage_network();
+
+		$current_preload_options = breeze_get_option( 'preload_settings', false );
+
+		// Cache warmup URLs: validate that every entry belongs to this site.
+		$raw_warmup_urls   = $this->string_convert_arr(
+			sanitize_textarea_field( isset( $post_item['breeze-preload-cache-urls'] ) ? $post_item['breeze-preload-cache-urls'] : '' )
+		);
+		$valid_warmup_urls = ( isset( $current_preload_options['breeze-preload-cache-urls'] ) && is_array( $current_preload_options['breeze-preload-cache-urls'] ) ) ? $current_preload_options['breeze-preload-cache-urls'] : array();
+		$invalid_count     = 0;
+		// For each warmup URL, check if it belongs to this site.
+		// If it does, add it to the valid warmup URLs array.
+		// If it doesn't, add it to the invalid warmup URLs array.
+		// The invalid warmup URLs array will be used to display an error message to the user.
+		$excess_count = 0;
+		$max_urls     = $this->get_warmup_urls_limit();
+		if ( '1' === $cache_warmup_enabled ) {
+			$valid_warmup_urls = array();
+			// Track normalized URLs already accepted so each one is stored only
+			// once, regardless of how many times it appears in the textarea.
+			$seen_warmup_urls = array();
+			foreach ( $raw_warmup_urls as $warmup_url ) {
+				$warmup_url = trim( $warmup_url );
+				if ( empty( $warmup_url ) ) {
+					continue;
+				}
+
+				$matched_blog_id = $this->get_matching_blog_id_for_warmup_url( $warmup_url );
+				if (
+					( $is_network_scope && $matched_blog_id > 0 )
+					|| ( ! $is_network_scope && get_current_blog_id() === $matched_blog_id )
+				) {
+					$normalized_url = esc_url_raw( $warmup_url );
+					if ( '' === $normalized_url || isset( $seen_warmup_urls[ $normalized_url ] ) ) {
+						continue;
+					}
+
+					$seen_warmup_urls[ $normalized_url ] = true;
+					$valid_warmup_urls[]                 = $normalized_url;
+				} else {
+					++$invalid_count;
+				}
+			}
+
+			// Enforce the hard scheduling cap server-side too, so bypassing the
+			// front-end limit still cannot store more than the allowed number.
+			if ( count( $valid_warmup_urls ) > $max_urls ) {
+				$excess_count      = count( $valid_warmup_urls ) - $max_urls;
+				$valid_warmup_urls = array_slice( $valid_warmup_urls, 0, $max_urls );
+			}
+		}
+
+		$warmup_messages = array();
+		// Create an error message if there are any invalid warmup URLs.
+		if ( $invalid_count > 0 ) {
+			$warmup_messages[] = sprintf(
+				/* translators: 1: number of rejected URLs, 2: scope label */
+				_n(
+					'%1$d URL was removed: only URLs from %2$s are allowed for cache warmup.',
+					'%1$d URLs were removed: only URLs from %2$s are allowed for cache warmup.',
+					$invalid_count,
+					'breeze'
+				),
+				$invalid_count,
+				$is_network_scope ? esc_html__( 'this network sites', 'breeze' ) : esc_html( home_url() )
+			);
+		}
+
+		// Inform the user when entries were dropped for exceeding the cap.
+		if ( $excess_count > 0 ) {
+			$warmup_messages[] = sprintf(
+				/* translators: 1: number of dropped URLs, 2: maximum allowed URLs */
+				_n(
+					'%1$d URL was removed: a maximum of %2$d cache warmup URLs can be saved.',
+					'%1$d URLs were removed: a maximum of %2$d cache warmup URLs can be saved.',
+					$excess_count,
+					'breeze'
+				),
+				$excess_count,
+				$max_urls
+			);
+		}
+
+		$warmup_error = implode( ' ', $warmup_messages );
+		if ( '' !== $warmup_error ) {
+			$response['preload_urls_error'] = $warmup_error;
+		}
+
 		$preload = array(
 			'breeze-preload-fonts' => $preload_fonts,
 			'breeze-preload-links' => ( isset( $post_item['preload-links'] ) ? '1' : '0' ),
 			'breeze-prefetch-urls' => $prefetch_urls,
+			'breeze-cache-warmup-enabled' => $cache_warmup_enabled,
+			'breeze-preload-cache-urls'      => $valid_warmup_urls,
+			'breeze-preload-cache-urls-error' => $warmup_error,
 		);
 
 		breeze_update_option( 'preload_settings', $preload, true );
@@ -347,6 +443,162 @@ class Breeze_Configuration {
 		do_action( 'breeze_clear_all_cache' );
 
 		wp_send_json( $response );
+	}
+
+	/**
+	 * Resolve the maximum number of cache warmup URLs that may be saved.
+	 *
+	 * Mirrors the scheduling cap in Breeze_Cache_Preloader so the UI, the save
+	 * handler, and the scheduler all agree. Falls back to 30 if the preloader
+	 * class is unavailable for any reason.
+	 *
+	 * @return int
+	 */
+	private function get_warmup_urls_limit(): int {
+		if ( method_exists( '\Breeze\Cache\Breeze_Cache_Preloader', 'get_max_urls' ) ) {
+			return \Breeze\Cache\Breeze_Cache_Preloader::get_max_urls();
+		}
+
+		return (int) apply_filters( 'breeze_preload_max_urls', 30 );
+	}
+
+	/**
+	 * Resolve which blog in this network owns a warmup URL.
+	 *
+	 * Uses host + longest path prefix matching for subfolder multisite.
+	 *
+	 * @param string $url Warmup URL.
+	 * @return int Blog ID, or 0 when URL does not belong to this install/network.
+	 */
+	private function get_matching_blog_id_for_warmup_url( string $url ): int {
+		if ( empty( $url ) ) {
+			return 0;
+		}
+
+		$site_home = home_url( '/' );
+		if ( ! $this->is_safe_local_candidate_url( $url, $site_home ) ) {
+			return 0;
+		}
+
+		if ( ! is_multisite() ) {
+			$url_path  = $this->normalize_url_path( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+			$site_path = $this->normalize_url_path( (string) wp_parse_url( $site_home, PHP_URL_PATH ) );
+
+			return ( 0 === strpos( $url_path, $site_path ) ) ? get_current_blog_id() : 0;
+		}
+
+		$url_path = $this->normalize_url_path( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+
+		$sites = get_sites(
+			array(
+				'number'   => 0,
+				'fields'   => 'ids',
+				'archived' => 0,
+				'spam'     => 0,
+				'deleted'  => 0,
+			)
+		);
+
+		$matched_blog_id = 0;
+		$matched_len     = -1;
+
+		foreach ( $sites as $site_id ) {
+			$site_id   = (int) $site_id;
+			$site_home = get_home_url( $site_id, '/' );
+			if ( ! $this->is_safe_local_candidate_url( $url, $site_home ) ) {
+				continue;
+			}
+
+			$site_path = $this->normalize_url_path( (string) wp_parse_url( $site_home, PHP_URL_PATH ) );
+			if ( 0 !== strpos( $url_path, $site_path ) ) {
+				continue;
+			}
+
+			$path_len = strlen( $site_path );
+			if ( $path_len > $matched_len ) {
+				$matched_len     = $path_len;
+				$matched_blog_id = $site_id;
+			}
+		}
+
+		return $matched_blog_id;
+	}
+
+	/**
+	 * Validate a warmup URL against site home URL constraints.
+	 *
+	 * Requires HTTP(S), blocks URL userinfo, and enforces same host/scheme/port.
+	 *
+	 * @param string $url Target URL.
+	 * @param string $site_home Site home URL used as security baseline.
+	 * @return bool
+	 */
+	private function is_safe_local_candidate_url( string $url, string $site_home ): bool {
+		$url_parts  = wp_parse_url( $url );
+		$site_parts = wp_parse_url( $site_home );
+
+		if ( ! is_array( $url_parts ) || ! is_array( $site_parts ) ) {
+			return false;
+		}
+
+		$url_scheme  = isset( $url_parts['scheme'] ) ? strtolower( (string) $url_parts['scheme'] ) : '';
+		$site_scheme = isset( $site_parts['scheme'] ) ? strtolower( (string) $site_parts['scheme'] ) : '';
+
+		if ( empty( $url_scheme ) || empty( $site_scheme ) ) {
+			return false;
+		}
+
+		if ( ! in_array( $url_scheme, array( 'http', 'https' ), true ) || $url_scheme !== $site_scheme ) {
+			return false;
+		}
+
+		if ( ! empty( $url_parts['user'] ) || ! empty( $url_parts['pass'] ) ) {
+			return false;
+		}
+
+		$url_host  = isset( $url_parts['host'] ) ? (string) $url_parts['host'] : '';
+		$site_host = isset( $site_parts['host'] ) ? (string) $site_parts['host'] : '';
+
+		if ( empty( $url_host ) || empty( $site_host ) || 0 !== strcasecmp( $url_host, $site_host ) ) {
+			return false;
+		}
+
+		$url_port  = isset( $url_parts['port'] ) ? (int) $url_parts['port'] : $this->get_default_port_for_scheme( $url_scheme );
+		$site_port = isset( $site_parts['port'] ) ? (int) $site_parts['port'] : $this->get_default_port_for_scheme( $site_scheme );
+
+		if ( $url_port <= 0 || $site_port <= 0 || $url_port !== $site_port ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Normalize URL path to slash-prefixed and slash-suffixed format.
+	 *
+	 * @param string $path Raw URL path.
+	 * @return string
+	 */
+	private function normalize_url_path( string $path ): string {
+		return trailingslashit( '/' . ltrim( $path, '/' ) );
+	}
+
+	/**
+	 * Resolve default port for supported HTTP schemes.
+	 *
+	 * @param string $scheme URL scheme.
+	 * @return int
+	 */
+	private function get_default_port_for_scheme( string $scheme ): int {
+		if ( 'https' === $scheme ) {
+			return 443;
+		}
+
+		if ( 'http' === $scheme ) {
+			return 80;
+		}
+
+		return 0;
 	}
 
 	/**
@@ -1470,7 +1722,12 @@ class Breeze_Configuration {
 		Breeze_MinificationCache::clear_minification();
 		//delete all cache
 		Breeze_PurgeCache::breeze_cache_flush( true, true, true );
-
+		
+		// Fire the public purge action so listeners (e.g. the cache preloader)
+		// can react. The AJAX "Purge All Cache" button reaches the cache via
+		// this method without going through Breeze_Admin::breeze_clear_all_cache,
+		// so without this dispatch the hook never fires from that UI path.
+		do_action( 'breeze_clear_all_cache' );
 		return $result;
 	}
 
@@ -1909,6 +2166,9 @@ class Breeze_Configuration {
 			'breeze-preload-fonts' => array(),
 			'breeze-preload-links' => '1',
 			'breeze-prefetch-urls' => array(),
+			'breeze-cache-warmup-enabled' => '0',
+			'breeze-preload-cache-urls'       => array(),
+			'breeze-preload-cache-urls-error' => '',
 		);
 		$preload         = $default_preload;
 
@@ -2000,7 +2260,7 @@ class Breeze_Configuration {
 		} elseif ( 'network' === $blog_id ) { // Multisite network
 			$blogs = get_sites( array( 'number' => 0 ) );
 			foreach ( $blogs as $blog ) {
-				switch_to_blog( $blog_id );
+				switch_to_blog( $blog->blog_id );
 				//automatic config start cache
 				Breeze_ConfigCache::factory()->write();
 				Breeze_ConfigCache::factory()->write_config_cache();

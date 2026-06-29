@@ -121,6 +121,10 @@ class Breeze_PurgeVarnish {
 					$response = Breeze_CloudFlare_Helper::reset_all_cache();
 					$this->print_cloudflare_cache_purge_notification( $response );
 				}
+
+				if ( class_exists( '\Breeze\Cache\Breeze_Cache_Preloader' ) ) {
+					\Breeze\Cache\Breeze_Cache_Preloader::schedule_preload();
+				}
 			}
 		}
 	}

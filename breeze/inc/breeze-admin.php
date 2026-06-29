@@ -855,6 +855,7 @@ INLINEJS;
 			'breeze-preload-fonts' => array(),
 			'breeze-preload-links' => '1',
 			'breeze-prefetch-urls' => array(),
+			'breeze-cache-warmup-enabled' => '0',
 		);
 		$default_data['preload'] = array_merge( $default_preload, $preload );
 

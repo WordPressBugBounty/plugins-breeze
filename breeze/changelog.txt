@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.8 =
+
+* New: Cache Warmup automatically rebuilds the home page and other important URLs after a full cache purge, so visitors always land on a cached, fast-loading page.
+
 = 2.5.7 =
 
 * Fix: Prevented prefetched links containing query strings from being rewritten with a trailing slash, avoiding incorrect URLs and unnecessary requests.

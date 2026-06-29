@@ -1,6 +1,55 @@
 jQuery( document ).ready(
 	function ( $ ) {
 
+		
+		function toggle_warmup_urls_state() {
+			var $warmup_toggle = $( '#breeze-cache-warmup-enabled' );
+			var $warmup_urls   = $( '#breeze-preload-cache-urls' );
+			$warmup_urls.prop( 'disabled', ! $warmup_toggle.is( ':checked' ) );
+		} 
+
+		function breeze_warmup_urls_limit_notice() {
+			var $warmup_urls = $( '#breeze-preload-cache-urls' );
+			if ( ! $warmup_urls.length ) {
+				return;
+			}
+
+			var max = parseInt( $warmup_urls.attr( 'data-breeze-max-urls' ), 10 );
+			if ( isNaN( max ) || max < 1 ) {
+				return;
+			}
+
+			var lines = $warmup_urls.val().split( '\n' );
+			var count = 0;
+			for ( var i = 0; i < lines.length; i++ ) {
+				if ( '' !== $.trim( lines[ i ] ) ) {
+					count++;
+				}
+			}
+
+			var $notice = $( '#breeze-warmup-urls-limit-notice' );
+			if ( count > max ) {
+				if ( ! $notice.length ) {
+					$notice = $( '<p id="breeze-warmup-urls-limit-notice" class="br-notice"></p>' );
+					$warmup_urls.after( $notice );
+				}
+				$notice.text( 'You have entered ' + count + ' URLs. Only the first ' + max + ' will be saved.' );
+			} else if ( $notice.length ) {
+				$notice.remove();
+			}
+		}
+
+		$( document ).on( 'change','#breeze-cache-warmup-enabled', function() {
+			toggle_warmup_urls_state();
+		} ); 
+		toggle_warmup_urls_state();
+
+		$( document ).on( 'keyup change blur', '#breeze-preload-cache-urls', function() {
+			breeze_warmup_urls_limit_notice();
+		} );
+		breeze_warmup_urls_limit_notice();
+		 
+
 		var $box_container = $( '.breeze-box' );
 
 		var $compatibility_warning = $( '#breeze-plugins-notice' );
@@ -8,7 +57,7 @@ jQuery( document ).ready(
 			$( document ).on(
 				'click tap',
 				'.notice-dismiss',
-				function () {
+				function () { 
 					$.ajax(
 						{
 							type: "POST",

@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.7
+Stable tag: 2.5.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,6 +160,10 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.5.8 =
+
+* New: Cache Warmup automatically rebuilds the home page and other important URLs after a full cache purge, so visitors always land on a cached, fast-loading page.
+
 = 2.5.7 =
 
 * Fix: Prevented prefetched links containing query strings from being rewritten with a trailing slash, avoiding incorrect URLs and unnecessary requests.
@@ -172,17 +176,6 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 * Fix: Cloudflare cache now reliably purges when scheduled posts are published, ensuring newly published content is immediately visible without waiting for the cache to expire.
 
-= 2.5.4 =
-
-* Fix: Improved handling of locally stored remote files using WordPress standard APIs.
-* Fix: Improved query string cache processing and variation handling.
-* Improved: Enhanced validation handling during settings import.
-* Improved: Enhanced cache handling for navigation menus when menus are created, updated, or deleted.
-* Added: Support for additional ignored query string parameters.
-
-= 2.5.3 =
-
-* Compatibility: Verified compatibility with WordPress 7.0.
 
 
 [See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)

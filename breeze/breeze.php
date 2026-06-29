@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.5.7
+ * Version: 2.5.8
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.5.7' );
+	define( 'BREEZE_VERSION', '2.5.8' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -69,6 +69,15 @@ if ( ! defined( 'BREEZE_PLUGIN_URL' ) ) {
 define( 'BREEZE_CACHE_DELAY', true );
 define( 'BREEZE_CACHE_NOGZIP', true );
 define( 'BREEZE_ROOT_DIR', str_replace( BREEZE_WP_CONTENT_NAME, '', WP_CONTENT_DIR ) );
+
+// Explicitly load Action Scheduler (not autoloaded by Composer).
+// It's made this way because Action Scheduler requires WordPress to be loaded first.
+// If the library is loaded by other plugins, the conflcits are avoided because it made to load the latest version of the library.
+// And, it's backwards compatible between versions.
+if ( file_exists( BREEZE_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php' ) ) {
+	require_once BREEZE_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
+}
+
 // Options reader
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-options-reader.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-htaccess-settings.php';
@@ -95,6 +104,11 @@ require_once BREEZE_PLUGIN_DIR . 'inc/cache/purge-varnish.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/cache/purge-cache.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/cache/purge-per-time.php';
 require_once BREEZE_PLUGIN_DIR . 'inc/cache/class-purge-post-cache.php';
+
+// Stale-While-Revalidate: Background cache regeneration
+require_once BREEZE_PLUGIN_DIR . 'inc/cache/class-breeze-cache-preloader.php';
+\Breeze\Cache\Breeze_Cache_Preloader::init();
+
 // Handle post exclude if shortcode.
 require_once BREEZE_PLUGIN_DIR . 'inc/class-exclude-pages-by-shortcode.php';
 // Handle the WP emoji library.

@@ -185,8 +185,76 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/preload-active.png';
 			</div>
 		</div>
 		<!-- END OPTION -->
+		<!-- START OPTION -->
+		<div class="br-option-item">
+			<div class="br-label">
+				<div class="br-option-text">
+					<?php esc_html_e( 'Preload URLs', 'breeze' ); ?>
+				</div>
+			</div>
+			<div class="br-option">
+				<?php
+				$warmup_enabled_value   = isset( $options['breeze-cache-warmup-enabled'] ) ? filter_var( $options['breeze-cache-warmup-enabled'], FILTER_VALIDATE_BOOLEAN ) : false;
+				$warmup_enabled_checked = ( true === $warmup_enabled_value ) ? checked( $options['breeze-cache-warmup-enabled'], '1', false ) : '';
+				?>
+				<div class="on-off-checkbox">
+					<label class="br-switcher">
+						<input id="breeze-cache-warmup-enabled" name="breeze-cache-warmup-enabled" type="checkbox" class="br-box" value="1" <?php echo esc_attr( $warmup_enabled_checked ); ?>>
+						<div class="br-see-state">
+						</div>
+					</label><br>
+				</div>
+				<?php
+				$warmup_urls_limit = 30;
+				if ( method_exists( '\Breeze\Cache\Breeze_Cache_Preloader', 'get_max_urls' ) ) {
+					$warmup_urls_limit = (int) \Breeze\Cache\Breeze_Cache_Preloader::get_max_urls();
+				}
+				?>
+				<p>
+					<?php
+					printf(
+						/* translators: %d: maximum number of cache warmup URLs allowed. */
+						esc_html__( 'Specify local URLs to warm the cache after it is cleared (one URL per line, up to 30 URLs). The homepage is always included automatically.', 'breeze' ),
+						(int) $warmup_urls_limit
+					);
+					?>
+				</p>
+				<?php
+				$preload_cache_urls_output = '';
+				if ( ! empty( $options['breeze-preload-cache-urls'] ) && is_array( $options['breeze-preload-cache-urls'] ) ) {
+					$preload_cache_urls_output = esc_textarea( implode( "\n", $options['breeze-preload-cache-urls'] ) );
+				}
+
+				$preload_cache_placeholder = 'https://' . wp_parse_url( home_url(), PHP_URL_HOST ) . '/example-page/';
+				?>
+				<textarea cols="100" rows="7"
+					id="breeze-preload-cache-urls"
+					name="breeze-preload-cache-urls"
+					data-breeze-max-urls="<?php echo esc_attr( $warmup_urls_limit ); ?>"
+					placeholder="<?php echo esc_attr( $preload_cache_placeholder ); ?>"
+					<?php disabled( false === $warmup_enabled_value ); ?>><?php echo $preload_cache_urls_output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped above ?></textarea>
+				<div class="br-note">
+					<p>
+						<?php
+						printf(
+							/* translators: %d: maximum number of cache warmup URLs allowed. */
+							esc_html__( 'Only local URLs for this site are accepted. Non-local URLs will be rejected. Up to 30 URLs can be saved, and any additional entries will be ignored. These pages will be automatically preloaded in the background after a full cache clear.', 'breeze' ),
+							(int) $warmup_urls_limit
+						);
+						?>
+					</p>
+					<?php if ( ! empty( $options['breeze-preload-cache-urls-error'] ) ) { ?>
+						<p class="br-notice">
+							<?php echo esc_html( $options['breeze-preload-cache-urls-error'] ); ?>
+						</p>
+					<?php } ?>
+				</div>
+			</div>
+		</div>
+		<!-- END OPTION -->
 	</section>
 	<div class="br-submit">
-		<input type="submit" value="<?php echo esc_attr_e( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
+		<input type="submit" value="<?php echo esc_attr__( 'Save Changes', 'breeze' ); ?>" class="br-submit-save"/>
 	</div>
 </form>
+ 

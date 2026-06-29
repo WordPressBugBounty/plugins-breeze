@@ -1,5 +1,6 @@
 {
     "require": {
-        "matthiasmullie/minify": "^1.3.75"
+        "matthiasmullie/minify": "^1.3.75",
+        "woocommerce/action-scheduler": "^3.7"
     }
 }

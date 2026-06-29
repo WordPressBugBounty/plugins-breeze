@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
-        'version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
-        'reference' => 'ac60a99fbc30bd2589ec056c551c6cfb2a679f2f',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '9e981bc281b37670e6664089e87174eca0217657',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
-            'version' => 'dev-2.2.17/BREEZ-495-combine-css-broken-files',
-            'reference' => 'ac60a99fbc30bd2589ec056c551c6cfb2a679f2f',
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '9e981bc281b37670e6664089e87174eca0217657',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -34,6 +34,15 @@
             'reference' => 'e7d13b2c7e2f2268e1424aaed02085518afa02d9',
             'type' => 'library',
             'install_path' => __DIR__ . '/../matthiasmullie/path-converter',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'woocommerce/action-scheduler' => array(
+            'pretty_version' => '3.9.3',
+            'version' => '3.9.3.0',
+            'reference' => 'c58cdbab17651303d406cd3b22cf9d75c71c986c',
+            'type' => 'wordpress-plugin',
+            'install_path' => __DIR__ . '/../woocommerce/action-scheduler',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

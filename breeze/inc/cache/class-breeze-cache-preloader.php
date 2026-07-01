@@ -1498,7 +1498,12 @@ class Breeze_Cache_Preloader {
 	 * @return bool
 	 */
 	private static function is_action_scheduler_available(): bool {
-		return function_exists( 'as_enqueue_async_action' ) && function_exists( 'as_unschedule_all_actions' );
+		// class_exists() guards against "class not found" fatals during a
+		// self-rollback, when AS functions stay in memory but its files vanish.
+		return function_exists( 'as_enqueue_async_action' )
+			&& function_exists( 'as_unschedule_all_actions' )
+			&& class_exists( 'ActionScheduler_ActionFactory' )
+			&& class_exists( 'ActionScheduler_Lock' );
 	}
 
 	/**

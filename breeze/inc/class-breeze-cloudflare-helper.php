@@ -15,6 +15,7 @@ final class Breeze_CloudFlare_Helper {
 
 	private $cw_platform = '';
 	private static $processed_home_urls = array();
+	private static $processed_home_url_responses = array();
 
 	function __construct() {
 		add_action( 'switch_theme', array( &$this, 'clear_cf_on_changing_theme' ), 11, 3 );
@@ -197,6 +198,10 @@ final class Breeze_CloudFlare_Helper {
 
 		$home_url_key = hash( 'sha256', serialize( $home_url ) );
 		if ( isset( self::$processed_home_urls[ $home_url_key ] ) ) {
+			if ( isset( self::$processed_home_url_responses[ $home_url_key ] ) ) {
+				return self::$processed_home_url_responses[ $home_url_key ];
+			}
+
 			return true;
 		}
 
@@ -243,8 +248,10 @@ final class Breeze_CloudFlare_Helper {
 		}
 
 		self::$processed_home_urls[ $home_url_key ] = true;
+		$response_code                              = $breeze_helper->request_cache_reset( $home_url, $purge_request_endpoint );
+		self::$processed_home_url_responses[ $home_url_key ] = $response_code;
 
-		return $breeze_helper->request_cache_reset( $home_url, $purge_request_endpoint );
+		return $response_code;
 	}
 
 	/**

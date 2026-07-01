@@ -1699,7 +1699,7 @@ class Breeze_Configuration {
 	}
 
 	//ajax clean cache
-	public static function breeze_clean_cache() {
+	public static function breeze_clean_cache( $dispatch_clear_all_action = true ) {
 		// Check whether we're clearing the cache for one subsite on the network.
 		$is_subsite = is_multisite() && ! is_network_admin();
 
@@ -1724,10 +1724,11 @@ class Breeze_Configuration {
 		Breeze_PurgeCache::breeze_cache_flush( true, true, true );
 		
 		// Fire the public purge action so listeners (e.g. the cache preloader)
-		// can react. The AJAX "Purge All Cache" button reaches the cache via
-		// this method without going through Breeze_Admin::breeze_clear_all_cache,
-		// so without this dispatch the hook never fires from that UI path.
-		do_action( 'breeze_clear_all_cache' );
+		// can react. Callers can disable this to avoid triggering duplicate
+		// full-purge flows when they already handle Varnish/Cloudflare directly.
+		if ( true === (bool) $dispatch_clear_all_action ) {
+			do_action( 'breeze_clear_all_cache' );
+		}
 		return $result;
 	}
 

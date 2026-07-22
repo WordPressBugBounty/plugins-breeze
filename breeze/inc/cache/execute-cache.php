@@ -1676,6 +1676,11 @@ final class Page_Cache_Handler {
 		$cache_base_path   = \breeze_get_cache_base_path( false, $blog_id_requested );
 		$path              = $cache_base_path . hash( 'sha256', $this->context->cache_key_url );
 
+		// Protect cache roots from directory listing.
+		\breeze_secure_cache_directory( rtrim( WP_CONTENT_DIR, '/\\' ) . '/cache/breeze' );
+		\breeze_secure_cache_directory( rtrim( $cache_base_path, '/\\' ) );
+		\breeze_ensure_cache_index_html( rtrim( $path, '/\\' ) );
+
 		// Ensure cache directory exists and is writable.
 		if ( ! \wp_mkdir_p( $path ) ) {
 			Cache_Circuit_Breaker::record_failure( 'Failed to create cache directory: ' . $path );

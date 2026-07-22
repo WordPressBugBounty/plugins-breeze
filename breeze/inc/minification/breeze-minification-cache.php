@@ -114,38 +114,36 @@ class Breeze_MinificationCache {
 			// We didn't set a cache
 			return false;
 		}
+
+		breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE );
+
 		if ( is_multisite() ) {
+			breeze_secure_cache_directory( BREEZE_MINIFICATION_CACHE );
+
 			$blog_id = get_current_blog_id();
+			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . $blog_id );
+
 			foreach ( array( '', 'js', 'css' ) as $checkDir ) {
 				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type() . $checkDir ) ) {
 					return false;
 				}
 			}
 
-			/** write index.html here to avoid prying eyes */
-			$indexFile = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type() . '/index.html';
-			if ( ! is_file( $indexFile ) ) {
-				//@file_put_contents( $indexFile, '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>' );
-				breeze_read_write_file( $indexFile, '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>' );
-			}
+			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( breeze_current_user_type(), '/' ) );
 
 			/** write .htaccess here to overrule wp_super_cache */
-			$htAccess = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type() . '.htaccess';
+			$htAccess = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( breeze_current_user_type(), '/' ) . '/.htaccess';
 		} else {
 			foreach ( array( '', 'js', 'css' ) as $checkDir ) {
 				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . $checkDir ) ) {
 					return false;
 				}
 			}
-			/** write index.html here to avoid prying eyes */
-			$indexFile = BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . '/index.html';
-			if ( ! is_file( $indexFile ) ) {
-				//@file_put_contents( $indexFile, '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>' );
-				breeze_read_write_file( $indexFile, '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>' );
-			}
+
+			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . rtrim( breeze_current_user_type(), '/' ) );
 
 			/** write .htaccess here to overrule wp_super_cache */
-			$htAccess = BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . '/.htaccess';
+			$htAccess = BREEZE_MINIFICATION_CACHE . rtrim( breeze_current_user_type(), '/' ) . '/.htaccess';
 		}
 
 		if ( ! is_file( $htAccess ) ) {
@@ -174,15 +172,15 @@ class Breeze_MinificationCache {
     </FilesMatch>
 </IfModule>
 <IfModule mod_authz_core.c>
-    <Files *.php>
-        Require all granted
-    </Files>
+    <FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
+        Require all denied
+    </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-    <Files *.php>
-        Order allow,deny
-        Allow from all
-    </Files>
+	<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
+		Order deny,allow
+		Deny from all
+	</FilesMatch>
 </IfModule>';
 			} else {
 				$htAccessContent = '<IfModule mod_headers.c>
@@ -201,15 +199,15 @@ class Breeze_MinificationCache {
     </FilesMatch>
 </IfModule>
 <IfModule mod_authz_core.c>
-    <Files *.php>
+    <FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
         Require all denied
-    </Files>
+    </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-    <Files *.php>
-        Order deny,allow
-        Deny from all
-    </Files>
+	<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
+		Order deny,allow
+		Deny from all
+	</FilesMatch>
 </IfModule>';
 			}
 

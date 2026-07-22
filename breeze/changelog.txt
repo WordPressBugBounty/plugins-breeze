@@ -1,5 +1,10 @@
 == Changelog ==
 
+= 2.5.10 =
+
+* Improvement: Hardened cache directories with index.html and PHP execution blocks.
+* Enhancement: Restricted and validated remote downloads for locally hosted third-party assets and Gravatar images.
+
 = 2.5.9 =
 
 * Fix: Improved multisite compatibility during Breeze rollback.

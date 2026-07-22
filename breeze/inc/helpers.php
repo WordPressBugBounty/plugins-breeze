@@ -1048,3 +1048,98 @@ function breeze_get_filesystem(): WP_Filesystem_Base {
 
 	return $wp_filesystem;
 }
+
+/**
+ * Blank index document written into cache directories to block directory listing.
+ *
+ * @return string
+ */
+function breeze_get_cache_index_html(): string {
+	return '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>';
+}
+
+/**
+ * Ensure a cache directory exists and contains index.html.
+ *
+ * @param string $dir Absolute directory path.
+ * @return bool True when the directory exists and index.html is present.
+ */
+function breeze_ensure_cache_index_html( string $dir ): bool {
+	if ( '' === $dir ) {
+		return false;
+	}
+
+	$dir = untrailingslashit( $dir );
+
+	if ( ! file_exists( $dir ) && ! wp_mkdir_p( $dir ) ) {
+		return false;
+	}
+
+	if ( ! is_writable( $dir ) ) {
+		return false;
+	}
+
+	$index_file = $dir . '/index.html';
+	if ( ! is_file( $index_file ) ) {
+		return (bool) breeze_read_write_file( $index_file, breeze_get_cache_index_html() );
+	}
+
+	return true;
+}
+
+/**
+ * Apache rules that block script execution in a cache directory.
+ *
+ * @return string
+ */
+function breeze_get_cache_htaccess_php_deny_rules(): string {
+	return <<<'HTACCESS'
+<IfModule mod_authz_core.c>
+	<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
+		Require all denied
+	</FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+	<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|php8|phar|pht|phps)$">
+		Order deny,allow
+		Deny from all
+	</FilesMatch>
+</IfModule>
+HTACCESS;
+}
+
+/**
+ * Write .htaccess with PHP-deny rules when missing.
+ *
+ * @param string $dir Absolute directory path.
+ * @return bool
+ */
+function breeze_ensure_cache_htaccess_php_deny( string $dir ): bool {
+	if ( '' === $dir ) {
+		return false;
+	}
+
+	$dir = untrailingslashit( $dir );
+
+	if ( ! file_exists( $dir ) && ! wp_mkdir_p( $dir ) ) {
+		return false;
+	}
+
+	$htaccess = $dir . '/.htaccess';
+	if ( is_file( $htaccess ) ) {
+		return true; // Do not overwrite minification's full template.
+	}
+
+	return (bool) breeze_read_write_file( $htaccess, breeze_get_cache_htaccess_php_deny_rules() );
+}
+
+/**
+ * index.html + PHP-deny .htaccess for a cache directory.
+ *
+ * @param string $dir Absolute directory path.
+ * @return bool
+ */
+function breeze_secure_cache_directory( string $dir ): bool {
+	return breeze_ensure_cache_index_html( $dir )
+		&& breeze_ensure_cache_htaccess_php_deny( $dir );
+}

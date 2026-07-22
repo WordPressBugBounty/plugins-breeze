@@ -232,9 +232,14 @@ class Breeze_Cache_CronJobs {
 	private function get_local_extra_cache_directory( string $folder = '' ): string {
 		$blog_id = $this->get_blog_id();
 		Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_EXTRA );
+		breeze_secure_cache_directory( BREEZE_MINIFICATION_EXTRA );
+
 		Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' );
+		breeze_secure_cache_directory( BREEZE_MINIFICATION_EXTRA . '/' . $folder );
+
 		if ( ! empty( $blog_id ) ) {
 			Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' . $blog_id );
+			breeze_secure_cache_directory( BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' . $blog_id );
 		}
 
 		return BREEZE_MINIFICATION_EXTRA . '/' . $folder . '/' . $blog_id;

@@ -421,6 +421,11 @@ class Breeze_PurgeVarnish {
 			return;
 		}
 
+		// WooCommerce products: also purge shop/category/tag ?page=N and /page/N/ URLs.
+		if ( 'product' === $this_post_type && class_exists( 'Breeze_PurgeCache' ) ) {
+			$listofurls = array_merge( $listofurls, Breeze_PurgeCache::collect_product_paginated_urls( $postId ) );
+		}
+
 		/**
 		 * Filter to allow additional URLs to be purged when a post is updated.
 		 *

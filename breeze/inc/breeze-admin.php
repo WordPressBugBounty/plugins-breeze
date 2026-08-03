@@ -238,9 +238,80 @@ class Breeze_Admin {
 	 * @return void
 	 */
 	public function clear_cache_if_changed_api( $product, $data_store ) {
-		// Check if this is a REST API update and clear the cache only if this is the first time hook is called.
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST && did_action( 'woocommerce_after_product_object_save' ) === 1 ) {
-			$this->breeze_clear_all_cache();
+		// Only run on REST API updates and only the first time the hook fires for this request.
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST || did_action( 'woocommerce_after_product_object_save' ) !== 1 ) {
+			return;
+		}
+
+		$product_id        = $product->get_id();
+		$wp_filesystem     = breeze_get_filesystem();
+		$cache_base_path   = breeze_get_cache_base_path();
+		$post_related_urls = Breeze_PurgeCache::collect_urls_for_cache_purge( $product_id );
+
+		// Clear local file cache for all URLs (includes shop/cat/tag ?page=N and /page/N/).
+		$post_related_urls = array_values( array_unique( $post_related_urls ) );
+		$this->purge_local_cache_for_urls( $post_related_urls, $cache_base_path, $wp_filesystem );
+
+		// Clear Varnish cache for all URLs.
+		$this->clear_varnish_for_urls( $post_related_urls );
+
+		// Clear WordPress object cache.
+		Breeze_PurgeCache::clear_op_cache_for_posts( $product_id );
+
+		// Clear Cloudflare cache.
+		if ( ! empty( $post_related_urls ) ) {
+			Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $post_related_urls );
+		}
+	}
+
+	/**
+	 * Clear Varnish cache for specific URLs.
+	 * Note: Do NOT use the ?breeze query string as it triggers a full site purge.
+	 *
+	 * @param array $urls Array of URLs to purge from Varnish cache.
+	 *
+	 * @return void
+	 */
+	private function clear_varnish_for_urls( $urls ) {
+		if ( empty( $urls ) || ! is_array( $urls ) ) {
+			return;
+		}
+
+		$main = new Breeze_PurgeVarnish();
+		foreach ( $urls as $url ) {
+			// Do not trailingslashit query-string URLs (?page=3 would become ?page=3/).
+			$purge_url = ( false !== strpos( $url, '?' ) ) ? $url : trailingslashit( $url );
+			$main->purge_cache( $purge_url );
+		}
+	}
+
+	/**
+	 * Delete Breeze disk-cache folders for the given URLs.
+	 *
+	 * Cache keys are the raw request URL (e.g. https://example.com/store?page=3).
+	 * Path URLs are also tried with/without a trailing slash.
+	 *
+	 * @param array               $urls            URLs to purge.
+	 * @param string              $cache_base_path Breeze cache base path.
+	 * @param \WP_Filesystem_Base $wp_filesystem   Filesystem API.
+	 *
+	 * @return void
+	 */
+	private function purge_local_cache_for_urls( $urls, $cache_base_path, $wp_filesystem ) {
+		foreach ( $urls as $url_path ) {
+			$candidates = array( $url_path );
+
+			if ( false === strpos( $url_path, '?' ) ) {
+				$candidates[] = trailingslashit( $url_path );
+				$candidates[] = untrailingslashit( $url_path );
+			}
+
+			foreach ( array_unique( $candidates ) as $candidate ) {
+				$cache_path = $cache_base_path . hash( 'sha256', $candidate );
+				if ( $wp_filesystem->exists( $cache_path ) ) {
+					$wp_filesystem->rmdir( $cache_path, true );
+				}
+			}
 		}
 	}
 

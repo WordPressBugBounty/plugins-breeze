@@ -80,6 +80,8 @@ class Breeze_Query_Strings_Rules {
 		'lang',
 		'permalink_name',
 		'lp-variation-id',
+		'page',
+		'paged',
 	);
 
 	// Hold the class instance.
@@ -168,8 +170,6 @@ class Breeze_Query_Strings_Rules {
 				$this->always_cache_query[] = 'day';
 				$this->always_cache_query[] = 'monthnum';
 				$this->always_cache_query[] = 'year';
-				$this->always_cache_query[] = 'page';
-				$this->always_cache_query[] = 'paged';
 				$this->always_cache_query[] = 'category';
 				$this->always_cache_query[] = 'taxonomy';
 				$this->always_cache_query[] = 'tag';

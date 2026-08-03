@@ -1,5 +1,11 @@
 == Changelog ==
 
+= 2.5.11 =
+
+* Improvement: WooCommerce REST API product updates now clear only the related product/pages cache instead of the entire site cache.
+* Fix: Updating a custom post type now also refreshes its taxonomy archive pages to keep listings up to date.
+* Fix: Improved compatibility with PHP 8.4+ to prevent debug log notices.
+
 = 2.5.10 =
 
 * Improvement: Hardened cache directories with index.html and PHP execution blocks.

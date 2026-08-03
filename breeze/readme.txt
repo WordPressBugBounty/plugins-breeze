@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.10
+Stable tag: 2.5.11
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,12 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.5.11 =
+
+* Improvement: WooCommerce REST API product updates now clear only the related product/pages cache instead of the entire site cache.
+* Fix: Updating a custom post type now also refreshes its taxonomy archive pages to keep listings up to date.
+* Fix: Improved compatibility with PHP 8.4+ to prevent debug log notices.
 
 = 2.5.10 =
 

@@ -340,6 +340,18 @@ class Breeze_PurgeCache {
 				// Purge type: 'default', 'cron'
 				$cf_purge_type = apply_filters( 'breeze_cf_purge_type_on_post_update', 'cron' );
 				Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls, $cf_purge_type );
+				// Purge Varnish cache for all URLs including taxonomy archives.
+				$varnish = new Breeze_PurgeVarnish();
+				foreach ( $list_of_urls as $url_path ) {
+					// Query-string URLs (?page=2) must be purged as-is.
+					// Appending /?breeze would corrupt them and miss the cache object.
+					if ( false !== strpos( $url_path, '?' ) ) {
+						$varnish->purge_cache( $url_path );
+					} else {
+						$item_url = untrailingslashit( $url_path ) . '/?breeze';
+						$varnish->purge_cache( $item_url );
+					}
+				}
 			}
 		}
 	}
@@ -484,6 +496,39 @@ class Breeze_PurgeCache {
 			$list_of_urls[] = $homepage;
 		}
 
+		// Custom taxonomy purging
+		$post = get_post( $post_id );
+		if ( $post ) {
+			$taxonomies = get_object_taxonomies( $post );
+			foreach ( $taxonomies as $tax_slug ) {
+				$taxonomy_object = get_taxonomy( $tax_slug );
+				// Only public taxonomies have a front-end archive that can be cached.
+				if ( empty( $taxonomy_object ) || empty( $taxonomy_object->public ) ) {
+					continue;
+				}
+
+				$terms = get_the_terms( $post_id, $tax_slug );
+				if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+					foreach ( $terms as $term ) {
+						$term_link = get_term_link( $term );
+						if ( ! is_wp_error( $term_link ) && ! empty( $term_link ) ) {
+							// Add both slash variants: the local cache key is the raw request
+							// URL, which may or may not carry a trailing slash depending on the
+							// site permalink structure.
+							$list_of_urls[] = trailingslashit( $term_link );
+							$list_of_urls[] = untrailingslashit( $term_link );
+						}
+					}
+				}
+			}
+		}
+
+		// WooCommerce product archives: purge shop/category/tag pagination
+		// for both /page/N/ and ?page=N (covers manual admin saves and REST).
+		if ( 'product' === $this_post_type && class_exists( 'WooCommerce' ) ) {
+			$list_of_urls = array_merge( $list_of_urls, self::collect_product_paginated_urls( $post_id ) );
+		}
+
 		/**
 		 * Filter the list of URLs to be purged.
 		 * @param array $list_of_urls The current list of URLs.
@@ -495,6 +540,99 @@ class Breeze_PurgeCache {
 	}
 
 	/**
+	 * Collect shop / product_cat / product_tag paginated URLs for a product.
+	 *
+	 * Includes pretty permalinks (/page/2/) and query-string pagination (?page=2).
+	 *
+	 * @param int $product_id Product post ID.
+	 *
+	 * @return array
+	 */
+	public static function collect_product_paginated_urls( $product_id ): array {
+		$urls = array();
+
+		if ( ! class_exists( 'WooCommerce' ) || empty( $product_id ) ) {
+			return $urls;
+		}
+
+		$per_page = (int) apply_filters( 'loop_shop_per_page', wc_get_default_products_per_row() * wc_get_default_product_rows_per_page() );
+		if ( $per_page < 1 ) {
+			$per_page = (int) get_option( 'posts_per_page', 10 );
+		}
+
+		$product_categories = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'all' ) );
+		if ( ! empty( $product_categories ) && ! is_wp_error( $product_categories ) ) {
+			foreach ( $product_categories as $cat ) {
+				$category_url = get_term_link( $cat->term_id, 'product_cat' );
+				if ( ! is_wp_error( $category_url ) ) {
+					$urls = array_merge( $urls, self::collect_paginated_urls( $category_url, (int) $cat->count, $per_page ) );
+				}
+			}
+		}
+
+		$product_tags = wp_get_post_terms( $product_id, 'product_tag', array( 'fields' => 'all' ) );
+		if ( ! empty( $product_tags ) && ! is_wp_error( $product_tags ) ) {
+			foreach ( $product_tags as $tag ) {
+				$tag_url = get_term_link( $tag->term_id, 'product_tag' );
+				if ( ! is_wp_error( $tag_url ) ) {
+					$urls = array_merge( $urls, self::collect_paginated_urls( $tag_url, (int) $tag->count, $per_page ) );
+				}
+			}
+		}
+
+		$shop_url = wc_get_page_permalink( 'shop' );
+		if ( $shop_url ) {
+			$product_counts = wp_count_posts( 'product' );
+			$shop_total     = isset( $product_counts->publish ) ? (int) $product_counts->publish : 0;
+			$urls           = array_merge( $urls, self::collect_paginated_urls( $shop_url, $shop_total, $per_page ) );
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Build paginated archive URLs for a base archive URL.
+	 *
+	 * Includes both pretty permalinks (/page/2/) and query-string pagination (?page=2).
+	 *
+	 * @param string $base_url    Base archive URL.
+	 * @param int    $total_items Number of items in the archive.
+	 * @param int    $per_page    Items shown per page.
+	 *
+	 * @return array
+	 */
+	public static function collect_paginated_urls( $base_url, $total_items, $per_page ): array {
+		$urls = array();
+
+		if ( empty( $base_url ) ) {
+			return $urls;
+		}
+
+		if ( $per_page < 1 ) {
+			$per_page = 10;
+		}
+
+		// +1 buffer purges the page a just-removed item may have lived on.
+		$total_pages   = (int) ceil( max( 0, $total_items ) / $per_page ) + 1;
+		$base_no_slash = untrailingslashit( $base_url );
+		$base_slash    = trailingslashit( $base_no_slash );
+
+		// ?page=1 variants — some themes keep this on the first archive page.
+		$urls[] = $base_no_slash . '?page=1';
+		$urls[] = $base_slash . '?page=1';
+
+		for ( $n = 2; $n <= $total_pages; $n++ ) {
+			// Pretty permalinks: /store/page/3/
+			$urls[] = $base_slash . 'page/' . $n . '/';
+			// Query-string pagination: /store?page=3 and /store/?page=3
+			$urls[] = $base_no_slash . '?page=' . $n;
+			$urls[] = $base_slash . '?page=' . $n;
+		}
+
+		return $urls;
+	}
+
+	/**
 	 * Clears the local cache for the specified URLs.
 	 *
 	 * @param array $list_of_urls An array of URLs for which the local cache should be cleared.
@@ -502,12 +640,27 @@ class Breeze_PurgeCache {
 	 * @return void
 	 */
 	private function clear_local_cache_for_urls( array $list_of_urls ) {
-		$wp_filesystem = breeze_get_filesystem();
+		$wp_filesystem   = breeze_get_filesystem();
+		$cache_base_path = breeze_get_cache_base_path();
 
-		if ( ! empty( $list_of_urls ) ) {
-			foreach ( $list_of_urls as $local_url ) {
-				if ( $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha256', $local_url ) ) ) {
-					$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha256', $local_url ), true );
+		if ( empty( $list_of_urls ) ) {
+			return;
+		}
+
+		foreach ( $list_of_urls as $local_url ) {
+			$candidates = array( $local_url );
+
+			// Path URLs may be cached with or without a trailing slash.
+			// Do not trailingslashit query-string URLs (?page=2 would become ?page=2/).
+			if ( false === strpos( $local_url, '?' ) ) {
+				$candidates[] = trailingslashit( $local_url );
+				$candidates[] = untrailingslashit( $local_url );
+			}
+
+			foreach ( array_unique( $candidates ) as $candidate ) {
+				$cache_path = $cache_base_path . hash( 'sha256', $candidate );
+				if ( $wp_filesystem->exists( $cache_path ) ) {
+					$wp_filesystem->rmdir( $cache_path, true );
 				}
 			}
 		}

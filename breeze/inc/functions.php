@@ -746,13 +746,12 @@ function breeze_all_country_codes() {
 /**
  * Load Mobile Detect library based on PHP version
  *
- * @return \Breeze\Detection\MobileDetect|\Detection\MobileDetect|false
+ * @return \Breeze\Detection\MobileDetect|false
  */
 function breeze_mobile_detect_library() {
 	$path_to_plugin = dirname( __FILE__, 2 ) . '/';
-	$class_name     = '';
 
-	if ( ! class_exists( '\Breeze\Detection\MobileDetect' ) && ! class_exists( '\Detection\MobileDetect' ) ) {
+	if ( ! class_exists( '\Breeze\Detection\MobileDetect' ) ) {
 		if ( version_compare( PHP_VERSION, '7.3.0' ) >= 0 && version_compare( PHP_VERSION, '8.0.0', '<' ) ) {
 			// Mobile detect 3.74
 			require_once( $path_to_plugin . 'vendor-extra/mobiledetect/build/php7/vendor/autoload.php' );
@@ -764,8 +763,8 @@ function breeze_mobile_detect_library() {
 		}
 
 		if ( version_compare( PHP_VERSION, '8.2.0' ) >= 0 ) {
-			// Mobile detect 4.10+
-			$php82_autoload = $path_to_plugin . 'vendor-extra/mobiledetect/php82/vendor/autoload.php';
+			// Mobile Detect 4.11, scoped to prevent global Composer dependency conflicts.
+			$php82_autoload = $path_to_plugin . 'vendor-extra/mobiledetect/build/php82/vendor/autoload.php';
 			if ( file_exists( $php82_autoload ) ) {
 				require_once( $php82_autoload );
 			} else {
@@ -776,13 +775,7 @@ function breeze_mobile_detect_library() {
 	}
 
 	if ( class_exists( '\Breeze\Detection\MobileDetect' ) ) {
-		$class_name = '\Breeze\Detection\MobileDetect';
-	} elseif ( class_exists( '\Detection\MobileDetect' ) ) {
-		$class_name = '\Detection\MobileDetect';
-	}
-
-	if ( ! empty( $class_name ) ) {
-		return new $class_name();
+		return new \Breeze\Detection\MobileDetect();
 	}
 
 	return false;

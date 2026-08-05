@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.11
+Stable tag: 2.5.12
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,6 +160,11 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.5.12 =
+
+* Fix: Resolved a dependency compatibility issue between Breeze's PSR Simple Cache v3 implementation and plugins loading earlier PSR Simple Cache versions, preventing fatal errors.
+* Fix: Reduced excessive cache purge requests triggered by product updates on large WooCommerce catalogs.
+
 = 2.5.11 =
 
 * Improvement: WooCommerce REST API product updates now clear only the related product/pages cache instead of the entire site cache.
@@ -170,29 +175,6 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 * Improvement: Hardened cache directories with index.html and PHP execution blocks.
 * Enhancement: Restricted and validated remote downloads for locally hosted third-party assets and Gravatar images.
-
-= 2.5.9 =
-
-* Fix: Improved multisite compatibility during Breeze rollback.
-* Fix: Fixed duplicate Cloudflare purge requests during "Purge All Cache" and improved response consistency.
-
-= 2.5.8 =
-
-* New: Cache Warmup automatically rebuilds the home page and other important URLs after a full cache purge, so visitors always land on a cached, fast-loading page.
-
-= 2.5.7 =
-
-* Fix: Prevented prefetched links containing query strings from being rewritten with a trailing slash, avoiding incorrect URLs and unnecessary requests.
-
-= 2.5.6 =
-
-* Improvement: Enhanced comment section handling when HTML minification is enabled to improve compatibility and output reliability
-
-= 2.5.5 =
-
-* Fix: Cloudflare cache now reliably purges when scheduled posts are published, ensuring newly published content is immediately visible without waiting for the cache to expire.
-
-
 
 [See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 

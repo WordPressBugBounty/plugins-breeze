@@ -1,5 +1,5 @@
 {
   "require": {
-      "mobiledetect/mobiledetectlib": "*"
+      "mobiledetect/mobiledetectlib": "^4.11"
   }
 }

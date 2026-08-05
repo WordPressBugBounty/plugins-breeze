@@ -1,43 +1,40 @@
 {
-    "_readme": [
-        "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
-        "This file is @generated automatically"
-    ],
-    "content-hash": "8410ef12f9c4266e9cd2c8215ef93b1e",
     "packages": [
         {
-            "name": "mobiledetect/mobiledetectlib",
+            "name": "mobiledetect\/mobiledetectlib",
             "version": "4.11.0",
+            "version_normalized": "4.11.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/serbanghita/Mobile-Detect.git",
+                "url": "https:\/\/github.com\/serbanghita\/Mobile-Detect.git",
                 "reference": "ab39168b7556f44c11c80be1222b44b239f5c2e4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/serbanghita/Mobile-Detect/zipball/ab39168b7556f44c11c80be1222b44b239f5c2e4",
+                "url": "https:\/\/api.github.com\/repos\/serbanghita\/Mobile-Detect\/zipball\/ab39168b7556f44c11c80be1222b44b239f5c2e4",
                 "reference": "ab39168b7556f44c11c80be1222b44b239f5c2e4",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.2",
-                "psr/simple-cache": "^1.0 || ^2.0 || ^3.0"
+                "psr\/simple-cache": "^1.0 || ^2.0 || ^3.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "3.95.1",
-                "phpbench/phpbench": "1.6.1",
-                "phpstan/phpstan": "2.1.47",
-                "phpunit/phpunit": "9.6.34",
-                "squizlabs/php_codesniffer": "3.13.5"
+                "friendsofphp\/php-cs-fixer": "3.95.1",
+                "phpbench\/phpbench": "1.6.1",
+                "phpstan\/phpstan": "2.1.47",
+                "phpunit\/phpunit": "9.6.34",
+                "squizlabs\/php_codesniffer": "3.13.5"
             },
+            "time": "2026-05-24T12:32:40+00:00",
             "type": "library",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Detection\\": "src/"
+                    "Breeze\\Detection\\": "src\/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "notification-url": "https:\/\/packagist.org\/downloads\/",
             "license": [
                 "MIT"
             ],
@@ -45,12 +42,12 @@
                 {
                     "name": "Serban Ghita",
                     "email": "serbanghita@gmail.com",
-                    "homepage": "http://mobiledetect.net",
+                    "homepage": "http:\/\/mobiledetect.net",
                     "role": "Developer"
                 }
             ],
             "description": "Mobile_Detect is a lightweight PHP class for detecting mobile devices. It uses the User-Agent string combined with specific HTTP headers to detect the mobile environment.",
-            "homepage": "https://github.com/serbanghita/Mobile-Detect",
+            "homepage": "https:\/\/github.com\/serbanghita\/Mobile-Detect",
             "keywords": [
                 "detect mobile devices",
                 "mobile",
@@ -59,53 +56,56 @@
                 "php mobile detect"
             ],
             "support": {
-                "issues": "https://github.com/serbanghita/Mobile-Detect/issues",
-                "source": "https://github.com/serbanghita/Mobile-Detect/tree/4.11.0"
+                "issues": "https:\/\/github.com\/serbanghita\/Mobile-Detect\/issues",
+                "source": "https:\/\/github.com\/serbanghita\/Mobile-Detect\/tree\/4.11.0"
             },
             "funding": [
                 {
-                    "url": "https://github.com/serbanghita",
+                    "url": "https:\/\/github.com\/serbanghita",
                     "type": "github"
                 }
             ],
-            "time": "2026-05-24T12:32:40+00:00"
+            "install-path": "..\/mobiledetect\/mobiledetectlib"
         },
         {
-            "name": "psr/simple-cache",
+            "name": "psr\/simple-cache",
             "version": "3.0.0",
+            "version_normalized": "3.0.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/php-fig/simple-cache.git",
+                "url": "https:\/\/github.com\/php-fig\/simple-cache.git",
                 "reference": "764e0b3939f5ca87cb904f570ef9be2d78a07865"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/simple-cache/zipball/764e0b3939f5ca87cb904f570ef9be2d78a07865",
+                "url": "https:\/\/api.github.com\/repos\/php-fig\/simple-cache\/zipball\/764e0b3939f5ca87cb904f570ef9be2d78a07865",
                 "reference": "764e0b3939f5ca87cb904f570ef9be2d78a07865",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.0.0"
             },
+            "time": "2021-10-29T13:26:27+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
                     "dev-master": "3.0.x-dev"
                 }
             },
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Psr\\SimpleCache\\": "src/"
+                    "Breeze\\Psr\\SimpleCache\\": "src\/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "notification-url": "https:\/\/packagist.org\/downloads\/",
             "license": [
                 "MIT"
             ],
             "authors": [
                 {
                     "name": "PHP-FIG",
-                    "homepage": "https://www.php-fig.org/"
+                    "homepage": "https:\/\/www.php-fig.org\/"
                 }
             ],
             "description": "Common interfaces for simple caching",
@@ -117,18 +117,11 @@
                 "simple-cache"
             ],
             "support": {
-                "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
+                "source": "https:\/\/github.com\/php-fig\/simple-cache\/tree\/3.0.0"
             },
-            "time": "2021-10-29T13:26:27+00:00"
+            "install-path": "..\/psr\/simple-cache"
         }
     ],
-    "packages-dev": [],
-    "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": [],
-    "prefer-stable": false,
-    "prefer-lowest": false,
-    "platform": [],
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "dev": true,
+    "dev-package-names": []
 }

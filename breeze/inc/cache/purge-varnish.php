@@ -197,6 +197,11 @@ class Breeze_PurgeVarnish {
 	 * Purge varnish cache
 	 */
 	public function purge_cache( $url ) {
+		// Never send purge traffic when Varnish is off; the requests would hit PHP-FPM.
+		if ( ! is_varnish_cache_started() ) {
+			return array( 'response' => array( 'code' => 200 ) );
+		}
+
 		if ( true === Breeze_CloudFlare_Helper::is_log_enabled() ) {
 			error_log( '######### PURGE VANISH; URL(s) ###: ' . var_export( $url, true ) );
 		}
@@ -419,11 +424,6 @@ class Breeze_PurgeVarnish {
 		} else {
 			// Nothing
 			return;
-		}
-
-		// WooCommerce products: also purge shop/category/tag ?page=N and /page/N/ URLs.
-		if ( 'product' === $this_post_type && class_exists( 'Breeze_PurgeCache' ) ) {
-			$listofurls = array_merge( $listofurls, Breeze_PurgeCache::collect_product_paginated_urls( $postId ) );
 		}
 
 		/**

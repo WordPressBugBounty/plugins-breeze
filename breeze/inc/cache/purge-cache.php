@@ -247,6 +247,10 @@ class Breeze_PurgeCache {
 					// Purge Varnish cache
 					$varnish = new Breeze_PurgeVarnish();
 					foreach ( $list_of_urls as $url_path ) {
+						// The archive path purge already covers its paginated URLs.
+						if ( self::is_paginated_url( $url_path ) ) {
+							continue;
+						}
 						$item_url = untrailingslashit( $url_path ) . '/?breeze';
 						$varnish->purge_cache( $item_url );
 					}
@@ -343,8 +347,12 @@ class Breeze_PurgeCache {
 				// Purge Varnish cache for all URLs including taxonomy archives.
 				$varnish = new Breeze_PurgeVarnish();
 				foreach ( $list_of_urls as $url_path ) {
-					// Query-string URLs (?page=2) must be purged as-is.
-					// Appending /?breeze would corrupt them and miss the cache object.
+					// Skip paginated URLs: the archive path purge below is a wildcard
+					// PURGE that already covers /page/N/ and ?page=N. Sending one
+					// request per page exhausts PHP-FPM on large catalogues.
+					if ( self::is_paginated_url( $url_path ) ) {
+						continue;
+					}
 					if ( false !== strpos( $url_path, '?' ) ) {
 						$varnish->purge_cache( $url_path );
 					} else {
@@ -591,6 +599,20 @@ class Breeze_PurgeCache {
 	}
 
 	/**
+	 * Is this a paginated archive URL (?page=N or /page/N/)?
+	 *
+	 * Varnish covers these with a single wildcard PURGE on the archive path,
+	 * so they must not be dispatched one request per page.
+	 *
+	 * @param string $url URL to test.
+	 *
+	 * @return bool
+	 */
+	public static function is_paginated_url( $url ): bool {
+		return (bool) preg_match( '#([?&]page=|/page/)#', (string) $url );
+	}
+
+	/**
 	 * Build paginated archive URLs for a base archive URL.
 	 *
 	 * Includes both pretty permalinks (/page/2/) and query-string pagination (?page=2).
@@ -613,7 +635,12 @@ class Breeze_PurgeCache {
 		}
 
 		// +1 buffer purges the page a just-removed item may have lived on.
-		$total_pages   = (int) ceil( max( 0, $total_items ) / $per_page ) + 1;
+		$total_pages = (int) ceil( max( 0, $total_items ) / $per_page ) + 1;
+
+		// Hard cap: large catalogues would otherwise generate thousands of purge requests.
+		$max_pages   = max( 1, (int) apply_filters( 'breeze_max_paginated_purge_pages', 20 ) );
+		$total_pages = min( $total_pages, $max_pages );
+
 		$base_no_slash = untrailingslashit( $base_url );
 		$base_slash    = trailingslashit( $base_no_slash );
 

@@ -279,9 +279,12 @@ class Breeze_Admin {
 
 		$main = new Breeze_PurgeVarnish();
 		foreach ( $urls as $url ) {
-			// Do not trailingslashit query-string URLs (?page=3 would become ?page=3/).
-			$purge_url = ( false !== strpos( $url, '?' ) ) ? $url : trailingslashit( $url );
-			$main->purge_cache( $purge_url );
+			// Skip paginated URLs: one request per page exhausts PHP-FPM on large
+			// catalogues, and the archive purge already covers them.
+			if ( Breeze_PurgeCache::is_paginated_url( $url ) ) {
+				continue;
+			}
+			$main->purge_cache( trailingslashit( $url ) );
 		}
 	}
 

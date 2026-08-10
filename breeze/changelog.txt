@@ -1,5 +1,12 @@
 == Changelog ==
 
+= 2.5.13 =
+
+* Fixed: Prevented crafted currency cookies from manipulating cache file handling and overwriting files.
+* Improved: Enhanced compatibility with WCML, CURCY/WMC, WOOCS, Aelia Currency Switcher, and Weglot.
+* Improved: Refined cache keys and ETags to better account for product variations.
+* Improved: Enhanced variation handling and cache invalidation across multisite environments.
+
 = 2.5.12 =
 
 * Fix: Resolved a dependency compatibility issue between Breeze's PSR Simple Cache v3 implementation and plugins loading earlier PSR Simple Cache versions, preventing fatal errors.

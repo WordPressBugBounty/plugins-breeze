@@ -57,14 +57,18 @@ final class Request_Context {
 	/** @var array<string,mixed> */
 	public $config;
 
+	/** @var \Breeze_Cache_Variation_Context */
+	public $variation;
+
 	/**
-	 * @param string               $request_uri           Raw request URI.
-	 * @param string               $current_url           Fully-qualified URL used for exclusions.
-	 * @param string               $cache_key_url         URL used to build the cache key/hash.
-	 * @param string               $filename              Per-request filename identifier (including user / guest suffix).
-	 * @param string               $filename_guest_suffix Guest suffix that was used when no user is logged in.
-	 * @param bool                 $user_logged           Whether a WP user is logged in (cookie-based detection).
-	 * @param array<string,mixed>  $config                Breeze configuration array (`$GLOBALS['breeze_config']`).
+	 * @param string $request_uri Raw request URI.
+	 * @param string $current_url Fully-qualified URL used for exclusions.
+	 * @param string $cache_key_url URL used to build the cache key/hash.
+	 * @param string $filename Per-request filename identifier (including user / guest suffix).
+	 * @param string $filename_guest_suffix Guest suffix that was used when no user is logged in.
+	 * @param bool $user_logged Whether a WP user is logged in (cookie-based detection).
+	 * @param array<string,mixed> $config Breeze configuration array (`$GLOBALS['breeze_config']`).
+	 * @param \Breeze_Cache_Variation_Context $variation Canonical cache variation.
 	 */
 	public function __construct(
 		string $request_uri,
@@ -73,7 +77,8 @@ final class Request_Context {
 		string $filename,
 		string $filename_guest_suffix,
 		bool $user_logged,
-		array $config
+		array $config,
+		\Breeze_Cache_Variation_Context $variation
 	) {
 		$this->request_uri           = $request_uri;
 		$this->current_url           = $current_url;
@@ -82,6 +87,7 @@ final class Request_Context {
 		$this->filename_guest_suffix = $filename_guest_suffix;
 		$this->user_logged           = $user_logged;
 		$this->config                = $config;
+		$this->variation             = $variation;
 	}
 }
 
@@ -145,6 +151,7 @@ final class Cache_Circuit_Breaker {
 		if ( defined( 'WP_CONTENT_DIR' ) ) {
 			return WP_CONTENT_DIR . '/' . self::STATE_FILE;
 		}
+
 		// Fallback if WP_CONTENT_DIR not defined yet
 		return dirname( ABSPATH ) . '/wp-content/' . self::STATE_FILE;
 	}
@@ -182,6 +189,7 @@ final class Cache_Circuit_Breaker {
 		// Acquire shared lock (multiple readers allowed)
 		if ( ! @flock( $fp, LOCK_SH ) ) {
 			fclose( $fp );
+
 			return array(
 				'state'         => self::STATE_CLOSED,
 				'timestamp'     => 0,
@@ -220,6 +228,7 @@ final class Cache_Circuit_Breaker {
 	 * Write state to file (with file locking for atomicity).
 	 *
 	 * @param array $state State data to write.
+	 *
 	 * @return bool True on success, false on failure.
 	 */
 	private static function write_state( array $state ): bool {
@@ -254,6 +263,7 @@ final class Cache_Circuit_Breaker {
 		if ( ! @flock( $fp, LOCK_EX ) ) {
 			fclose( $fp );
 			@unlink( $temp_file );
+
 			return false;
 		}
 
@@ -263,12 +273,14 @@ final class Cache_Circuit_Breaker {
 
 		if ( false === $result ) {
 			@unlink( $temp_file );
+
 			return false;
 		}
 
 		// Atomic rename
 		if ( ! @rename( $temp_file, $file_path ) ) {
 			@unlink( $temp_file );
+
 			return false;
 		}
 
@@ -287,6 +299,7 @@ final class Cache_Circuit_Breaker {
 		if ( null === self::$state_cache ) {
 			self::$state_cache = self::read_state();
 		}
+
 		return self::$state_cache;
 	}
 
@@ -301,6 +314,7 @@ final class Cache_Circuit_Breaker {
 		// Fast path: If we already checked and it's CLOSED, skip everything
 		if ( self::$checked_this_request && null !== self::$state_cache && self::STATE_CLOSED === self::$state_cache['state'] ) {
 			$GLOBALS['breeze_bypass_cache'] = false;
+
 			return true; // Zero overhead!
 		}
 
@@ -315,9 +329,11 @@ final class Cache_Circuit_Breaker {
 			if ( ( $current_time - $timestamp ) >= self::OPEN_TIMEOUT ) {
 				self::transition_to_half_open();
 				$GLOBALS['breeze_bypass_cache'] = false; // Allow test request
+
 				return true; // Allow test request
 			}
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit OPEN - disable minification
+
 			return false; // Circuit still open
 		}
 
@@ -327,14 +343,17 @@ final class Cache_Circuit_Breaker {
 				// Half-open timeout - go back to open
 				self::transition_to_open();
 				$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
 				return false;
 			}
 			$GLOBALS['breeze_bypass_cache'] = false; // Allow test requests
+
 			return true; // Allow test requests
 		}
 
 		// Circuit closed - normal operation
 		$GLOBALS['breeze_bypass_cache'] = false;
+
 		return true;
 	}
 
@@ -384,6 +403,7 @@ final class Cache_Circuit_Breaker {
 	 * Only called when actual failure occurs.
 	 *
 	 * @param string $error_message Optional error message for logging.
+	 *
 	 * @return void
 	 */
 	public static function record_failure( string $error_message = '' ): void {
@@ -399,6 +419,7 @@ final class Cache_Circuit_Breaker {
 			if ( ! empty( $error_message ) ) {
 				error_log( '[Breeze Circuit Breaker] Additional failure in same request (not counted): ' . $error_message );
 			}
+
 			return;
 		}
 
@@ -410,6 +431,7 @@ final class Cache_Circuit_Breaker {
 			if ( ! empty( $error_message ) ) {
 				error_log( '[Breeze Circuit Breaker] Failure in half-open state: ' . $error_message );
 			}
+
 			return;
 		}
 
@@ -570,6 +592,7 @@ final class Execute_Cache {
 
 		if ( ! self::is_caching_active( $config ) ) {
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
 			return;
 		}
 
@@ -581,6 +604,7 @@ final class Execute_Cache {
 		// Respect "disable per admin user" settings from config and cookies.
 		if ( self::is_cache_disabled_for_current_user( $config ) ) {
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
 			return;
 		}
 
@@ -597,17 +621,29 @@ final class Execute_Cache {
 		if ( self::should_bypass_entire_request() ) {
 
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
 			return;
 		}
 
 		// Build per-request context (URL, filename, guest suffix, etc).
 		$context = self::build_request_context( $config );
 
+		// Never create or serve a shared page variant for untrusted variation input.
+		if ( ! $context->variation->is_page_cacheable() ) {
+			header( 'Cache-Control: no-cache' );
+			$GLOBALS['breeze_bypass_cache'] = true;
+
+			return;
+		}
+
+		self::send_variation_etag( $context->variation );
+
 		// Page-level exclusion rules.
 		if ( self::is_excluded_page( $config, $context ) ) {
 			// Match legacy: enforce no-cache header for excluded pages.
 			header( 'Cache-Control: no-cache' );
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
 			return;
 		}
 
@@ -623,6 +659,7 @@ final class Execute_Cache {
 	 * Check if caching is enabled in Breeze configuration.
 	 *
 	 * @param array<string,mixed> $config Breeze configuration.
+	 *
 	 * @access private
 	 * @static
 	 *
@@ -634,6 +671,19 @@ final class Execute_Cache {
 		}
 
 		return (bool) filter_var( $config['cache_options']['breeze-active'], FILTER_VALIDATE_BOOLEAN );
+	}
+
+	/**
+	 * Send the same canonical ETag used by normal and early execution.
+	 *
+	 * @param \Breeze_Cache_Variation_Context $variation Canonical variation.
+	 *
+	 * @return void
+	 */
+	private static function send_variation_etag( \Breeze_Cache_Variation_Context $variation ): void {
+		if ( '' !== $variation->get_key() && ! headers_sent() ) {
+			header( 'ETag: "breeze-' . $variation->get_key() . '"' );
+		}
 	}
 
 	/**
@@ -770,7 +820,15 @@ final class Execute_Cache {
 		$file_extension = (string) preg_replace( '#^(.*?)\?.*$#', '$1', $file_extension );
 		$file_extension = trim( (string) preg_replace( '#^.*\.(.*)$#', '$1', $file_extension ) );
 
-		if ( ! preg_match( '#index\.php$#i', $request_uri ) && in_array( $file_extension, array( 'php', 'xml', 'xsl' ), true ) ) {
+		if ( ! preg_match( '#index\.php$#i', $request_uri ) && in_array(
+			$file_extension,
+			array(
+				'php',
+				'xml',
+				'xsl',
+			),
+			true
+		) ) {
 			return true;
 		}
 
@@ -786,6 +844,7 @@ final class Execute_Cache {
 	 * - Logged-in detection via cookies.
 	 *
 	 * @param array<string,mixed> $config Breeze configuration.
+	 *
 	 * @access private
 	 * @static
 	 * @return Request_Context
@@ -801,8 +860,10 @@ final class Execute_Cache {
 		$host        = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '';
 		$current_url = $scheme . $host . rawurldecode( $request_uri );
 
+		$variation = \breeze_get_cache_variation_context( $config );
+
 		// URL used as cache key base (preserves existing query string normalization logic).
-		$cache_key_url = self::build_cache_key_url();
+		$cache_key_url = $variation->append_to_cache_key( self::build_cache_key_url() );
 
 		$filename_guest_suffix = '';
 		$filename              = $cache_key_url;
@@ -850,7 +911,8 @@ final class Execute_Cache {
 			$filename,
 			$filename_guest_suffix,
 			$user_logged,
-			$config
+			$config,
+			$variation
 		);
 	}
 
@@ -986,8 +1048,8 @@ final class Execute_Cache {
 	/**
 	 * Determine if the current page is excluded from caching.
 	 *
-	 * @param array<string,mixed> $config  Breeze configuration.
-	 * @param Request_Context     $context Current request context.
+	 * @param array<string,mixed> $config Breeze configuration.
+	 * @param Request_Context $context Current request context.
 	 *
 	 * @return bool
 	 * @access private
@@ -1082,6 +1144,7 @@ final class Execute_Cache {
 		$breeze_query_vars_list = $query_instance->check_query_var_group( $context->current_url );
 		if ( 0 !== (int) $breeze_query_vars_list['extra_query_no'] ) {
 			header( 'Cache-control: must-revalidate, max-age=0' );
+
 			return true;
 		}
 
@@ -1094,9 +1157,10 @@ final class Execute_Cache {
 	 * If a valid cache file is found, this method sends the headers and body
 	 * and terminates execution (via `exit`), matching the legacy behaviour.
 	 *
-	 * @param array<string,mixed> $config  Breeze configuration.
-	 * @param Request_Context     $context Current request context.
-	 * @param mixed               $detect  Mobile detect instance.
+	 * @param array<string,mixed> $config Breeze configuration.
+	 * @param Request_Context $context Current request context.
+	 * @param mixed $detect Mobile detect instance.
+	 *
 	 * @access private
 	 * @static
 	 *
@@ -1105,14 +1169,6 @@ final class Execute_Cache {
 	private static function try_serve_cache( array $config, Request_Context $context, $detect ): void {
 		if ( empty( $config['cache_options'] ) || ! is_array( $config['cache_options'] ) ) {
 			return;
-		}
-
-		// Check for user's currency and generate ETag to handle currency-specific caching
-		if (isset($_COOKIE['wcml_client_currency'])) {
-			// Create unique hash based on currency and request URI
-			$hash = hash('sha1', $_COOKIE['wcml_client_currency'] .  ( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/' ));
-			// Add currency-specific ETag header
-			header('ETag: "currency-' . $hash . '"');
 		}
 
 		$devices = $config['cache_options'];
@@ -1161,7 +1217,8 @@ final class Execute_Cache {
 	 * `unserialize()` and simple error handling to keep behaviour identical.
 	 *
 	 * @param Request_Context $context Request context.
-	 * @param string          $X1      Cache-provider suffix (`D`, `M`, `T`).
+	 * @param string $X1 Cache-provider suffix (`D`, `M`, `T`).
+	 *
 	 * @access private
 	 * @static
 	 *
@@ -1174,6 +1231,7 @@ final class Execute_Cache {
 			if ( ! headers_sent() ) {
 				header( 'X-Breeze-Cache: BYPASSED-CIRCUIT-BREAKER' );
 			}
+
 			return;
 		}
 
@@ -1181,7 +1239,7 @@ final class Execute_Cache {
 			return;
 		}
 
-		$is_suffix   = \breeze_currency_switcher_cache();
+		$is_suffix   = $context->variation->get_asset_suffix();
 		$should_gzip = \function_exists( 'gzencode' ) && self::should_gzip_output( $context->config );
 
 		if ( $should_gzip ) {
@@ -1204,12 +1262,14 @@ final class Execute_Cache {
 			$error_msg = 'Failed to open cache file: ' . $path;
 			error_log( '[Breeze] ' . $error_msg );
 			Cache_Circuit_Breaker::record_failure( $error_msg );
+
 			return;
 		}
 
 		if ( ! flock( $fp, LOCK_SH ) ) {  // Shared lock
 			fclose( $fp );
 			Cache_Circuit_Breaker::record_failure( 'Failed to acquire shared lock on cache file' );
+
 			return;
 		}
 
@@ -1222,6 +1282,7 @@ final class Execute_Cache {
 			$error_msg = 'Failed to read cache: ' . $path . ' - ' . ( $error['message'] ?? 'unknown' );
 			error_log( '[Breeze] ' . $error_msg );
 			Cache_Circuit_Breaker::record_failure( $error_msg );
+
 			return;
 		}
 
@@ -1232,6 +1293,7 @@ final class Execute_Cache {
 			error_log( '[Breeze] ' . $error_msg );
 			Cache_Circuit_Breaker::record_failure( $error_msg );
 			@unlink( $path );  // Remove corrupted cache
+
 			return;
 		}
 
@@ -1300,8 +1362,8 @@ final class Execute_Cache {
 		} else {
 			header( 'Content-Length: ' . strlen( (string) $datas['body'] ) );
 
-				// Record success for circuit breaker
-				Cache_Circuit_Breaker::record_success();
+			// Record success for circuit breaker
+			Cache_Circuit_Breaker::record_success();
 
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Cached HTML content from WordPress.
 			echo $datas['body'];
@@ -1317,6 +1379,7 @@ final class Execute_Cache {
 	 * and transport-level headers that should be controlled at runtime.
 	 *
 	 * @param array<int,array<string,string>> $cached_headers Cached header pairs.
+	 *
 	 * @return void
 	 */
 	private static function send_sanitized_cached_headers( array $cached_headers ): void {
@@ -1381,6 +1444,7 @@ final class Execute_Cache {
 	 * Logic adapted from the top of the legacy file under `$GLOBALS['breeze_config']['disable_per_adminuser']`.
 	 *
 	 * @param array<string,mixed> $config Breeze configuration.
+	 *
 	 * @access private
 	 * @static
 	 *
@@ -1439,10 +1503,10 @@ final class Execute_Cache {
 	/**
 	 * Determine whether PHP gzip should be bypassed for multisite + Varnish.
 	 *
-		 * This mirrors the legacy `breeze_should_bypass_php_gzip()` behaviour.
-		 *
-		 * @access public
-		 * @static
+	 * This mirrors the legacy `breeze_should_bypass_php_gzip()` behaviour.
+	 *
+	 * @access public
+	 * @static
 	 * @return bool
 	 */
 	public static function should_bypass_php_gzip(): bool {
@@ -1469,13 +1533,14 @@ final class Execute_Cache {
 	/**
 	 * Determine whether Breeze should gzip responses at the PHP layer.
 	 *
-		 * This mirrors the legacy `breeze_should_gzip_output()` function but uses
-		 * the provided configuration array instead of `$GLOBALS`.
-		 *
-		 * @param array<string,mixed> $config Breeze configuration.
-		 * @access public
-		 * @static
-		 *
+	 * This mirrors the legacy `breeze_should_gzip_output()` function but uses
+	 * the provided configuration array instead of `$GLOBALS`.
+	 *
+	 * @param array<string,mixed> $config Breeze configuration.
+	 *
+	 * @access public
+	 * @static
+	 *
 	 * @return bool
 	 */
 	public static function should_gzip_output( array $config ): bool {
@@ -1496,9 +1561,9 @@ final class Execute_Cache {
 		/**
 		 * Filter to allow other plugins to influence gzip behaviour.
 		 *
-		 * @param bool   $should_gzip            Whether Breeze should gzip output.
-		 * @param bool   $setting_enabled        Whether the gzip setting is enabled in Breeze.
-		 * @param bool   $should_bypass          Whether gzip should be bypassed due to Varnish/multisite.
+		 * @param bool $should_gzip Whether Breeze should gzip output.
+		 * @param bool $setting_enabled Whether the gzip setting is enabled in Breeze.
+		 * @param bool $should_bypass Whether gzip should be bypassed due to Varnish/multisite.
 		 * @param string $ini_output_compression Raw `zlib.output_compression` ini value.
 		 */
 		return (bool) \apply_filters( 'breeze_should_gzip_output', $should_gzip, $setting_enabled, $should_bypass, $ini_output_compression );
@@ -1510,8 +1575,9 @@ final class Execute_Cache {
 	 * This is a direct adaptation of the legacy `exec_breeze_check_for_exclude_values()`
 	 * helper, kept private to this class.
 	 *
-	 * @param string              $needle   URL to check.
-	 * @param array<int,string>   $haystack Exclusion rules.
+	 * @param string $needle URL to check.
+	 * @param array<int,string> $haystack Exclusion rules.
+	 *
 	 * @access private
 	 * @static
 	 * @return array<int,string>
@@ -1537,15 +1603,16 @@ final class Execute_Cache {
 	}
 
 	/**
-		 * Determine if the excluded URL contains a regexp marker.
-		 *
-		 * @param string $file_url URL pattern.
-		 * @param string $validate Validation pattern (default `(.*)`).
-		 * @access private
-		 * @static
+	 * Determine if the excluded URL contains a regexp marker.
 	 *
-		 * @return bool
-		 */
+	 * @param string $file_url URL pattern.
+	 * @param string $validate Validation pattern (default `(.*)`).
+	 *
+	 * @access private
+	 * @static
+	 *
+	 * @return bool
+	 */
 	private static function exec_breeze_string_contains_exclude_regexp( string $file_url, string $validate = '(.*)' ): bool {
 		if ( '' === $file_url || '' === $validate ) {
 			return false;
@@ -1558,7 +1625,8 @@ final class Execute_Cache {
 	 * Prepare URLs escaped for `preg_match` and check if they match the pattern.
 	 *
 	 * @param string $file_url URL to test.
-	 * @param string $pattern  Pattern containing `(.*)` wildcard.
+	 * @param string $pattern Pattern containing `(.*)` wildcard.
+	 *
 	 * @access private
 	 * @static
 	 *
@@ -1579,10 +1647,11 @@ final class Execute_Cache {
 	 * but without adding global functions.
 	 *
 	 * @param string $value Input value.
+	 *
 	 * @access private
 	 * @static
- *
- * @return string
+	 *
+	 * @return string
 	 */
 	private static function trailingslashit( string $value ): string {
 		return rtrim( $value, '/\\' ) . '/';
@@ -1604,8 +1673,8 @@ final class Page_Cache_Handler {
 	private $context;
 
 	/**
-	 * @param array<string,mixed> $config  Breeze configuration.
-	 * @param Request_Context     $context Request context.
+	 * @param array<string,mixed> $config Breeze configuration.
+	 * @param Request_Context $context Request context.
 	 */
 	public function __construct( array $config, Request_Context $context ) {
 		$this->config  = $config;
@@ -1616,7 +1685,7 @@ final class Page_Cache_Handler {
 	 * Output buffer callback.
 	 *
 	 * @param string $buffer HTML output from WordPress.
-	 * @param int    $flags  Output buffer flags (passed through to gzip handler).
+	 * @param int $flags Output buffer flags (passed through to gzip handler).
 	 *
 	 * @return string Buffer to ultimately send to the browser.
 	 * @access public
@@ -1629,6 +1698,11 @@ final class Page_Cache_Handler {
 			if ( ! headers_sent() ) {
 				header( 'X-Breeze-Cache: BYPASSED-CIRCUIT-BREAKER' );
 			}
+
+			return $buffer;
+		}
+
+		if ( ! $this->context->variation->is_page_cacheable() ) {
 			return $buffer;
 		}
 
@@ -1652,7 +1726,7 @@ final class Page_Cache_Handler {
 		if ( $this->is_admin_user_cache_disabled() ) {
 			return $buffer;
 		}
- 
+
 		// Skip very small responses.
 		if ( strlen( $buffer ) < 255 ) {
 			return $buffer;
@@ -1662,10 +1736,11 @@ final class Page_Cache_Handler {
 		if ( \is_404() || \is_search() || \post_password_required() ) {
 			return $buffer;
 		}
- 
+
 		// Exclude password-protected pages from caching using prebuilt path index.
 		if ( function_exists( '\breeze_is_current_request_password_protected_cached' ) && \breeze_is_current_request_password_protected_cached() ) {
 			$GLOBALS['breeze_bypass_cache'] = true;
+
 			return $buffer;
 		}
 
@@ -1684,6 +1759,7 @@ final class Page_Cache_Handler {
 		// Ensure cache directory exists and is writable.
 		if ( ! \wp_mkdir_p( $path ) ) {
 			Cache_Circuit_Breaker::record_failure( 'Failed to create cache directory: ' . $path );
+
 			return $buffer;
 		}
 		$path         .= '/';
@@ -1732,7 +1808,7 @@ final class Page_Cache_Handler {
 				$buffer
 			);
 
-				$buffer = (string) \mb_decode_numericentity( $buffer, array( 0x80, 0x10FFFF, 0, ~0 ), 'UTF-8' );
+			$buffer = (string) \mb_decode_numericentity( $buffer, array( 0x80, 0x10FFFF, 0, ~0 ), 'UTF-8' );
 		}
 
 		$cache_type = '';
@@ -1844,7 +1920,7 @@ final class Page_Cache_Handler {
 			}
 		}
 
-		$is_suffix = \breeze_currency_switcher_cache();
+		$is_suffix = $this->context->variation->get_asset_suffix();
 
 		if ( false !== strpos( $cache_key_url, '_breeze_cache_' ) ) {
 			$trimmed_buffer = trim( $buffer );
@@ -1906,6 +1982,7 @@ final class Page_Cache_Handler {
 			if ( is_string( $gz_output ) && '' !== $gz_output ) {
 				return $gz_output;
 			}
+
 			return $buffer;
 		}
 
@@ -1913,10 +1990,10 @@ final class Page_Cache_Handler {
 	}
 
 	/**
-		 * Check for the DONOTCACHEPAGE constant used by WooCommerce and other plugins.
-		 *
-		 * @access private
-		 * @return bool
+	 * Check for the DONOTCACHEPAGE constant used by WooCommerce and other plugins.
+	 *
+	 * @access private
+	 * @return bool
 	 */
 	private function constant_donotcachepage_found(): bool {
 		if ( ! defined( 'DONOTCACHEPAGE' ) || ! DONOTCACHEPAGE ) {
@@ -1927,12 +2004,12 @@ final class Page_Cache_Handler {
 	}
 
 	/**
-		 * Determine if cache is disabled for the current admin user.
+	 * Determine if cache is disabled for the current admin user.
 	 *
-		 * This mirrors the `$breeze_user_logged` / `$breeze_use_cache_system`
-		 * logic from the legacy implementation.
+	 * This mirrors the `$breeze_user_logged` / `$breeze_use_cache_system`
+	 * logic from the legacy implementation.
 	 *
-		 * @access private
+	 * @access private
 	 * @return bool
 	 */
 	private function is_admin_user_cache_disabled(): bool {
@@ -2023,12 +2100,12 @@ function breeze_cc_process_match( array $match ): string {
 			return '<a ' . $match[1] . ' rel="noopener noreferrer">';
 		}
 
-			$existing_rels = explode( ' ', $rel_attr );
-			$existing_rels = array_unique( array_merge( $replacement_rel_arr, $existing_rels ) );
+		$existing_rels = explode( ' ', $rel_attr );
+		$existing_rels = array_unique( array_merge( $replacement_rel_arr, $existing_rels ) );
 
-			return '<a ' . str_replace( $rel_attr, implode( ' ', $existing_rels ), $match[1] ) . '>';
+		return '<a ' . str_replace( $rel_attr, implode( ' ', $existing_rels ), $match[1] ) . '>';
 	}
 
 	// If this is not an external link, just return the matched string.
-		return '<a ' . $match[1] . '>';
+	return '<a ' . $match[1] . '>';
 }

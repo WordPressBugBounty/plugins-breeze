@@ -13,6 +13,13 @@ class Breeze_MinificationCache {
 	private $delayed;
 	private $nogzip;
 
+	/**
+	 * Whether the generated cache path remains inside the cache directory.
+	 *
+	 * @var bool
+	 */
+	private $path_is_safe = true;
+
 	public function __construct( $md5, $ext = 'php' ) {
 		$separate_cache = breeze_mobile_detect();
 		$this->cachedir = BREEZE_MINIFICATION_CACHE . breeze_current_user_type();
@@ -21,17 +28,116 @@ class Breeze_MinificationCache {
 			$this->cachedir = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type();
 		}
 
-		$this->delayed = BREEZE_CACHE_DELAY;
-		$this->nogzip  = BREEZE_CACHE_NOGZIP;
-		if ( $this->nogzip == false ) {
-			$this->filename = BREEZE_CACHEFILE_PREFIX . $separate_cache . $md5 . '.php';
-		} else {
-			if ( in_array( $ext, array( 'js', 'css' ) ) ) {
-				$this->filename = $ext . '/' . BREEZE_CACHEFILE_PREFIX . $separate_cache . $md5 . breeze_currency_switcher_cache() . '.' . $ext;
-			} else {
-				$this->filename = '/' . BREEZE_CACHEFILE_PREFIX . $separate_cache . $md5 . '.' . $ext;
+		$this->delayed   = BREEZE_CACHE_DELAY;
+		$this->nogzip    = BREEZE_CACHE_NOGZIP;
+		$variation       = breeze_get_cache_variation_context();
+		$currency_suffix = '';
+		if ( $this->nogzip && in_array( $ext, array( 'js', 'css' ), true ) ) {
+			$currency_suffix = $variation->get_asset_suffix();
+		}
+		$this->filename = $this->build_cache_filename( $md5, $ext, $separate_cache, $currency_suffix );
+
+		$this->path_is_safe = $variation->can_create_asset_cache() && $this->is_cache_path_safe();
+		if ( ! $variation->can_create_asset_cache() ) {
+			$this->filename = $this->build_cache_filename(
+				hash( 'sha256', (string) $md5 ),
+				$ext,
+				$separate_cache,
+				Breeze_Cache_Variation_Context::INVALID_ASSET_SUFFIX
+			);
+
+			return;
+		}
+
+		if ( ! $this->path_is_safe ) {
+			$safe_hash          = hash( 'sha256', $this->filename );
+			$this->filename     = $this->build_cache_filename(
+				$safe_hash,
+				$ext,
+				$separate_cache,
+				$currency_suffix
+			);
+			$this->path_is_safe = $this->is_cache_path_safe();
+		}
+	}
+
+	/**
+	 * Builds a cache filename from normalized cache-key components.
+	 *
+	 * @param string $cache_key Cache key or a safe hash of the intended filename.
+	 * @param string $ext Cache file extension.
+	 * @param string $separate_cache Device-specific cache prefix.
+	 * @param string $currency_suffix Currency-specific cache suffix.
+	 *
+	 * @return string Relative cache filename.
+	 */
+	private function build_cache_filename( $cache_key, $ext, $separate_cache, $currency_suffix ) {
+		if ( ! $this->nogzip ) {
+			return BREEZE_CACHEFILE_PREFIX . $separate_cache . $cache_key . '.php';
+		}
+
+		if ( in_array( $ext, array( 'js', 'css' ), true ) ) {
+			return $ext . '/'
+					. BREEZE_CACHEFILE_PREFIX
+					. $separate_cache
+					. $cache_key
+					. $currency_suffix
+					. '.'
+					. $ext;
+		}
+
+		return '/' . BREEZE_CACHEFILE_PREFIX . $separate_cache . $cache_key . '.' . $ext;
+	}
+
+	/**
+	 * Checks that the cache filename cannot escape the cache directory.
+	 *
+	 * @return bool True when the cache filename resolves inside the cache root.
+	 */
+	private function is_cache_path_safe() {
+		$relative_filename = str_replace( '\\', '/', $this->filename );
+		$relative_filename = ltrim( $relative_filename, '/' );
+
+		if (
+			empty( $relative_filename ) ||
+			preg_match( '#(^|/)\.\.?(/|$)#', $relative_filename )
+		) {
+			return false;
+		}
+
+		$cache_root = realpath( $this->cachedir );
+		if ( false === $cache_root ) {
+			/*
+			 * The cache directory may not exist yet during first-time setup. The
+			 * traversal-component check above still prevents path escape.
+			 */
+			return true;
+		}
+
+		$cache_root = trailingslashit( wp_normalize_path( $cache_root ) );
+		$cache_path = wp_normalize_path( $this->cachedir . $this->filename );
+		$target_dir = realpath( dirname( $cache_path ) );
+
+		if ( false === $target_dir ) {
+			return false;
+		}
+
+		$target_dir = trailingslashit( wp_normalize_path( $target_dir ) );
+		if ( 0 !== strpos( $target_dir, $cache_root ) ) {
+			return false;
+		}
+
+		if ( file_exists( $cache_path ) ) {
+			$resolved_path = realpath( $cache_path );
+			if (
+				false !== $resolved_path &&
+				0 !== strpos( wp_normalize_path( $resolved_path ), $cache_root )
+			) {
+				return false;
 			}
 		}
+
+		return true;
 	}
 
 	public function get_cache_dir() {
@@ -43,6 +149,10 @@ class Breeze_MinificationCache {
 	}
 
 	public function check() {
+		if ( ! $this->path_is_safe ) {
+			return false;
+		}
+
 		global $wp_filesystem;
 		if ( empty( $wp_filesystem ) ) {
 			require_once ABSPATH . '/wp-admin/includes/file.php';
@@ -50,7 +160,7 @@ class Breeze_MinificationCache {
 		}
 
 		if ( ! defined( 'FS_CHMOD_FILE' ) ) {
-			define( 'FS_CHMOD_FILE', ( 0664 & ~ umask() ) );
+			define( 'FS_CHMOD_FILE', ( 0664 & ~umask() ) );
 		}
 
 		if ( ! $wp_filesystem->exists( $this->cachedir . $this->filename, FS_CHMOD_FILE ) ) {
@@ -76,6 +186,10 @@ class Breeze_MinificationCache {
 	}
 
 	public function cache( $code, $mime ) {
+		if ( ! $this->path_is_safe ) {
+			return false;
+		}
+
 		if ( $this->nogzip == false ) {
 			$file    = ( $this->delayed ? 'delayed.php' : 'default.php' );
 			$phpcode = file_get_contents( BREEZE_PLUGIN_DIR . '/inc/minification/config/' . $file );

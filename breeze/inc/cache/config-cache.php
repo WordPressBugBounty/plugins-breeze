@@ -86,7 +86,7 @@ class Breeze_ConfigCache {
 			}
 		} elseif ( ! empty( Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) ) {
 
-				$cache_configs['breeze-config'][] = preg_replace( '(^https?://)', '', site_url() );
+			$cache_configs['breeze-config'][] = preg_replace( '(^https?://)', '', site_url() );
 		}
 
 		if ( empty( $cache_configs ) || ( 1 === count( $cache_configs ) && empty( $cache_configs['breeze-config'] ) ) ) {
@@ -287,6 +287,11 @@ FILE_STRING;
 			'exclude_url'           => array(),
 		);
 
+		$storage = array_merge( $storage, self::build_variation_config() );
+		if ( $create_root_config && is_multisite() ) {
+			$storage['cache_variation_by_blog'] = self::build_variation_configs_by_blog();
+		}
+
 		if ( is_multisite() ) {
 			$storage['blog_id'] = get_current_blog_id();
 		}
@@ -315,7 +320,7 @@ FILE_STRING;
 				$wmc_settings = get_option( 'woo_multi_currency_params', array() );
 			}
 			// if the option exists and has values.
-			if ( ! empty( $wmc_settings ) ) {
+			if ( ! empty( $wmc_settings ) && isset( $wmc_settings['enable'] ) ) {
 				$is_enable = filter_var( $wmc_settings['enable'], FILTER_VALIDATE_BOOLEAN );
 				if ( $is_enable ) {
 					$session_type = 'cookie';
@@ -332,12 +337,10 @@ FILE_STRING;
 		}
 
 		// WOOCS - WooCommerce Currency Switcher
-		$woocs_is_active = false;
-		if (
-			class_exists( 'WOOCS_STARTER' )
-		) {
-			$woocs_is_active = true;
-		}
+		$woocs_is_active = class_exists( 'WOOCS_STARTER' ) && filter_var(
+			get_option( 'woocs_is_multiple_allowed', 0 ),
+			FILTER_VALIDATE_BOOLEAN
+		);
 
 		if ( isset( $_POST['woocommerce_default_customer_address'] ) ) {
 			$storage['woocommerce_geolocation_ajax'] = ( 'geolocation_ajax' === $_POST['woocommerce_default_customer_address'] ) ? 1 : 0;
@@ -581,14 +584,77 @@ FILE_STRING;
 			}
 		}
 
-		return self::write_config( $storage, $create_root_config );
+		$result = self::write_config( $storage, $create_root_config );
+
+		// The root config is shared by inherited subsites. Rebuild it after a
+		// subsite change so that integration metadata remains site-specific.
+		if ( ! $create_root_config && is_multisite() && ! is_network_admin() && breeze_does_inherit_settings() ) {
+			self::write_config_cache( true );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Build variation metadata for the current site.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function build_variation_config() {
+		$variation_allowlist = array();
+		if ( function_exists( 'apply_filters' ) ) {
+			$variation_allowlist = apply_filters( 'breeze_cache_variation_allowlist', $variation_allowlist );
+		}
+
+		$config = array(
+			'cache_variation_allowlist' => Breeze_Cache_Variation_Context::serialize_allowlist(
+				is_array( $variation_allowlist ) ? $variation_allowlist : array()
+			),
+			'aelia-currency-active'   => isset( $GLOBALS['woocommerce-aelia-currencyswitcher'] ) && ! empty( $GLOBALS['woocommerce-aelia-currencyswitcher'] ),
+			'wcml-currency-active'     => function_exists( 'apply_filters' ) && (bool) apply_filters( 'breeze_cache_variation_wcml_active', false ),
+		);
+
+		$weglot_original_language = function_exists( 'apply_filters' ) ? apply_filters( 'breeze_cache_variation_weglot_original_language', '' ) : '';
+		if ( is_string( $weglot_original_language ) && '' !== $weglot_original_language ) {
+			$config['weglot-language-original'] = $weglot_original_language;
+		}
+
+		if ( class_exists( 'WOOMULTI_CURRENCY' ) || class_exists( 'WOOMULTI_CURRENCY_F' ) ) {
+			$wmc_settings = get_option( 'woo_multi_currency_params', array() );
+			if ( is_array( $wmc_settings ) && ! empty( $wmc_settings['enable'] ) && filter_var( $wmc_settings['enable'], FILTER_VALIDATE_BOOLEAN ) ) {
+				$config['curcy-wmc-type'] = ! empty( $wmc_settings['use_session'] ) && filter_var( $wmc_settings['use_session'], FILTER_VALIDATE_BOOLEAN )
+					? 'session'
+					: 'cookie';
+			}
+		}
+
+		return $config;
+	}
+
+	/**
+	 * Build per-site variation metadata for the shared multisite config.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function build_variation_configs_by_blog() {
+		$configs = array();
+		$blogs   = get_sites( array( 'number' => 0 ) );
+
+		foreach ( $blogs as $blog ) {
+			$blog_id = (int) $blog->blog_id;
+			switch_to_blog( $blog_id );
+			$configs[ $blog_id ] = self::build_variation_config();
+			restore_current_blog();
+		}
+
+		return $configs;
 	}
 
 	/**
 	 * Create file config storage parameter used for cache.
 	 *
 	 * @param array $config Options array.
-	 * @param bool  $create_root_config Used in multisite, to reset/create breeze-config.php file
+	 * @param bool $create_root_config Used in multisite, to reset/create breeze-config.php file
 	 */
 	public static function write_config( $config, $create_root_config = false ) {
 		$wp_filesystem = breeze_get_filesystem();
@@ -600,14 +666,26 @@ FILE_STRING;
 		}
 
 		$config_file = $config_dir . DIRECTORY_SEPARATOR . $filename . '.php';
+		$old_config  = array();
+		if ( $wp_filesystem->exists( $config_file ) ) {
+			$loaded_config = @include $config_file;
+			if ( is_array( $loaded_config ) ) {
+				$old_config = $loaded_config;
+			}
+		}
+
+		$variation_changed = self::extract_variation_config( $old_config ) !== self::extract_variation_config( $config );
 
 		if ( is_multisite() && ! is_network_admin() && breeze_does_inherit_settings() ) {
 			// Site inherits network-level setting, do not create separate configuration file and remove existing configuration file.
 
 			if ( false === $create_root_config ) {
-                if ( $wp_filesystem->exists( $config_file ) ) {
-                    $wp_filesystem->delete( $config_file, true );
-                }
+				if ( $wp_filesystem->exists( $config_file ) ) {
+					$wp_filesystem->delete( $config_file, true );
+					if ( $variation_changed && function_exists( 'do_action' ) ) {
+						do_action( 'breeze_clear_all_cache' );
+					}
+				}
 
 				return;
 			}
@@ -620,9 +698,39 @@ FILE_STRING;
 		$result = $wp_filesystem->put_contents( $config_file, $config_file_string, FS_CHMOD_FILE );
 		if ( $result ) {
 			self::invalidate_opcode_cache_file( $config_file );
+			if ( $variation_changed && function_exists( 'do_action' ) ) {
+				do_action( 'breeze_clear_all_cache' );
+			}
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Extract all variation metadata used to determine cache invalidation.
+	 *
+	 * @param array<string,mixed> $config Breeze configuration.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function extract_variation_config( array $config ) {
+		$keys       = array(
+			'cache_variation_allowlist',
+			'cache_variation_by_blog',
+			'weglot-language-original',
+			'aelia-currency-active',
+			'wcml-currency-active',
+			'curcy-wmc-type',
+		);
+		$variation = array();
+
+		foreach ( $keys as $key ) {
+			if ( array_key_exists( $key, $config ) ) {
+				$variation[ $key ] = $config[ $key ];
+			}
+		}
+
+		return $variation;
 	}
 
 	/**
@@ -719,7 +827,7 @@ FILE_STRING;
 	public function clean_up() {
 
 		$wp_filesystem = breeze_get_filesystem();
-		$file = untrailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
+		$file          = untrailingslashit( WP_CONTENT_DIR ) . '/advanced-cache.php';
 
 		$ret = true;
 

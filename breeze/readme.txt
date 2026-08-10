@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.12
+Stable tag: 2.5.13
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,13 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.5.13 =
+
+* Fixed: Prevented crafted currency cookies from manipulating cache file handling and overwriting files.
+* Improved: Enhanced compatibility with WCML, CURCY/WMC, WOOCS, Aelia Currency Switcher, and Weglot.
+* Improved: Refined cache keys and ETags to better account for product variations.
+* Improved: Enhanced variation handling and cache invalidation across multisite environments.
 
 = 2.5.12 =
 

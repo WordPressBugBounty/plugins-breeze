@@ -20,11 +20,13 @@ defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
 
 define( 'BREEZE_PLUGIN_FULL_PATH', dirname( __DIR__ ) . '/' );
 require_once BREEZE_PLUGIN_FULL_PATH . 'inc/class-breeze-query-strings-rules.php';
+require_once BREEZE_PLUGIN_FULL_PATH . 'inc/class-breeze-cache-variation-context.php';
 
 /**
  * Exclude default WordPress comment section markers from HTML minification.
  *
  * @param string $exclude_html Comma-separated exclusion list.
+ *
  * @return string
  */
 function breeze_exclude_default_wp_comments_from_html_minification( $exclude_html ) {
@@ -46,6 +48,7 @@ function breeze_exclude_default_wp_comments_from_html_minification( $exclude_htm
 
 	return implode( ',', $exclude_items );
 }
+
 add_filter( 'breeze_filter_html_exclude', 'breeze_exclude_default_wp_comments_from_html_minification' );
 
 /**
@@ -149,7 +152,6 @@ function breeze_all_wp_user_roles() {
 	}
 
 	return $current_roles;
-
 }
 
 function breeze_all_user_folders() {
@@ -191,7 +193,6 @@ function breeze_is_feed( $url ) {
 	}
 
 	return false;
-
 }
 
 
@@ -206,7 +207,6 @@ function breeze_treat_exceptions( $content ) {
 	}
 
 	return $content;
-
 }
 
 /**
@@ -270,7 +270,6 @@ function breeze_auth_cookie_clear() {
 		return;
 	}
 	setcookie( BREEZE_WP_COOKIE, ' ', time() - YEAR_IN_SECONDS, SITECOOKIEPATH, COOKIE_DOMAIN );
-
 }
 
 add_action( 'init', 'breeze_auth_cookie_set_init', 5 );
@@ -391,67 +390,131 @@ SCRIPT_TEST;
 	return $delay_script_js;
 }
 
-function breeze_currency_switcher_cache() {
+/**
+ * Collect request-side variation values without deciding whether they are trusted.
+ *
+ * Integration-specific compatibility modules can extend this map. The shared
+ * context validates the resulting values against generated trusted metadata.
+ *
+ * @return array<string,mixed>
+ */
+function breeze_get_cache_variation_request_values() {
+	$values = array();
 
-	$currency = '';
-	if ( isset( $GLOBALS['breeze_config']['curcy-wmc-type'] ) ) {
-		$currency_storage = $GLOBALS['breeze_config']['curcy-wmc-type'];
+	$variation_config = Breeze_Cache_Variation_Context::get_variation_config(
+		isset( $GLOBALS['breeze_config'] ) && is_array( $GLOBALS['breeze_config'] ) ? $GLOBALS['breeze_config'] : array()
+	);
+
+	if ( isset( $variation_config['weglot-language-original'] ) && is_string( $variation_config['weglot-language-original'] ) && '' !== $variation_config['weglot-language-original'] ) {
+		$values['language'] = breeze_get_weglot_language_from_url();
+	}
+
+	if ( isset( $variation_config['curcy-wmc-type'] ) ) {
+		$currency_storage = $variation_config['curcy-wmc-type'];
 		$name             = 'wmc_current_currency';
 
 		if ( 'session' === $currency_storage ) {
-			if ( ! session_id() ) {
+			if ( function_exists( 'session_status' ) && PHP_SESSION_NONE === session_status() && ! headers_sent() ) {
 				@session_start();
-				$currency = isset( $_SESSION[ $name ] ) ? $_SESSION[ $name ] : '';
 			}
-		}
-		if ( 'cookie' === $currency_storage ) {
-			if ( empty( $currency ) ) {
-				$currency = isset( $_COOKIE[ $name ] ) ? $_COOKIE[ $name ] : '';
 
+			if ( isset( $_SESSION[ $name ] ) ) {
+				$values['currency'] = $_SESSION[ $name ];
 			}
+		} elseif ( 'cookie' === $currency_storage && isset( $_COOKIE[ $name ] ) ) {
+			$values['currency'] = $_COOKIE[ $name ];
 		}
 	}
 
-    // Set WCML currency
-    if ( isset( $_COOKIE['wcml_client_currency'] ) ) {
-        $currency = $_COOKIE['wcml_client_currency'];
-    }
+	if ( ! empty( $variation_config['wcml-currency-active'] ) && isset( $_COOKIE['wcml_client_currency'] ) ) {
+		$values['currency'] = $_COOKIE['wcml_client_currency'];
+	}
 
-	if ( empty( $currency ) ) {
-		if ( isset( $GLOBALS['_SERVER'], $GLOBALS['_SERVER']['REQUEST_URI'] ) ) {
-			$the_path = trim( $GLOBALS['_SERVER']['REQUEST_URI'], '/' );
-
-			if ( ! empty( $the_path ) ) {
-				$county_list = breeze_all_country_codes();
-				if ( false !== strpos( $the_path, '/' ) ) {
-					$e = explode( '/', $the_path );
-					if ( ! empty( $e ) ) {
-						$the_path = $e[0];
-					}
-				}
-
-				$the_path = strtoupper( $the_path );
-				if ( array_key_exists( $the_path, $county_list ) ) {
-					$currency = $currency . $the_path;
-
-				}
-			}
-		}
+	if ( ! empty( $variation_config['aelia-currency-active'] ) && isset( $_COOKIE['aelia_cs_selected_currency'] ) ) {
+		$values['currency'] = $_COOKIE['aelia_cs_selected_currency'];
 	}
 
 	if ( function_exists( 'weglot_get_current_language' ) ) {
-		$currency = $currency . weglot_get_current_language();
+		$values['language'] = weglot_get_current_language();
 	}
 
-	if ( isset( $_COOKIE['aelia_cs_selected_currency'] ) ) {
-		$currency = trim( $_COOKIE['aelia_cs_selected_currency'] );
+	if ( function_exists( 'apply_filters' ) ) {
+		$values = apply_filters( 'breeze_cache_variation_request_values', $values );
 	}
 
-	if ( is_string( $currency ) && ! empty( $currency ) ) {
-		$currency = mb_strtolower( $currency );
+	return is_array( $values ) ? $values : array();
+}
+
+/**
+ * Resolve Weglot's URL language without loading the integration.
+ *
+ * @return string
+ */
+function breeze_get_weglot_language_from_url() {
+	$config    = isset( $GLOBALS['breeze_config'] ) && is_array( $GLOBALS['breeze_config'] ) ? $GLOBALS['breeze_config'] : array();
+	$config    = Breeze_Cache_Variation_Context::get_variation_config( $config );
+	$original  = isset( $config['weglot-language-original'] ) && is_string( $config['weglot-language-original'] ) ? $config['weglot-language-original'] : '';
+	$allowlist = isset( $config['cache_variation_allowlist']['language'] ) && is_array( $config['cache_variation_allowlist']['language'] ) ? $config['cache_variation_allowlist']['language'] : array();
+
+	if ( '' === $original || empty( $allowlist ) ) {
+		return $original;
 	}
 
-	return $currency;
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '';
+	$path        = parse_url( $request_uri, PHP_URL_PATH );
+	$segments    = is_string( $path ) ? explode( '/', trim( $path, '/' ) ) : array();
+	$candidate   = ! empty( $segments[0] ) ? strtolower( $segments[0] ) : '';
+
+	foreach ( $allowlist as $language ) {
+		if ( is_string( $language ) && strtolower( $language ) === $candidate ) {
+			return $candidate;
+		}
+	}
+
+	return $original;
+}
+
+/**
+ * Resolve the canonical request variation shared by normal and early execution.
+ *
+ * @param array<string,mixed>|null $config Optional Breeze configuration.
+ * @param array<string,mixed>|null $values Optional request values for fixtures/integrations.
+ *
+ * @return Breeze_Cache_Variation_Context
+ */
+function breeze_get_cache_variation_context( $config = null, $values = null ) {
+	static $contexts = array();
+
+	$cache_request_context = null === $values;
+
+	if ( ! is_array( $config ) ) {
+		$config = isset( $GLOBALS['breeze_config'] ) && is_array( $GLOBALS['breeze_config'] ) ? $GLOBALS['breeze_config'] : array();
+	}
+
+	if ( ! is_array( $values ) ) {
+		$values = breeze_get_cache_variation_request_values();
+	}
+
+	$context_cache_key = md5( serialize( $config ) );
+	if ( $cache_request_context && isset( $contexts[ $context_cache_key ] ) ) {
+		return $contexts[ $context_cache_key ];
+	}
+
+	$context = Breeze_Cache_Variation_Context::from_config( $config, $values );
+	if ( $cache_request_context ) {
+		$contexts[ $context_cache_key ] = $context;
+	}
+
+	return $context;
+}
+
+/**
+ * Gets a bounded filesystem-safe cache suffix for the active variation.
+ *
+ * @return string Cache filename suffix, or an empty string for no variant.
+ */
+function breeze_currency_switcher_cache() {
+	return breeze_get_cache_variation_context()->get_asset_suffix();
 }
 
 /**
@@ -749,27 +812,27 @@ function breeze_all_country_codes() {
  * @return \Breeze\Detection\MobileDetect|false
  */
 function breeze_mobile_detect_library() {
-	$path_to_plugin = dirname( __FILE__, 2 ) . '/';
+	$path_to_plugin = dirname( __DIR__, 1 ) . '/';
 
 	if ( ! class_exists( '\Breeze\Detection\MobileDetect' ) ) {
 		if ( version_compare( PHP_VERSION, '7.3.0' ) >= 0 && version_compare( PHP_VERSION, '8.0.0', '<' ) ) {
 			// Mobile detect 3.74
-			require_once( $path_to_plugin . 'vendor-extra/mobiledetect/build/php7/vendor/autoload.php' );
+			require_once $path_to_plugin . 'vendor-extra/mobiledetect/build/php7/vendor/autoload.php';
 		}
 
 		if ( version_compare( PHP_VERSION, '8.0.0' ) >= 0 && version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
 			// Mobile detect 4.8
-			require_once( $path_to_plugin . 'vendor-extra/mobiledetect/build/php8/vendor/autoload.php' );
+			require_once $path_to_plugin . 'vendor-extra/mobiledetect/build/php8/vendor/autoload.php';
 		}
 
 		if ( version_compare( PHP_VERSION, '8.2.0' ) >= 0 ) {
 			// Mobile Detect 4.11, scoped to prevent global Composer dependency conflicts.
 			$php82_autoload = $path_to_plugin . 'vendor-extra/mobiledetect/build/php82/vendor/autoload.php';
 			if ( file_exists( $php82_autoload ) ) {
-				require_once( $php82_autoload );
+				require_once $php82_autoload;
 			} else {
 				// Fallback to 4.8 build if php82 package is unavailable.
-				require_once( $path_to_plugin . 'vendor-extra/mobiledetect/build/php8/vendor/autoload.php' );
+				require_once $path_to_plugin . 'vendor-extra/mobiledetect/build/php8/vendor/autoload.php';
 			}
 		}
 	}
@@ -779,7 +842,6 @@ function breeze_mobile_detect_library() {
 	}
 
 	return false;
-
 }
 
 /**
@@ -1093,7 +1155,7 @@ function breeze_get_password_protected_url_paths_from_index( $blog_id_requested 
  * @return bool
  */
 function breeze_is_current_request_password_protected_cached() {
-	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/';
+	$request_uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/';
 	$request_path = parse_url( $request_uri, PHP_URL_PATH );
 	if ( ! is_string( $request_path ) ) {
 		return false;
@@ -1165,7 +1227,7 @@ function breeze_get_password_protected_page_urls() {
 		array(
 			'post_type'      => get_post_types( array( 'public' => true ), 'names' ),
 			'post_status'    => 'publish',
-			'posts_per_page' => -1,
+			'posts_per_page' => - 1,
 			'has_password'   => true,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,

@@ -379,6 +379,26 @@ abstract class Breeze_MinificationBase {
 		return false;
 	}
 
+	/**
+	 * Stamps a bundle this render links to as "used now".
+	 *
+	 * The stamp is the file's mtime and it is the only thing that keeps an
+	 * unchanged bundle alive through the post-purge cleanup, so a failure here
+	 * eventually costs the page the file it links to. It means the file itself
+	 * cannot be written by the user PHP runs as, which typically happens when
+	 * WP-CLI, a deploy script or another pool created it. Record it so an
+	 * administrator is told rather than left to find the 404s.
+	 *
+	 * @param string $file_path Full path of the bundle.
+	 *
+	 * @return void
+	 */
+	protected function mark_bundle_used( $file_path = '' ) {
+		if ( ! @touch( $file_path ) ) {
+			Breeze_MinificationCache::record_unwritable_file( $file_path );
+		}
+	}
+
 	public function get_cache_file_url( $type = 'css' ) {
 		$cache_dir = BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . ( ! empty( $type ) ? $type . '/' : '' );
 		if ( is_multisite() ) {

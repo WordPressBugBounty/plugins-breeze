@@ -1,5 +1,14 @@
 == Changelog ==
 
+= 2.5.14 =
+
+* Fix: Addressed a low-severity content injection concern related to cache handling.
+* Fix: Patched a medium-severity XSS issue under specific conditions. In most cases, WordPress admin approval was required; default installations are not affected.
+* Fix: Resolved intermittent 404 errors on minified JS and CSS files after clearing the cache.
+* Fix: Fixed corrupted file downloads and images with Gravity Forms.
+* Improvement: Removed Google Analytics and Facebook Pixel from Host Files Locally, as hosting them locally does not improve performance and added unnecessary risk. Google Fonts remains available for local hosting, since it can genuinely improve load times.
+* Improvement: Reduced unnecessary database queries when preload has nothing to warm up.
+
 = 2.5.13 =
 
 * Fixed: Prevented crafted currency cookies from manipulating cache file handling and overwriting files.

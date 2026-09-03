@@ -641,17 +641,22 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 		if ( ! $head && ! empty( $this->jscode ) ) {
 			// Check for already-minified code
 			#$this->file_name = 'combined-scripts';
-			$this->file_name = $this->create_cache_file_name();
-			$jscode_hash     = hash( 'sha512', $this->jscode );
+			// Fingerprint everything the bundle is built from - the concatenated
+			// sources plus the inline blocks that get substituted back in after
+			// minification - and put it in the file name. Different input now
+			// means a different file, so changed scripts are written alongside
+			// the old bundle instead of overwriting the one that HTML sitting in
+			// the page/Varnish/CDN cache is still requesting.
+			$bundle_input    = $this->full_script . '|' . implode( '', $this->uncompressed_inline );
+			$this->file_name = $this->create_cache_file_name() . '-' . Breeze_MinificationCache::content_hash( $bundle_input );
 			$ccheck          = new Breeze_MinificationCache( $this->file_name, 'js' );
-			if ( isset( $this->breeze_minified_js_hashes[ $this->file_name ] )
-			&& $this->breeze_minified_js_hashes[ $this->file_name ] === $jscode_hash
-			) {
+
+			// The name encodes the input, so a hit is by definition the minified
+			// form of exactly this bundle - no stored hash comparison needed.
+			if ( $ccheck->has_usable_copy() ) {
+				$this->full_script        = $ccheck->retrieve();
+				$this->alreadyminified    = true;
 				$this->group_hash_changed = false;
-			}
-			if ( $ccheck->check() && ! $this->group_hash_changed ) {
-				$this->full_script     = $ccheck->retrieve();
-				$this->alreadyminified = true;
 			}
 			unset( $ccheck );
 
@@ -669,8 +674,7 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 						unset( $tmp_jscode );
 					}
 				}
-				$this->breeze_minified_js_hashes[ $this->file_name ] = $jscode_hash;
-				$this->full_script                                   = $this->inject_minified( $this->full_script );
+				$this->full_script = $this->inject_minified( $this->full_script );
 			}
 
 			// Get the inline JS and minify
@@ -810,35 +814,52 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 			return true;
 		}
 
+		// Stamp every bundle this page links to as "used now" (its mtime is its
+		// last-used time). It is how the post-purge cleanup tells a live file
+		// from one nothing points at any more, so it never removes something
+		// still in use.
+		$mark_used = ( class_exists( 'Breeze_MinificationCache' ) && Breeze_MinificationCache::track_bundle_usage() );
+
 		if ( $this->group_js == true ) {
-			// If inline is also included
+			// If inline is also included. $this->file_name already carries the
+			// fingerprint of this bundle's input, so a hit is the same bundle
+			// and re-writing it would only risk a torn read for a concurrent
+			// request already serving that file.
 			$cache = new Breeze_MinificationCache( $this->file_name, 'js' );
 
-			if ( ! $cache->check() || $this->group_hash_changed ) {
+			if ( ! $cache->has_usable_copy() ) {
 				// Cache our code
 				$cache->cache( $this->full_script, 'text/javascript' );
 			}
 
 			$cache_directory = $cache->get_cache_dir();
 			if ( $this->is_cache_file_present( $cache_directory . $cache->get_file_name() ) ) {
+				if ( $mark_used ) {
+					$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
+				}
 				$this->url = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname() . '?ver=' . time();
 				$this->url = $this->url_replace_cdn( $this->url );
 			} else {
+				// The bundle could not be produced for THIS request (usually
+				// another process holds the minification lock). Serve the
+				// original, unminified markup and leave every other bundle
+				// alone — the old clear_cache_data() call wiped the whole
+				// minified cache here, which is what caused the site-wide
+				// 404 storm for pages already held in HTML/Varnish/CDN cache.
 				$this->show_original_content = 1;
-				$this->clear_cache_data();
 			}
 		} else {
 			$url_exists = true;
 
 			foreach ( $this->js_min_head as $old_url => $js_min ) {
 				$minifier_info = explode( '_breezejsgroup_', $js_min, 2 );
-				$file_name     = $this->create_cache_file_name( '', 0, 50 ) . '-' . $minifier_info[0];   // e.g., "photo.css"
 				$remaining     = explode( '_hashchanged_', $minifier_info[1], 2 );
 				$js_code       = $remaining[0];
-				$hash_changed  = (bool) $remaining[1];
+				$file_name     = $this->create_cache_file_name( '', 0, 50 ) . '-' . $minifier_info[0]
+					. '-' . Breeze_MinificationCache::content_hash( $js_code );
 
 				$cache = new Breeze_MinificationCache( $file_name, 'js' );
-				if ( ! $cache->check() || $hash_changed ) {
+				if ( ! $cache->has_usable_copy() ) {
 					// Cache our code
 					$cache->cache( $js_code, 'text/javascript' );
 				}
@@ -847,6 +868,9 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 				if ( ! file_exists( $cache_directory . $cache->get_file_name() ) ) {
 					$url_exists = false;
 				} else {
+					if ( $mark_used ) {
+						$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
+					}
 					$url = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname() . '?ver=' . time();
 					if ( true === $this->delay_javascript && is_numeric( $old_url ) && $this->ignore_from_delay( $js_code ) ) {
 						$this->url_group_head['defer'] = $this->url_replace_cdn( $url );
@@ -860,12 +884,13 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 
 			foreach ( $this->js_min_footer as $old_url => $js_min ) {
 				$minifier_info = explode( '_breezejsgroup_', $js_min, 2 );
-				$file_name     = $this->create_cache_file_name( '', 0, 50 ) . '-' . $minifier_info[0];   // e.g., "photo.css"
 				$remaining     = explode( '_hashchanged_', $minifier_info[1], 2 );
 				$js_code       = $remaining[0];
-				$hash_changed  = (bool) $remaining[1];
-				$cache         = new Breeze_MinificationCache( $file_name, 'js' );
-				if ( ! $cache->check() || $hash_changed ) {
+				$file_name     = $this->create_cache_file_name( '', 0, 50 ) . '-' . $minifier_info[0]
+					. '-' . Breeze_MinificationCache::content_hash( $js_code );
+
+				$cache = new Breeze_MinificationCache( $file_name, 'js' );
+				if ( ! $cache->has_usable_copy() ) {
 					// Cache our code
 					$cache->cache( $js_code, 'text/javascript' );
 				}
@@ -874,6 +899,9 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 				if ( ! file_exists( $cache_directory . $cache->get_file_name() ) ) {
 					$url_exists = false;
 				} else {
+					if ( $mark_used ) {
+						$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
+					}
 					$url = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname() . '?ver=' . time();
 					if ( true === $this->delay_javascript && is_numeric( $old_url ) && $this->ignore_from_delay( $js_code ) ) {
 						$this->url_group_footer['defer'] = $this->url_replace_cdn( $url );
@@ -886,8 +914,11 @@ class Breeze_MinificationScripts extends Breeze_MinificationBase {
 			}
 
 			if ( false === $url_exists ) {
+				// At least one bundle is missing for THIS request. Fall back to
+				// the original markup instead of wiping the whole minified
+				// cache (the old clear_cache_data() call caused the site-wide
+				// 404 storm).
 				$this->show_original_content = 1;
-				$this->clear_cache_data();
 			}
 		}
 		$this->update_minified_hashes();

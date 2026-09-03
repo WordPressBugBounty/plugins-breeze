@@ -650,8 +650,6 @@ class Breeze_Configuration {
 			'cached-query-strings'                 => $cache_query_str,
 			'breeze-wp-emoji'                      => ( isset( $post_item['breeze-wpjs-emoji'] ) ? '1' : '0' ),
 			'breeze-store-googlefonts-locally'     => ( isset( $post_item['breeze-store-googlefonts-locally'] ) ? '1' : '0' ),
-			'breeze-store-googleanalytics-locally' => ( isset( $post_item['breeze-store-googleanalytics-locally'] ) ? '1' : '0' ),
-			'breeze-store-facebookpixel-locally'   => ( isset( $post_item['breeze-store-facebookpixel-locally'] ) ? '1' : '0' ),
 			'breeze-store-gravatars-locally'       => ( isset( $post_item['breeze-store-gravatars-locally'] ) ? '1' : '0' ),
 			'breeze-enable-api'                    => ( isset( $post_item['breeze-enable-api'] ) ? '1' : '0' ),
 			'breeze-api-token'                     => sanitize_text_field( $breeze_api_token ),

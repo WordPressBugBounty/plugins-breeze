@@ -625,6 +625,13 @@ final class Execute_Cache {
 			return;
 		}
 
+		// Canonicalise the request by removing permanently-ignored tracking query
+		// vars (utm_*, fbclid, gclid, pp, ...) before WordPress renders. This makes a
+		// URL such as "?pp=1" produce the clean page, so it both warms and is served
+		// from the clean cache entry, and a parameter-influenced page can never be
+		// stored under the clean key (cache poisoning).
+		self::strip_ignored_query_vars_from_request();
+
 		// Build per-request context (URL, filename, guest suffix, etc).
 		$context = self::build_request_context( $config );
 
@@ -833,6 +840,46 @@ final class Execute_Cache {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Remove permanently-ignored tracking query vars (utm_*, fbclid, gclid, pp, ...)
+	 * from the current request before WordPress renders, so the produced HTML is the
+	 * clean canonical page. Matching is case-insensitive; all other query vars are
+	 * left in place. This lets "?pp=1" warm/serve the clean cache entry without ever
+	 * storing a parameter-influenced page under that key.
+	 *
+	 * @access private
+	 * @static
+	 * @return void
+	 */
+	private static function strip_ignored_query_vars_from_request(): void {
+		if ( empty( $_GET ) || ( isset( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
+
+		$ignored = Breeze_Query_Strings_Rules::get_instance()->fetch_ignored_list();
+		if ( empty( $ignored ) || ! is_array( $ignored ) ) {
+			return;
+		}
+		$ignored = array_fill_keys( array_map( 'strtolower', $ignored ), true );
+
+		$removed = false;
+		foreach ( array_keys( $_GET ) as $key ) {
+			if ( isset( $ignored[ strtolower( (string) $key ) ] ) ) {
+				unset( $_GET[ $key ], $_REQUEST[ $key ] );
+				$removed = true;
+			}
+		}
+		if ( ! $removed ) {
+			return;
+		}
+
+		// Rebuild REQUEST_URI / QUERY_STRING from the cleaned $_GET so the two stay
+		// consistent (this also covers array-style names such as "utm_source[]").
+		$path                    = strtok( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), '?' );
+		$_SERVER['QUERY_STRING'] = http_build_query( $_GET );
+		$_SERVER['REQUEST_URI']  = $path . ( '' !== $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '' );
 	}
 
 	/**

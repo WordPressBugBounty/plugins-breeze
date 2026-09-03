@@ -121,6 +121,21 @@ class Breeze_File_Permissions {
 
 	public function check_specific_files_folders() {
 
+		/**
+		 * A minified file that Breeze itself is no longer allowed to write to.
+		 * Its folder can be perfectly writable, so this is not covered by the
+		 * folder checks below.
+		 */
+		if ( class_exists( 'Breeze_MinificationCache' ) ) {
+			$unwritable_file = Breeze_MinificationCache::unwritable_file();
+
+			if ( '' !== $unwritable_file ) {
+				self::append_permission_error(
+					$unwritable_file . __( ' file is not writable. Minified files owned by another user cannot be maintained and may be removed while pages still use them.', 'breeze' )
+				);
+			}
+		}
+
 		$cache_specific_folders = breeze_all_user_folders();
 		$assets_folders         = array(
 			'css',

@@ -360,7 +360,8 @@ class Breeze_Query_Strings_Rules {
 		foreach ( $extracted_vars as $index => $value ) {
 
 			// Fetch all the query vars that are in the ignore list and found in current URL.
-			if ( in_array( $index, $ignored_query_vars, true ) ) {
+			// Match case-insensitively so variants like UTM_SOURCE are treated as utm_source.
+			if ( in_array( mb_strtolower( trim( (string) $index ) ), $ignored_query_vars, true ) ) {
 				$found_items['ignored_no'] ++;
 				$found_items['ignored_items'][ $index ] = $value;
 				unset( $not_found_anywhere[ $index ] );

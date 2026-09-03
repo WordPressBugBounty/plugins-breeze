@@ -99,7 +99,7 @@ if ( ! current_user_can( 'manage_options' ) ) {
 					<li><?php _e( 'All from Advanced', 'breeze' ); ?></li>
 					<li><?php _e( 'JS Minify and Include Inline JS', 'breeze' ); ?></li>
 					<li><?php _e( 'Delay All JavaScript', 'breeze' ); ?></li>
-					<li><?php _e( 'Host Files Locally: Google Fonts, Google Analytics, Facebook Pixel and Gravatars', 'breeze' ); ?></li>
+					<li><?php _e( 'Host Files Locally: Google Fonts and Gravatars', 'breeze' ); ?></li>
 				</ul>
 			</div>
 			<div class="level-action">

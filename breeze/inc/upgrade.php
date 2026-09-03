@@ -28,6 +28,20 @@ class Breeze_Upgrade {
 			$this->do_breeze_clear_cache();
 			$this->do_breeze_config_refresh();
 
+			// Google Analytics and Facebook Pixel are no longer hosted locally, so remove
+			// any files a previous version cached. Google Fonts (breeze/google/fonts/) is
+			// kept. Uses the per-site uploads dir so multisite subsites are handled too.
+			$breeze_upload = wp_upload_dir();
+			$breeze_base   = untrailingslashit( $breeze_upload['basedir'] ) . '/breeze';
+			$breeze_fs     = breeze_get_filesystem();
+			// Facebook folder (fbevents files).
+			$breeze_fs->delete( $breeze_base . '/facebook', true );
+			// Google Analytics/Tag Manager files sit loose in breeze/google/ as *.js;
+			// deleting only those leaves the breeze/google/fonts/ folder intact.
+			foreach ( glob( $breeze_base . '/google/*.js' ) ?: array() as $breeze_ga_file ) {
+				$breeze_fs->delete( $breeze_ga_file );
+			}
+
 		}
 	}
 

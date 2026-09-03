@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.13
+Stable tag: 2.5.14
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,7 +50,7 @@ What makes Breeze Cache Plugin awesome is that it comes with builtin support for
 * Click install and wait for the installation to finish. Next, click the activate link
 
 = To install the plugin manually: =
-* Download and unzip the plugin package - breeze.1.0.0.zip
+* Download and unzip the plugin package - breeze.zip
 * Upload the breeze to /wp-content/plugins/
 * Activate the plugin through the 'Plugins' menu in WordPress Dashboard
 * Access Breeze from WordPress Admin > Settings > Breeze
@@ -159,6 +159,15 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.5.14 =
+
+* Fix: Addressed a low-severity content injection concern related to cache handling.
+* Fix: Patched a medium-severity XSS issue under specific conditions. In most cases, WordPress admin approval was required; default installations are not affected.
+* Fix: Resolved intermittent 404 errors on minified JS and CSS files after clearing the cache.
+* Fix: Fixed corrupted file downloads and images with Gravity Forms.
+* Improvement: Removed Google Analytics and Facebook Pixel from Host Files Locally, as hosting them locally does not improve performance and added unnecessary risk. Google Fonts remains available for local hosting, since it can genuinely improve load times.
+* Improvement: Reduced unnecessary database queries when preload has nothing to warm up.
 
 = 2.5.13 =
 

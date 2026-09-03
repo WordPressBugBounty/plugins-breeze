@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.5.13
+ * Version: 2.5.14
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.5.13' );
+	define( 'BREEZE_VERSION', '2.5.14' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -172,8 +172,16 @@ if ( is_admin() || 'cli' === php_sapi_name() ) {
 		|| ! empty( Breeze_Options_Reader::get_option_value( 'breeze-enable-js-delay' ) )
 	) {
 
-		// Call back ob start
-		ob_start( 'breeze_ob_start_callback' );
+		// Buffer only once WordPress has committed to rendering a page. Anything
+		// that streams a file (Gravity Forms downloads, PDF/CSV exports) runs and
+		// exits before this hook, so its bytes are never captured or rewritten.
+		add_action(
+			'template_redirect',
+			function () {
+				ob_start( 'breeze_ob_start_callback' );
+			},
+			PHP_INT_MAX
+		);
 }
 // Breeze API
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-api.php';
@@ -191,11 +199,15 @@ if ( $api_enabled ) {
  * Store files locally, First buffer controller to occur in this plugin
  */
 add_action(
-	'init',
+	'template_redirect',
 	function () {
-		ob_start( 'breeze_ob_start_localfiles_callback' );
+		$host_files_enabled = ! empty( Breeze_Options_Reader::get_option_value( 'breeze-store-googlefonts-locally' ) );
+
+		if ( $host_files_enabled ) {
+			ob_start( 'breeze_ob_start_localfiles_callback' );
+		}
 	},
-	5
+	PHP_INT_MAX
 );
 
 // Compatibilities.
@@ -228,8 +240,6 @@ function breeze_ob_start_localfiles_callback( $buffer ) {
 
 		$options = array(
 			'breeze-store-googlefonts-locally',
-			'breeze-store-googleanalytics-locally',
-			'breeze-store-facebookpixel-locally',
 		);
 
 		foreach ( $options as $option ) {
@@ -294,6 +304,91 @@ require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-woocommerce-product-cache.php
 // WP-CLI commands
 require_once BREEZE_PLUGIN_DIR . 'inc/wp-cli/class-breeze-wp-cli-core.php';
 
+
+// Minified bundles are intentionally kept when the cache is purged, so a page
+// held in the HTML/Varnish/CDN cache can never request a deleted asset. They are
+// removed only when their post is trashed or permanently deleted — the one
+// moment nothing can reference them anymore.
+add_action(
+	'before_delete_post',
+	function ( $post_id ) {
+		if ( class_exists( 'Breeze_MinificationCache' ) ) {
+			Breeze_MinificationCache::delete_post_minification( $post_id );
+		}
+	},
+	10,
+	1
+);
+add_action(
+	'wp_trash_post',
+	function ( $post_id ) {
+		if ( class_exists( 'Breeze_MinificationCache' ) ) {
+			Breeze_MinificationCache::delete_post_minification( $post_id );
+		}
+	},
+	10,
+	1
+);
+
+// Reclaim the minified bundles orphaned by the last purge, a grace window after
+// it. Traffic-triggered so it needs no WP-Cron, and it deletes only bundles no
+// render has referenced since that purge - everything still reachable from a
+// live page was stamped by the render that linked to it. Runs on real front-end
+// requests only (cached pages are served by the drop-in before this loads), so
+// it never adds work to the hot path.
+add_action(
+	'shutdown',
+	function () {
+		if ( is_admin()
+			|| ( defined( 'DOING_CRON' ) && DOING_CRON )
+			|| ( defined( 'DOING_AJAX' ) && DOING_AJAX )
+			|| ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+			|| 'cli' === php_sapi_name()
+		) {
+			return;
+		}
+		if ( class_exists( 'Breeze_MinificationCache' ) ) {
+			Breeze_MinificationCache::maybe_sweep_orphans();
+		}
+	},
+	100
+);
+
+// WP-Cron backstop for the same cleanup. On sites where cron works this
+// guarantees it completes even without front-end traffic; the shutdown path
+// above stays as a fallback for sites where cron is disabled or unreliable.
+// Both go through maybe_sweep_orphans(), which runs once per purge, so they
+// never double-run.
+add_action(
+	'init',
+	function () {
+		if ( ! class_exists( 'Breeze_MinificationCache' ) ) {
+			return;
+		}
+		$enabled   = Breeze_MinificationCache::track_bundle_usage();
+		$scheduled = wp_next_scheduled( 'breeze_minify_sweep_cron' );
+		if ( $enabled && ! $scheduled ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'breeze_minify_sweep_cron' );
+		} elseif ( ! $enabled && $scheduled ) {
+			wp_unschedule_event( $scheduled, 'breeze_minify_sweep_cron' );
+		}
+	},
+	20
+);
+add_action(
+	'breeze_minify_sweep_cron',
+	function () {
+		if ( class_exists( 'Breeze_MinificationCache' ) ) {
+			Breeze_MinificationCache::maybe_sweep_orphans();
+		}
+	}
+);
+register_deactivation_hook(
+	__FILE__,
+	function () {
+		wp_clear_scheduled_hook( 'breeze_minify_sweep_cron' );
+	}
+);
 
 // Reset to default
 add_action( 'breeze_reset_default', array( 'Breeze_Admin', 'plugin_deactive_hook' ), 80 );

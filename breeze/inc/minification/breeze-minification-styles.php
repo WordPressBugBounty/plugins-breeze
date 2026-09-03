@@ -642,6 +642,12 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 			return true;
 		}
 
+		// Stamp every bundle this page links to as "used now" (its mtime is its
+		// last-used time). It is how the post-purge cleanup tells a live file
+		// from one nothing points at any more, so it never removes something
+		// still in use.
+		$mark_used = ( class_exists( 'Breeze_MinificationCache' ) && Breeze_MinificationCache::track_bundle_usage() );
+
 		if ( $this->datauris ) {
 			// MHTML Preparation
 			$this->mhtml = "/*\r\nContent-Type: multipart/related; boundary=\"_\"\r\n\r\n" . $this->mhtml . "*/\r\n";
@@ -668,30 +674,34 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 			}
 
 			$whole_css_file = $this->append_font_swap( $whole_css_file );
-			$css_hash       = hash( 'sha512', $whole_css_file );
 			#$file_name      = 'combined_stylesheets';
-			$file_name      = $this->create_cache_file_name();
-			$cache_expired  = true;
-			if ( isset( $this->breeze_minified_css_hashes[ $file_name ] )
-			&& $this->breeze_minified_css_hashes[ $file_name ] === $css_hash
-			) {
-				$cache_expired = false;
-			}
+			// Name the bundle after its own bytes. Changed CSS is written as a
+			// new file rather than replacing the one that HTML still held in the
+			// page/Varnish/CDN cache is requesting, and a hit is byte-identical
+			// so there is nothing to rewrite.
+			$file_name = $this->create_cache_file_name() . '-' . Breeze_MinificationCache::content_hash( $whole_css_file );
+
 			$cache = new Breeze_MinificationCache( $file_name, 'css' );
-			if ( ! $cache->check() || $cache_expired ) {
+			if ( ! $cache->has_usable_copy() ) {
 				// Cache our code
 				$cache->cache( $whole_css_file, 'text/css' );
-				$this->breeze_minified_css_hashes[ $file_name ] = $css_hash;
 			}
 
 			$cache_file_url  = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname();
 			$cache_directory = $cache->get_cache_dir();
 
 			if ( $this->is_cache_file_present( $cache_directory . $cache->get_file_name() ) ) {
+				if ( $mark_used ) {
+					$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
+				}
 				$this->url['all']                               = $cache_file_url . '?ver=' . time();
 			} else {
+				// The bundle could not be produced for THIS request (usually
+				// another process holds the minification lock). Serve the
+				// original, unminified markup and leave every other bundle
+				// alone (the old clear_cache_data() call caused the site-wide
+				// 404 storm).
 				$this->show_original_content = 1;
-				$this->clear_cache_data();
 			}
 		} else {
 			$url_exists = true;
@@ -700,15 +710,16 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 				$media       = $media_parts[0]; // e.g., "image"
 				$remaining   = $media_parts[1]; // e.g., "photo.jpg_breezekey_style_breezhash_abc123"
 				$key_parts   = explode( '_breezekey_', $remaining, 2 );
-				$file_name   = $this->create_cache_file_name('',0,50) .'-'.$key_parts[0];   // e.g., "photo.css"
 				$remaining   = $key_parts[1];   // e.g., "style_breezhash_abc123"
 				$hash_parts  = explode( '_hashchanged_', $remaining, 2 );
-				$css         = $hash_parts[0];  // e.g., "style"
-				$hash_changed        = (bool) $hash_parts[1];  // e.g., "abc123"
+				// The swap declaration is part of what gets written, so apply it
+				// before fingerprinting to keep the name and the bytes in step.
+				$css         = $this->append_font_swap( $hash_parts[0] );  // e.g., "style"
+				$file_name   = $this->create_cache_file_name( '', 0, 50 ) . '-' . $key_parts[0]
+					. '-' . Breeze_MinificationCache::content_hash( $css );   // e.g., "photo.css"
 
 				$cache = new Breeze_MinificationCache( $file_name, 'css' );
-				if ( ! $cache->check() || $hash_changed ) {
-					$css = $this->append_font_swap( $css );
+				if ( ! $cache->has_usable_copy() ) {
 					$cache->cache( $css, 'text/css' );
 				}
 				$cache_directory                                = $cache->get_cache_dir();
@@ -718,12 +729,18 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 				if ( ! file_exists( $cache_directory . $cache->get_file_name() ) ) {
 					$url_exists = false;
 				} else {
+					if ( $mark_used ) {
+						$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
+					}
 					$this->url_group_arr[] = $media . '_breezemedia_' . $file_name . '_breezekey_' . breeze_CACHE_URL . breeze_current_user_type() . $cache->getname() . $url_suffix;
 				}
 			}
 			if ( false === $url_exists ) {
+				// At least one bundle is missing for THIS request. Fall back to
+				// the original markup instead of wiping the whole minified
+				// cache (the old clear_cache_data() call caused the site-wide
+				// 404 storm).
 				$this->show_original_content = 1;
-				$this->clear_cache_data();
 			}
 		}
 		$this->update_minified_hashes();

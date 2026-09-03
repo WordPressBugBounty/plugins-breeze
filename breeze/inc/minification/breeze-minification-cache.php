@@ -222,6 +222,44 @@ class Breeze_MinificationCache {
 		return $this->filename;
 	}
 
+	/**
+	 * Short fingerprint of a bundle's final bytes, appended to its filename.
+	 *
+	 * Bundle names used to be derived from the page alone, so a content change
+	 * overwrote the existing file in place. With the fingerprint in the name,
+	 * identical output always resolves to the same file (nothing is rewritten)
+	 * and changed output is written under a NEW name instead of replacing the
+	 * old one. HTML still held in the page/Varnish/CDN cache therefore keeps
+	 * pointing at the exact file it was rendered with, which stays on disk.
+	 *
+	 * @param string $content Final bundle content, exactly as it will be written.
+	 *
+	 * @return string 12 hex characters.
+	 */
+	public static function content_hash( $content ) {
+		return substr( hash( 'sha256', (string) $content ), 0, 12 );
+	}
+
+	/**
+	 * Whether a fingerprinted bundle is already on disk and worth reusing.
+	 *
+	 * check() is satisfied by a zero-byte file, which a crashed or half-finished
+	 * write can leave behind. Callers keyed on content used to be rescued by the
+	 * stored-hash comparison forcing a rewrite; they no longer are, so an empty
+	 * file has to be treated as a miss or it would never be repaired.
+	 *
+	 * @return bool
+	 */
+	public function has_usable_copy() {
+		if ( ! $this->check() ) {
+			return false;
+		}
+
+		$size = @filesize( $this->cachedir . $this->filename );
+
+		return ( false !== $size && $size > 0 );
+	}
+
 	//create folder cache
 	public static function create_cache_minification_folder() {
 		if ( ! defined( 'BREEZE_MINIFICATION_CACHE' ) ) {
@@ -370,10 +408,12 @@ class Breeze_MinificationCache {
 			foreach ( $sites as $blog_id ) {
 				switch_to_blog( $blog_id );
 				self::clear_site_minification();
+				self::mark_purge();
 				restore_current_blog();
 			}
 		} else {
 			self::clear_site_minification( $blog_id );
+			self::mark_purge();
 		}
 		// Delete the stored minified files code hashes.
 		delete_option( 'breeze_minified_hashes' );
@@ -415,7 +455,26 @@ class Breeze_MinificationCache {
 						if ( '.' === $filename || '..' === $filename ) {
 							continue;
 						}
-						if ( ( strpos( $filename, 'lock' ) !== false || strpos( $filename, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $filename ) ) {
+						// Match the lock file EXACTLY. A substring test on 'lock'
+						// false-matches real bundles whose asset name contains it
+						// (e.g. "jquery.blockUI.min.js", "wc-blocks.css"), which
+						// then get deleted on every purge and 404 until re-render.
+						$is_lock   = ( 'process.lock' === $filename || '.lock' === substr( $filename, -5 ) );
+						$is_bundle = ( 0 === strpos( $filename, BREEZE_CACHEFILE_PREFIX ) );
+
+						// Keep the served minified JS/CSS bundles on purge. Pages
+						// already loaded in a browser (or held at the Varnish/CDN
+						// edge) keep requesting these files; deleting them here is
+						// what produced the intermittent 404s. Bundle names carry
+						// a fingerprint of their content, so a change writes a new
+						// file rather than needing the old one gone. The leftovers
+						// are reclaimed a grace window later by maybe_sweep_orphans()
+						// and immediately when their post is trashed or deleted.
+						if ( $is_bundle && ! $is_lock && in_array( $scandirName, array( 'js', 'css' ), true ) ) {
+							continue;
+						}
+
+						if ( ( $is_lock || $is_bundle ) && is_file( $thisAoCacheDir . $filename ) ) {
 							@unlink( $thisAoCacheDir . $filename );
 							// $files_count++;
 						}
@@ -449,7 +508,26 @@ class Breeze_MinificationCache {
 						if ( '.' === $filename || '..' === $filename ) {
 							continue;
 						}
-						if ( ( strpos( $filename, 'lock' ) !== false || strpos( $filename, BREEZE_CACHEFILE_PREFIX ) !== false ) && is_file( $thisAoCacheDir . $filename ) ) {
+						// Match the lock file EXACTLY. A substring test on 'lock'
+						// false-matches real bundles whose asset name contains it
+						// (e.g. "jquery.blockUI.min.js", "wc-blocks.css"), which
+						// then get deleted on every purge and 404 until re-render.
+						$is_lock   = ( 'process.lock' === $filename || '.lock' === substr( $filename, -5 ) );
+						$is_bundle = ( 0 === strpos( $filename, BREEZE_CACHEFILE_PREFIX ) );
+
+						// Keep the served minified JS/CSS bundles on purge. Pages
+						// already loaded in a browser (or held at the Varnish/CDN
+						// edge) keep requesting these files; deleting them here is
+						// what produced the intermittent 404s. Bundle names carry
+						// a fingerprint of their content, so a change writes a new
+						// file rather than needing the old one gone. The leftovers
+						// are reclaimed a grace window later by maybe_sweep_orphans()
+						// and immediately when their post is trashed or deleted.
+						if ( $is_bundle && ! $is_lock && in_array( $scandirName, array( 'js', 'css' ), true ) ) {
+							continue;
+						}
+
+						if ( ( $is_lock || $is_bundle ) && is_file( $thisAoCacheDir . $filename ) ) {
 							@unlink( $thisAoCacheDir . $filename );
 							// $files_count++;
 						}
@@ -467,6 +545,379 @@ class Breeze_MinificationCache {
 		return true;
 	}
 
+	/**
+	 * Remove the minified bundles that belong to a single post.
+	 *
+	 * Called only when a post is trashed or permanently deleted — the one
+	 * moment we can be certain that no page (the origin HTML cache or the
+	 * Varnish/CDN edge) will ever request that post's bundles again. Bundle
+	 * filenames embed the post identity "<sanitized-url>-<blog>-<post_id>"
+	 * (see Breeze_MinificationBase::create_cache_file_name()), so we delete
+	 * only the files carrying THIS post's exact identity and leave every other
+	 * page's bundles untouched.
+	 *
+	 * We never delete bundles by file age: a stable third-party asset keeps an
+	 * old mtime precisely because its content never changes, yet it stays
+	 * actively referenced — age-based deletion of such files is what caused the
+	 * intermittent 404s under concurrency.
+	 *
+	 * @param int $post_id Post being trashed or deleted.
+	 *
+	 * @return void
+	 */
+	public static function delete_post_minification( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( empty( $post_id ) || ! defined( 'BREEZE_MINIFICATION_CACHE' ) ) {
+			return;
+		}
+
+		// Revisions/autosaves have no bundles of their own; skip the scan so
+		// bulk revision deletes stay cheap.
+		if ( function_exists( 'wp_is_post_revision' ) && wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		if ( function_exists( 'wp_is_post_autosave' ) && wp_is_post_autosave( $post_id ) ) {
+			return;
+		}
+
+		$blog_id    = get_current_blog_id();
+		$identities = self::post_identity_fragments( $post_id, $blog_id );
+		if ( empty( $identities ) ) {
+			return;
+		}
+
+		// Everything we touch must stay strictly inside the cache directory.
+		// realpath() drops the trailing separator, so the comparison below adds
+		// one back: without it a sibling folder whose name merely begins with
+		// the cache path (e.g. breeze-minification-evil) would pass. Both sides
+		// are normalised first so the appended '/' matches on Windows too.
+		$root = realpath( BREEZE_MINIFICATION_CACHE );
+		if ( false === $root ) {
+			return;
+		}
+
+		$root = trailingslashit( wp_normalize_path( $root ) );
+
+		$base = BREEZE_MINIFICATION_CACHE;
+		if ( is_multisite() ) {
+			$base .= $blog_id . '/';
+		}
+
+		$cache_folders = function_exists( 'breeze_all_user_folders' ) ? breeze_all_user_folders() : array( '' );
+
+		foreach ( $cache_folders as $user_folder ) {
+			$user_path = $base . ( ! empty( $user_folder ) ? $user_folder . '/' : '' );
+
+			foreach ( array( 'js', 'css' ) as $sub ) {
+				$dir = $user_path . $sub . '/';
+				if ( ! is_dir( $dir ) ) {
+					continue;
+				}
+				$files = @scandir( $dir );
+				if ( empty( $files ) ) {
+					continue;
+				}
+				foreach ( $files as $filename ) {
+					if ( '.' === $filename || '..' === $filename ) {
+						continue;
+					}
+					// Only Breeze bundles that carry this post's identity.
+					if ( 0 !== strpos( $filename, BREEZE_CACHEFILE_PREFIX ) ) {
+						continue;
+					}
+					if ( ! self::filename_belongs_to_post( $filename, $identities ) ) {
+						continue;
+					}
+
+					$path = $dir . $filename;
+					// Defense-in-depth: never let a crafted name escape the dir.
+					$real = realpath( $path );
+					if ( false === $real || 0 !== strpos( wp_normalize_path( $real ), $root ) ) {
+						continue;
+					}
+					if ( is_file( $real ) ) {
+						@unlink( $real );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Build the identity fragments that a post's bundle filenames contain.
+	 *
+	 * Mirrors Breeze_MinificationBase::create_cache_file_name(): the base name
+	 * is "sanitize_title(<permalink-path>)-<blog>-<post_id>". Group bundles use
+	 * the full slug; non-group per-file bundles truncate the slug to 50 chars,
+	 * so both variants are returned. Matching is fail-safe: if the permalink
+	 * cannot be resolved we return nothing and therefore delete nothing.
+	 *
+	 * @param int $post_id Post ID.
+	 * @param int $blog_id Blog ID.
+	 *
+	 * @return array List of "<slug>-<blog>-<post_id>" fragments (may be empty).
+	 */
+	private static function post_identity_fragments( $post_id, $blog_id ) {
+		$permalink = get_permalink( $post_id );
+		if ( false === $permalink ) {
+			return array();
+		}
+
+		// A trashed post's permalink carries "__trashed"; strip it so the slug
+		// matches what was written at render time.
+		$permalink = str_replace( '__trashed', '', urldecode( $permalink ) );
+
+		$home = untrailingslashit( urldecode( get_home_url( $blog_id ) ) );
+		$path = str_replace( $home, '', $permalink );
+
+		$slug = sanitize_title( $path );
+		if ( '' === $slug ) {
+			$slug = sanitize_title( $home );
+		}
+		$slug = str_replace( array( 'http-', 'https-' ), '', $slug );
+		if ( '' === $slug ) {
+			return array();
+		}
+
+		$suffix    = '-' . $blog_id . '-' . $post_id;
+		$fragments = array( $slug . $suffix );
+
+		// Non-group bundles truncate the slug to 50 chars before the suffix.
+		$slug_50 = substr( $slug, 0, 50 );
+		if ( $slug_50 !== $slug ) {
+			$fragments[] = $slug_50 . $suffix;
+		}
+
+		return array_values( array_unique( $fragments ) );
+	}
+
+	/**
+	 * True when $filename carries one of the post's identity fragments as a
+	 * bounded token — i.e. immediately followed by "-" (per-file bundles),
+	 * "." (group bundles and .none/.deflate/.gzip sidecars) or end of string.
+	 * The boundary check stops a slug that merely ends in similar digits from
+	 * matching, and because the fragment includes the post-specific slug it
+	 * cannot collide with another page's bundles.
+	 *
+	 * @param string $filename   Bundle filename (basename).
+	 * @param array  $identities Fragments from post_identity_fragments().
+	 *
+	 * @return bool
+	 */
+	private static function filename_belongs_to_post( $filename, array $identities ) {
+		foreach ( $identities as $identity ) {
+			$len = strlen( $identity );
+			$pos = strpos( $filename, $identity );
+			while ( false !== $pos ) {
+				$next = $filename[ $pos + $len ] ?? '';
+				if ( '-' === $next || '.' === $next || '' === $next ) {
+					return true;
+				}
+				$pos = strpos( $filename, $identity, $pos + 1 );
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether renders should stamp the bundles they reference as "used now".
+	 *
+	 * The stamp is the file's mtime (see the @touch calls in the scripts and
+	 * styles cache() methods). It is the only evidence the cleanup below has
+	 * that a bundle is still reachable from a live page, so it stays on unless
+	 * a site opts out of automatic cleanup entirely.
+	 *
+	 * @return bool
+	 */
+	public static function track_bundle_usage() {
+		return (bool) apply_filters( 'breeze_minify_track_bundle_usage', true );
+	}
+
+	/**
+	 * Records the moment at which every cached page was invalidated.
+	 *
+	 * A purge drops the HTML cache, Varnish and the CDN, so from this instant
+	 * onwards no page being generated can still name a bundle it isn't linking
+	 * to. That makes the purge a far better reference point for cleanup than
+	 * plain file age: a stable asset (jQuery, WooCommerce, ...) is written once
+	 * and reused forever, so "old file" never meant "unused file", and deleting
+	 * on age is exactly what produced the intermittent 404s.
+	 *
+	 * @return void
+	 */
+	public static function mark_purge() {
+		$now = time();
+		update_option( 'breeze_minify_purged_at', $now, false );
+
+		// Set an alarm for when the waiting time is up, so the cleanup happens
+		// on its own instead of sitting idle until someone opens a page. It gets
+		// its own alarm name because WordPress ignores a new one-time alarm if a
+		// similar one is already set for the next ten minutes, and the hourly
+		// cleanup alarm would make it do exactly that.
+		wp_clear_scheduled_hook( 'breeze_minify_sweep_now' );
+		wp_schedule_single_event( $now + self::purge_grace(), 'breeze_minify_sweep_now' );
+
+		// Start listening again: the renders that follow decide whether the
+		// warning below is still deserved.
+		delete_option( 'breeze_minify_unwritable_file' );
+	}
+
+	/**
+	 * Records a bundle whose last-used stamp could not be written.
+	 *
+	 * The file belongs to a different user than the one PHP runs as, so the
+	 * cleanup cannot tell it is still in use and will eventually delete it
+	 * from under the pages that link to it. Kept until the next purge, which
+	 * is when the check starts over, and shown as an admin notice by
+	 * Breeze_File_Permissions.
+	 *
+	 * @param string $path Bundle that could not be stamped.
+	 *
+	 * @return void
+	 */
+	public static function record_unwritable_file( $path = '' ) {
+		if ( '' === (string) $path || '' !== self::unwritable_file() ) {
+			return;
+		}
+
+		update_option( 'breeze_minify_unwritable_file', (string) $path, false );
+	}
+
+	/**
+	 * The bundle that could not be stamped since the last purge, if any.
+	 *
+	 * @return string Empty string while every bundle can be stamped.
+	 */
+	public static function unwritable_file() {
+		return (string) get_option( 'breeze_minify_unwritable_file', '' );
+	}
+
+	/**
+	 * How long after a purge its orphaned bundles may be reclaimed.
+	 *
+	 * HTML routinely outlives the purge meant to kill it: a CDN purge
+	 * propagates asynchronously, a browser can already hold the markup while
+	 * its asset requests are still queued, and back/forward navigation replays
+	 * a page from the browser's own cache. The grace window lets all of that
+	 * drain before anything is deleted.
+	 *
+	 * @return int Seconds.
+	 */
+	public static function purge_grace() {
+		return (int) apply_filters( 'breeze_minify_purge_grace', 1 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Reclaims the bundles the last purge orphaned, once that is safe to do.
+	 *
+	 * Runs once per purge, a full grace window after it, and deletes only
+	 * bundles that no render has referenced since that purge. Anything still
+	 * reachable was stamped by the render that linked to it, so it survives;
+	 * anything left behind was invalidated along with every page that could
+	 * have named it and has had no taker since.
+	 *
+	 * @return void
+	 */
+	public static function maybe_sweep_orphans() {
+		if ( ! self::track_bundle_usage() ) {
+			return;
+		}
+
+		$purged_at = (int) get_option( 'breeze_minify_purged_at', 0 );
+		if ( $purged_at <= 0 ) {
+			return;
+		}
+
+		// Already reclaimed for this purge — nothing else can have expired
+		// since, because mtimes only ever move forward.
+		if ( (int) get_option( 'breeze_minify_swept_at', 0 ) >= $purged_at ) {
+			return;
+		}
+
+		if ( ( time() - $purged_at ) < self::purge_grace() ) {
+			return;
+		}
+
+		// Claim the slot up-front so concurrent requests don't all sweep.
+		update_option( 'breeze_minify_swept_at', $purged_at, false );
+
+		self::sweep_orphans( $purged_at );
+	}
+
+	/**
+	 * Delete breeze_ bundles that no render has touched since $purged_at.
+	 *
+	 * @param int $purged_at Timestamp of the purge being reclaimed.
+	 *
+	 * @return void
+	 */
+	private static function sweep_orphans( $purged_at ) {
+		if ( ! defined( 'BREEZE_MINIFICATION_CACHE' ) || $purged_at <= 0 ) {
+			return;
+		}
+
+		// Let the delete loop finish even if the visitor closed the tab (only
+		// relevant to the shutdown path; harmless under WP-Cron).
+		if ( function_exists( 'ignore_user_abort' ) ) {
+			ignore_user_abort( true );
+		}
+
+		// realpath() drops the trailing separator, so the comparison below adds
+		// one back: without it a sibling folder whose name merely begins with
+		// the cache path (e.g. breeze-minification-evil) would pass. Both sides
+		// are normalised first so the appended '/' matches on Windows too.
+		$root = realpath( BREEZE_MINIFICATION_CACHE );
+		if ( false === $root ) {
+			return;
+		}
+
+		$root = trailingslashit( wp_normalize_path( $root ) );
+
+		$base = BREEZE_MINIFICATION_CACHE;
+		if ( is_multisite() ) {
+			$base .= get_current_blog_id() . '/';
+		}
+
+		$cache_folders = function_exists( 'breeze_all_user_folders' ) ? breeze_all_user_folders() : array( '' );
+
+		foreach ( $cache_folders as $user_folder ) {
+			$user_path = $base . ( ! empty( $user_folder ) ? $user_folder . '/' : '' );
+
+			foreach ( array( 'js', 'css' ) as $sub ) {
+				$dir = $user_path . $sub . '/';
+				if ( ! is_dir( $dir ) ) {
+					continue;
+				}
+				$files = @scandir( $dir );
+				if ( empty( $files ) ) {
+					continue;
+				}
+				foreach ( $files as $filename ) {
+					if ( '.' === $filename || '..' === $filename ) {
+						continue;
+					}
+					// Only Breeze bundles.
+					if ( 0 !== strpos( $filename, BREEZE_CACHEFILE_PREFIX ) ) {
+						continue;
+					}
+					$path = $dir . $filename;
+					$real = realpath( $path );
+					if ( false === $real || 0 !== strpos( wp_normalize_path( $real ), $root ) ) {
+						continue;
+					}
+					if ( ! is_file( $real ) ) {
+						continue;
+					}
+					$mtime = @filemtime( $real );
+					if ( false !== $mtime && $mtime < $purged_at ) {
+						@unlink( $real );
+					}
+				}
+			}
+		}
+	}
+
 	public static function factory() {
 
 		static $instance;
@@ -478,4 +929,11 @@ class Breeze_MinificationCache {
 
 		return $instance;
 	}
+}
+
+// This is what the alarm set in mark_purge() actually runs when the waiting time
+// is up. It lives here next to the code that sets the alarm, and it works because
+// this file is loaded on every request, scheduled background jobs included.
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'breeze_minify_sweep_now', array( 'Breeze_MinificationCache', 'maybe_sweep_orphans' ) );
 }

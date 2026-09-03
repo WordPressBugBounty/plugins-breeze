@@ -719,10 +719,23 @@ class Breeze_Cache_Preloader {
 				return false;
 			}
 
-			// Chain is stalled (or has not started). Cancel any ghost AS jobs for
-			// THIS blog only (per-blog group) so we don't end up with a duplicate
-			// warm if the loopback recovers later, and so we don't kill another
-			// sub-blog's healthy chain.
+			// Nothing queued → there is no preload session to rescue. Check the
+			// queue BEFORE touching Action Scheduler: otherwise every idle
+			// heartbeat tick (queue empty, last-warm stale or absent) would run
+			// an as_unschedule_all_actions() lookup against the Action Scheduler
+			// tables for nothing. A stray CHAIN_HOOK job with an empty queue is
+			// harmless — preload_next() simply no-ops and deletes the empty
+			// queue — so there is nothing to cancel in that case.
+			$queue = get_option( self::get_queue_key(), array() );
+			if ( empty( $queue ) || ! is_array( $queue ) ) {
+				return false;
+			}
+
+			// Chain is stalled (or has not started) AND URLs remain in the
+			// queue. Cancel any ghost AS jobs for THIS blog only (per-blog group)
+			// so we don't end up with a duplicate warm if the loopback recovers
+			// later, and so we don't kill another sub-blog's healthy chain.
+			
 			if ( self::is_action_scheduler_available() && self::has_action_scheduler_tables() ) {
 				as_unschedule_all_actions( self::CHAIN_HOOK, array(), self::get_blog_group() );
 			}

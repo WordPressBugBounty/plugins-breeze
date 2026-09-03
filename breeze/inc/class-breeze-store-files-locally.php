@@ -18,10 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Breeze_Store_Files {
 
-	var $store_files_dir    = '/breeze/';
-	var $cdn_pixel_file_url = 'https://connect.facebook.net/en_US/fbevents.js';
-	var $cdn_gtm_js_file    = 'https://www.googletagmanager.com/gtm.js';
-	var $cdn_gtm_js_route   = 'https://www.googletagmanager.com/gtag/js';
+	var $store_files_dir = '/breeze/';
 
 	/**
 	 * Allowed remote hosts per "Host Files Locally" service.
@@ -30,11 +27,8 @@ class Breeze_Store_Files {
 	 * whose host is not present here is rejected before any request is made.
 	 */
 	private const ALLOWED_REMOTE_HOSTS = array(
-		'google_fonts_css'   => array( 'fonts.googleapis.com' ),
-		'google_fonts_file'  => array( 'fonts.gstatic.com' ),
-		'google_tag_manager' => array( 'www.googletagmanager.com' ),
-		'google_analytics'   => array( 'www.google-analytics.com' ),
-		'facebook_pixel'     => array( 'connect.facebook.net' ),
+		'google_fonts_css'  => array( 'fonts.googleapis.com' ),
+		'google_fonts_file' => array( 'fonts.gstatic.com' ),
 	);
 
 	/**
@@ -62,26 +56,11 @@ class Breeze_Store_Files {
 		$store_files_uri = $wp_upload['baseurl'] . $this->store_files_dir;
 		$store_files_dir = $wp_upload['basedir'] . $this->store_files_dir;
 
-		$host_files_enabled = ! empty( $options['breeze-store-googlefonts-locally'] )
-			|| ! empty( $options['breeze-store-googleanalytics-locally'] )
-			|| ! empty( $options['breeze-store-facebookpixel-locally'] );
-
-		if ( $host_files_enabled ) {
+		// Google Analytics and Facebook Pixel are no longer hosted locally; only
+		// Google Fonts remain (see changelog 2.5.14).
+		if ( ! empty( $options['breeze-store-googlefonts-locally'] ) ) {
 			$this->ensure_uploads_breeze_directory_secured( $store_files_dir );
-		}
-
-		if ( $options['breeze-store-googlefonts-locally'] ) {
 			$html = $this->extract_google_fonts_css( $html, $store_files_dir, $store_files_uri );
-
-		}
-
-		if ( $options['breeze-store-googleanalytics-locally'] ) {
-			$html = $this->extract_gtm( $html, $store_files_dir, $store_files_uri );
-			$html = $this->extract_google_analytics( $html, $store_files_dir, $store_files_uri );
-		}
-
-		if ( $options['breeze-store-facebookpixel-locally'] ) {
-			$html = $this->extract_facebook_pixel( $html, $store_files_dir, $store_files_uri );
 		}
 
 		return $html;
@@ -129,7 +108,13 @@ class Breeze_Store_Files {
 					'headers' => 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
 				)
 			);
-			$font_content      = wp_remote_retrieve_body( $font_api_response );
+
+			// Skip a non-200 response (e.g. an HTML error page) before it is treated as CSS.
+			if ( 200 !== (int) wp_remote_retrieve_response_code( $font_api_response ) ) {
+				continue;
+			}
+
+			$font_content = wp_remote_retrieve_body( $font_api_response );
 
 			// Reject a response that does not look like CSS before it is
 			// parsed further or ever written to disk.
@@ -192,134 +177,6 @@ class Breeze_Store_Files {
 
 		return false;
 	}
-
-	/**
-	 * Extract Google Tag Manager files
-	 *
-	 * @param $html
-	 * @param $file_dir
-	 * @param $stored_files_uri
-	 *
-	 * @return array|false|string|string[]
-	 */
-	public function extract_gtm( $html, $file_dir, $stored_files_uri ) {
-		$gtm_url        = $this->cdn_gtm_js_file;
-		$gtag_url       = $this->cdn_gtm_js_route;
-		$gtm_id_pattern = '/\'GTM-(.*?)\'/';
-
-		$gtag_id_pattern = "/gtag\('config', '([A-Za-z0-9-]+)'\)/";
-
-		preg_match( $gtm_id_pattern, $html, $gtm_id );
-		preg_match( $gtag_id_pattern, $html, $gtag_id );
-
-		$file_dir = $file_dir . 'google/';
-
-		if ( isset( $gtm_id[1] ) ) {
-			$configValue = $gtm_id[1];
-
-			preg_match( '/' . preg_quote( $gtm_url, '/' ) . '/', $html, $gtm_file_url );
-
-			if ( ! empty( $gtm_file_url ) ) {
-				$gtm_file_url = $gtm_file_url[0] . '?id=GTM-' . $configValue;
-				$local_file   = $this->download_files_locally( $gtm_file_url, $file_dir, 'gtm.js', '.js', 'google_tag_manager' );
-				$log          = 'User: ' . $_SERVER['REMOTE_ADDR'] . ' - ' . date( 'F j, Y, g:i a' ) . PHP_EOL .
-						'Attempt: gtm_not_empty' . PHP_EOL .
-						'URL Gtm: ' . print_r( $gtm_file_url, true ) . PHP_EOL;
-
-				if ( $local_file ) {
-					$local_file_url = $stored_files_uri . 'google/gtm.js';
-
-					$html = str_replace( $gtm_url, $local_file_url, $html );
-				}
-			}
-		}
-
-		if ( isset( $gtag_id[1] ) ) {
-			$configValue = $gtag_id[1];
-
-			preg_match( '/' . preg_quote( $gtag_url, '/' ) . '/', $html, $gtag_file_url );
-
-			if ( ! empty( $gtag_file_url[0] ) ) {
-				$gtag_file_url = $gtag_file_url[0] . '?id=' . $configValue;
-				$local_file    = $this->download_files_locally( $gtag_file_url, $file_dir, 'gtag.js', '.js', 'google_tag_manager' );
-
-				if ( $local_file ) {
-					$local_file_url = $stored_files_uri . 'google/gtag.js';
-
-					$html = str_replace( $gtag_url, $local_file_url, $html );
-				}
-			}
-		}
-
-		return $html;
-	}
-
-
-	/**
-	 * Extract Google Analytics Js locally
-	 *
-	 * @param $html
-	 * @param $file_dir
-	 * @param $stored_files_uri
-	 *
-	 * @return array|mixed|string|string[]
-	 */
-	public function extract_google_analytics( $html, $file_dir, $stored_files_uri ) {
-
-		$file_dir         = $file_dir . 'google/';
-		$stored_files_uri = $stored_files_uri . 'google/';
-
-		// Extract the Google Analytics script URLs using script tags
-		$pattern = '/https:\/\/www.google-analytics.com\/analytics.js/i';
-		preg_match_all( $pattern, $html, $matches );
-
-		$analytics_script_urls = $matches[0];
-
-		foreach ( $analytics_script_urls as $analytics_url ) {
-			$filename = basename( $analytics_url );
-
-			$local_analytics_file = $this->download_files_locally( $analytics_url, $file_dir, $filename, '.js', 'google_analytics' );
-
-			if ( $local_analytics_file ) {
-				$local_analytics_url = $stored_files_uri . $filename;
-				$html                = str_replace( $analytics_url, $local_analytics_url, $html );
-			}
-		}
-
-		return $html;
-	}
-
-
-	/**
-	 * Extract Facebook Pixel Files
-	 *
-	 * @param $html
-	 * @param $file_dir
-	 * @param $stored_files_uri
-	 *
-	 * @return array|false|string|string[]
-	 */
-	public function extract_facebook_pixel( $html, $file_dir, $stored_files_uri ) {
-		$url = $this->cdn_pixel_file_url;
-
-		$pixel_pattern = '/https:\/\/connect\.facebook\.net\/[a-zA-Z_]+\/fbevents\.js/';
-		preg_match_all( $pixel_pattern, $html, $fb_pixel_file_url );
-
-		if ( ! empty( $fb_pixel_file_url[0][0] ) ) {
-
-			$file_dir   = $file_dir . 'facebook/';
-			$local_file = $this->download_files_locally( $fb_pixel_file_url[0][0], $file_dir, 'fbevents.js', '.js', 'facebook_pixel' );
-
-			if ( $local_file ) {
-				$local_file_url = $stored_files_uri . 'facebook/fbevents.js';
-
-				return str_replace( $fb_pixel_file_url[0][0], $local_file_url, $html );
-			}
-		}
-
-		return $html;
-	}
-
 
 	// Helper Functions
 
@@ -394,7 +251,23 @@ class Breeze_Store_Files {
 			return false;
 		}
 
-		$response              = wp_safe_remote_get( esc_url_raw( $url ) );
+		$response = wp_safe_remote_get( esc_url_raw( $url ) );
+
+		// Do not cache an error page (e.g. a Google 404) as if it were the asset.
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return false;
+		}
+
+		// A 200 can still be an HTML error page. css/js have no magic bytes to
+		// check, so verify the content-type instead. Fonts are checked by their
+		// magic bytes in is_valid_downloaded_content().
+		$extension    = strtolower( (string) pathinfo( $file_name, PATHINFO_EXTENSION ) );
+		$content_type = strtolower( (string) wp_remote_retrieve_header( $response, 'content-type' ) );
+		$expected     = array( 'js' => 'javascript', 'css' => 'css' );
+		if ( isset( $expected[ $extension ] ) && '' !== $content_type && false === strpos( $content_type, $expected[ $extension ] ) ) {
+			return false;
+		}
+
 		$original_file_content = wp_remote_retrieve_body( $response );
 
 		if ( ! $this->is_valid_downloaded_content( $original_file_content, $file_name ) ) {

@@ -184,46 +184,6 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				</div>
 
 				<?php
-				if ( ! isset( $options['breeze-store-googleanalytics-locally'] ) ) {
-					$options['breeze-store-googleanalytics-locally'] = '0';
-				}
-
-				$basic_value = filter_var( $options['breeze-store-googleanalytics-locally'], FILTER_VALIDATE_BOOLEAN );
-				$is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-store-googleanalytics-locally'], '1', false ) : '';
-				?>
-				<br>
-				<strong> Google Analytics </strong>
-				<div class="on-off-checkbox">
-					<label class="br-switcher">
-						<input id="breeze-store-googleanalytics-locally" name="breeze-store-googleanalytics-locally"
-								type="checkbox" class="br-box"
-								value="1" <?php echo esc_attr( $is_enabled ); ?>>
-						<div class="br-see-state">
-						</div>
-					</label><br>
-				</div>
-
-				<?php
-				if ( ! isset( $options['breeze-store-facebookpixel-locally'] ) ) {
-					$options['breeze-store-facebookpixel-locally'] = '0';
-				}
-
-				$basic_value = filter_var( $options['breeze-store-facebookpixel-locally'], FILTER_VALIDATE_BOOLEAN );
-				$is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-store-facebookpixel-locally'], '1', false ) : '';
-				?>
-				<br>
-				<strong> Facebook Pixel </strong>
-				<div class="on-off-checkbox">
-					<label class="br-switcher">
-						<input id="breeze-store-facebookpixel-locally" name="breeze-store-facebookpixel-locally"
-								type="checkbox" class="br-box"
-								value="1" <?php echo esc_attr( $is_enabled ); ?>>
-						<div class="br-see-state">
-						</div>
-					</label><br>
-				</div>
-
-				<?php
 				if ( ! isset( $options['breeze-store-gravatars-locally'] ) ) {
 					$options['breeze-store-gravatars-locally'] = '0';
 				}
@@ -244,7 +204,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/advanced-active.png';
 				</div>
 
 				<div class="br-note">
-					<p>Optimize performance: Store Google Fonts, Google Analytics, Facebook Pixel, and Gravatar files at
+					<p>Optimize performance: Store Google Fonts and Gravatar files at
 						uploads/breeze/service-name/</p>
 				</div>
 

@@ -576,8 +576,6 @@ class Breeze_Settings_Import_Export {
 				'cached-query-strings'                 => ( isset( $options['cached-query-strings'] ) ? $options['cached-query-strings'] : array() ),
 				'breeze-wp-emoji'                      => ( isset( $options['breeze-wp-emoji'] ) ? $options['breeze-wp-emoji'] : '0' ),
 				'breeze-store-googlefonts-locally'     => ( isset( $options['breeze-store-googlefonts-locally'] ) ? $options['breeze-store-googlefonts-locally'] : '0' ),
-				'breeze-store-googleanalytics-locally' => ( isset( $options['breeze-store-googleanalytics-locally'] ) ? $options['breeze-store-googleanalytics-locally'] : '0' ),
-				'breeze-store-facebookpixel-locally'   => ( isset( $options['breeze-store-facebookpixel-locally'] ) ? $options['breeze-store-facebookpixel-locally'] : '0' ),
 				'breeze-store-gravatars-locally'       => ( isset( $options['breeze-store-gravatars-locally'] ) ? $options['breeze-store-gravatars-locally'] : '0' ),
 				'breeze-enable-api'                    => ( isset( $options['breeze-enable-api'] ) ? $options['breeze-enable-api'] : '0' ),
 				'breeze-api-token'                     => ( isset( $options['breeze-api-token'] ) ? $options['breeze-api-token'] : '' ),
@@ -839,8 +837,6 @@ class Breeze_Settings_Import_Export {
 			'breeze-control-heartbeat'             => '0',
 			'breeze-delay-all-js'                  => '0',
 			'breeze-store-googlefonts-locally'     => '0',
-			'breeze-store-googleanalytics-locally' => '0',
-			'breeze-store-facebookpixel-locally'   => '0',
 			'breeze-store-gravatars-locally'       => '0',
 		);
 

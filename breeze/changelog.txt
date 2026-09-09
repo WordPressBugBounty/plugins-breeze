@@ -1,5 +1,10 @@
 == Changelog ==
 
+= 2.5.15 =
+
+* Security: Completed the fix for the previously identified low-severity content injection concern related to cache handling.
+* Improvement: Further improved cache handling to ensure consistent processing of requests with query-string variations.
+
 = 2.5.14 =
 
 * Fix: Addressed a low-severity content injection concern related to cache handling.

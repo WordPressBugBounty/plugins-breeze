@@ -24,9 +24,14 @@ class Breeze_Upgrade {
 		if ( empty( $this->breeze_version ) || version_compare( BREEZE_VERSION, $this->breeze_version, '!=' ) ) {
 
 			add_action( 'wp_loaded', array( $this, 'do_breeze_upgrade' ) );
-			update_option( 'breeze_version', BREEZE_VERSION, true );
 			$this->do_breeze_clear_cache();
 			$this->do_breeze_config_refresh();
+
+			// Store the new version only after the cache purge and the config rewrite
+			// have run. Storing it first meant that if either failed, advanced-cache.php
+			// stayed stale and this block never ran again, so caching rules were skipped
+			// until the settings were saved manually.
+			update_option( 'breeze_version', BREEZE_VERSION, true );
 
 			// Google Analytics and Facebook Pixel are no longer hosted locally, so remove
 			// any files a previous version cached. Google Fonts (breeze/google/fonts/) is

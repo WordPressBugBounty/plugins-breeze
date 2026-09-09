@@ -115,6 +115,22 @@ class Breeze_Query_Strings_Rules {
 		return $this->ignored_list;
 	}
 
+	/**
+	 * Checks if a query var name is on the permanently ignored list.
+	 *
+	 * Exact match only (same idea as WP Rocket). Lookalikes with spaces, tabs,
+	 * or different casing are not ignored, so they stay as unknown params and
+	 * the page is not cached. Both the cache key and the request strip use this
+	 * same check, so they cannot disagree.
+	 *
+	 * @param string $name Query var name as it appears in the URL.
+	 *
+	 * @return bool
+	 */
+	public function is_ignored_query_var( $name ) {
+		return in_array( (string) $name, $this->fetch_ignored_list(), true );
+	}
+
 	public static function when_woocommerce_settings_save() {
 		if ( isset( $_POST['save'] ) && isset( $_POST['woocommerce_default_customer_address'] ) ) {
 			Breeze_ConfigCache::factory()->write_config_cache();
@@ -276,36 +292,43 @@ class Breeze_Query_Strings_Rules {
 			return false;
 		}
 
-		$ignored_list = $this->fetch_ignored_list();
-
-		$current_url_query = parse_url( $url, PHP_URL_QUERY );
-		parse_str( $current_url_query, $breeze_query_output );
-
-		$found_index = false;
-		foreach ( $breeze_query_output as $index => $value ) {
-			$index = mb_strtolower( trim( $index ) );
-			if ( in_array( $index, $ignored_list, true ) ) {
-				$found_index = true;
-				break;
+		foreach ( array_keys( $this->extract_query_strings( $url ) ) as $index ) {
+			if ( $this->is_ignored_query_var( $index ) ) {
+				return true;
 			}
 		}
 
-		return $found_index;
+		return false;
 	}
 
+	/**
+	 * Extracts the query vars from a URL, keeping each name exactly as it was sent.
+	 *
+	 * parse_url() and parse_str() are not used here: both rewrite characters inside
+	 * a name (a tab or space becomes "_"), which turns a made-up name such as
+	 * "utm<tab>source" into the real "utm_source" and lets it use the clean cache.
+	 * Splitting the string leaves names untouched, so anything not exactly on a
+	 * list stays unknown and the page is not cached. Only values are decoded.
+	 *
+	 * @param string $url Current URL.
+	 *
+	 * @return array
+	 */
 	public function extract_query_strings( $url = '' ) {
 		if ( empty( trim( $url ) ) ) {
 			$url = $_SERVER['REQUEST_URI'];
 		}
 
-		$current_url_query = parse_url( $url, PHP_URL_QUERY );
+		$url                 = explode( '?', (string) $url, 2 );
+		$current_url_query   = isset( $url[1] ) ? explode( '#', $url[1], 2 )[0] : '';
+		$breeze_query_output = array();
 
-		if ( ! empty( $current_url_query ) ) {
-			parse_str( $current_url_query, $breeze_query_output );
-		}
+		foreach ( explode( '&', $current_url_query ) as $query_pair ) {
+			$query_pair = explode( '=', $query_pair, 2 );
 
-		if ( empty( $breeze_query_output ) ) {
-			$breeze_query_output = array();
+			if ( '' !== $query_pair[0] ) {
+				$breeze_query_output[ $query_pair[0] ] = isset( $query_pair[1] ) ? rawurldecode( $query_pair[1] ) : '';
+			}
 		}
 
 		return $breeze_query_output;
@@ -333,7 +356,6 @@ class Breeze_Query_Strings_Rules {
 			return $found_items;
 		}
 
-		$ignored_query_vars      = $this->fetch_ignored_list();
 		$to_cache_query_vars     = $this->fetch_always_cache_list();
 		$user_defined_query_vars = array();
 
@@ -360,8 +382,7 @@ class Breeze_Query_Strings_Rules {
 		foreach ( $extracted_vars as $index => $value ) {
 
 			// Fetch all the query vars that are in the ignore list and found in current URL.
-			// Match case-insensitively so variants like UTM_SOURCE are treated as utm_source.
-			if ( in_array( mb_strtolower( trim( (string) $index ) ), $ignored_query_vars, true ) ) {
+			if ( $this->is_ignored_query_var( $index ) ) {
 				$found_items['ignored_no'] ++;
 				$found_items['ignored_items'][ $index ] = $value;
 				unset( $not_found_anywhere[ $index ] );

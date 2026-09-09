@@ -845,9 +845,10 @@ final class Execute_Cache {
 	/**
 	 * Remove permanently-ignored tracking query vars (utm_*, fbclid, gclid, pp, ...)
 	 * from the current request before WordPress renders, so the produced HTML is the
-	 * clean canonical page. Matching is case-insensitive; all other query vars are
-	 * left in place. This lets "?pp=1" warm/serve the clean cache entry without ever
-	 * storing a parameter-influenced page under that key.
+	 * clean canonical page. Matching uses Breeze_Query_Strings_Rules so it is identical
+	 * to the cache key check; all other query vars are left in place. This lets
+	 * "?pp=1" warm/serve the clean cache entry without ever storing a
+	 * parameter-influenced page under that key.
 	 *
 	 * @access private
 	 * @static
@@ -858,15 +859,13 @@ final class Execute_Cache {
 			return;
 		}
 
-		$ignored = Breeze_Query_Strings_Rules::get_instance()->fetch_ignored_list();
-		if ( empty( $ignored ) || ! is_array( $ignored ) ) {
-			return;
-		}
-		$ignored = array_fill_keys( array_map( 'strtolower', $ignored ), true );
-
+		$rules   = Breeze_Query_Strings_Rules::get_instance();
 		$removed = false;
+
 		foreach ( array_keys( $_GET ) as $key ) {
-			if ( isset( $ignored[ strtolower( (string) $key ) ] ) ) {
+			// Same check the cache key uses, so a var dropped from the key is always
+			// removed from the request the page renders from.
+			if ( $rules->is_ignored_query_var( $key ) ) {
 				unset( $_GET[ $key ], $_REQUEST[ $key ] );
 				$removed = true;
 			}
@@ -1130,6 +1129,17 @@ final class Execute_Cache {
 			return true;
 		}
 
+		// Never cache a URL that carries a query var which is not on any list. This
+		// has to run before the exclude_url rules below, because those return early
+		// when no URL exclusions are configured (the default) and would skip it.
+		$query_instance         = Breeze_Query_Strings_Rules::get_instance();
+		$breeze_query_vars_list = $query_instance->check_query_var_group( $context->current_url );
+		if ( 0 !== (int) $breeze_query_vars_list['extra_query_no'] ) {
+			header( 'Cache-control: must-revalidate, max-age=0' );
+
+			return true;
+		}
+
 		if ( empty( $config['exclude_url'] ) || ! is_array( $config['exclude_url'] ) ) {
 			return false;
 		}
@@ -1184,15 +1194,6 @@ final class Execute_Cache {
 					}
 				}
 			}
-		}
-
-		// Additional exclusion based on query vars list (matches legacy flow).
-		$query_instance         = Breeze_Query_Strings_Rules::get_instance();
-		$breeze_query_vars_list = $query_instance->check_query_var_group( $context->current_url );
-		if ( 0 !== (int) $breeze_query_vars_list['extra_query_no'] ) {
-			header( 'Cache-control: must-revalidate, max-age=0' );
-
-			return true;
 		}
 
 		return false;

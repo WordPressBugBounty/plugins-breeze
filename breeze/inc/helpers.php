@@ -753,6 +753,59 @@ function breeze_safe_cache_write( $file_path, $data, $modified_time, $non_blocki
 }
 
 
+/**
+ * Atomically replace a file.
+ *
+ * put_contents() truncates the live file and writes in place, so two overlapping
+ * writers can leave the tail of the longer one behind the shorter one. The config
+ * files are included on every request, so that leftover is a fatal error for the
+ * whole install. Writing to a private temp file and renaming means a reader only
+ * ever sees a complete file.
+ *
+ * @param string    $file_path Absolute path of the file to write.
+ * @param string    $data      File contents.
+ * @param int|false $mode      Permissions to apply, or false for FS_CHMOD_FILE.
+ *
+ * @return bool True on success, false on failure.
+ */
+function breeze_atomic_write_file( $file_path, $data, $mode = false ) {
+	if ( empty( $file_path ) ) {
+		return false;
+	}
+
+	// Unguessable name + exclusive create ('xb') stops another process, or a
+	// pre-planted symlink on a shared host, from touching our temp file.
+	$temp_file = $file_path . '.' . uniqid( '', true ) . '.tmp';
+
+	$fp = @fopen( $temp_file, 'xb' );
+	if ( false === $fp ) {
+		return false;
+	}
+
+	$bytes_written = fwrite( $fp, $data );
+	fclose( $fp );
+
+	// A short write means the disk is full; renaming a truncated config into
+	// place would break every request.
+	if ( strlen( $data ) !== $bytes_written ) {
+		@unlink( $temp_file );
+
+		return false;
+	}
+
+	// rename() keeps the temp file's permissions, so apply them before the swap.
+	@chmod( $temp_file, $mode ? $mode : ( defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644 ) );
+
+	if ( ! rename( $temp_file, $file_path ) ) {
+		@unlink( $temp_file );
+
+		return false;
+	}
+
+	return true;
+}
+
+
 function breeze_lock_cache_process( $path = '' ) {
 	$filename    = 'process.lock';
 	$create_lock = fopen( $path . $filename, 'xb' );

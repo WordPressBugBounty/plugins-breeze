@@ -1,5 +1,10 @@
 == Changelog ==
 
+= 2.5.16 =
+
+* Fix: 503 error caused by Breeze's settings file being saved by two requests at once (mostly Multisite, after updates).
+* Improvement: Settings file is now saved safely to prevent partial/corrupted writes.
+
 = 2.5.15 =
 
 * Security: Completed the fix for the previously identified low-severity content injection concern related to cache handling.

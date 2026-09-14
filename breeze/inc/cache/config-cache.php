@@ -253,7 +253,7 @@ FILE_STRING;
 						"\n" . '		}' .
 						"\n" . '}' . "\n";
 
-		$result = $wp_filesystem->put_contents( $file, $file_string );
+		$result = breeze_atomic_write_file( $file, $file_string );
 		if ( $result ) {
 			self::invalidate_opcode_cache_file( $file );
 		}
@@ -695,7 +695,7 @@ FILE_STRING;
 
 		$config_file_string = '<?php ' . "\n\r" . "defined( 'ABSPATH' ) || exit;" . "\n\r" . 'return ' . var_export( $config, true ) . '; ' . "\n\r";
 
-		$result = $wp_filesystem->put_contents( $config_file, $config_file_string, FS_CHMOD_FILE );
+		$result = breeze_atomic_write_file( $config_file, $config_file_string, FS_CHMOD_FILE );
 		if ( $result ) {
 			self::invalidate_opcode_cache_file( $config_file );
 			if ( $variation_changed && function_exists( 'do_action' ) ) {

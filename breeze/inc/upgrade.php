@@ -24,29 +24,33 @@ class Breeze_Upgrade {
 		if ( empty( $this->breeze_version ) || version_compare( BREEZE_VERSION, $this->breeze_version, '!=' ) ) {
 
 			add_action( 'wp_loaded', array( $this, 'do_breeze_upgrade' ) );
-			$this->do_breeze_clear_cache();
-			$this->do_breeze_config_refresh();
+			add_action(
+				'wp_loaded',
+				function () {
+					$this->do_breeze_clear_cache();
+					$this->do_breeze_config_refresh();
 
-			// Store the new version only after the cache purge and the config rewrite
-			// have run. Storing it first meant that if either failed, advanced-cache.php
-			// stayed stale and this block never ran again, so caching rules were skipped
-			// until the settings were saved manually.
-			update_option( 'breeze_version', BREEZE_VERSION, true );
+					// Store the new version only after the cache purge and the config rewrite
+					// have run. Storing it first meant that if either failed, advanced-cache.php
+					// stayed stale and this block never ran again, so caching rules were skipped
+					// until the settings were saved manually.
+					update_option( 'breeze_version', BREEZE_VERSION, true );
 
-			// Google Analytics and Facebook Pixel are no longer hosted locally, so remove
-			// any files a previous version cached. Google Fonts (breeze/google/fonts/) is
-			// kept. Uses the per-site uploads dir so multisite subsites are handled too.
-			$breeze_upload = wp_upload_dir();
-			$breeze_base   = untrailingslashit( $breeze_upload['basedir'] ) . '/breeze';
-			$breeze_fs     = breeze_get_filesystem();
-			// Facebook folder (fbevents files).
-			$breeze_fs->delete( $breeze_base . '/facebook', true );
-			// Google Analytics/Tag Manager files sit loose in breeze/google/ as *.js;
-			// deleting only those leaves the breeze/google/fonts/ folder intact.
-			foreach ( glob( $breeze_base . '/google/*.js' ) ?: array() as $breeze_ga_file ) {
-				$breeze_fs->delete( $breeze_ga_file );
-			}
-
+					// Google Analytics and Facebook Pixel are no longer hosted locally, so remove
+					// any files a previous version cached. Google Fonts (breeze/google/fonts/) is
+					// kept. Uses the per-site uploads dir so multisite subsites are handled too.
+					$breeze_upload = wp_upload_dir();
+					$breeze_base   = untrailingslashit( $breeze_upload['basedir'] ) . '/breeze';
+					$breeze_fs     = breeze_get_filesystem();
+					// Facebook folder (fbevents files).
+					$breeze_fs->delete( $breeze_base . '/facebook', true );
+					// Google Analytics/Tag Manager files sit loose in breeze/google/ as *.js;
+					// deleting only those leaves the breeze/google/fonts/ folder intact.
+					foreach ( glob( $breeze_base . '/google/*.js' ) ?: array() as $breeze_ga_file ) {
+						$breeze_fs->delete( $breeze_ga_file );
+					}
+				}
+			);
 		}
 	}
 
@@ -95,6 +99,13 @@ class Breeze_Upgrade {
 	 * @return void
 	 */
 	public function do_breeze_upgrade() {
+		if ( ! class_exists( 'Breeze_Ecommerce_Cache' ) ) {
+			require_once BREEZE_PLUGIN_DIR . 'inc/cache/ecommerce-cache.php';
+		}
+		if ( ! class_exists( 'Breeze_ConfigCache' ) ) {
+			require_once BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php';
+		}
+
 		$is_older_than_v2118 = false;
 
 		// Version 2.1.18 updates.

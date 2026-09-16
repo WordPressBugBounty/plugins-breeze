@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.5.17 =
+
+Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
+
 = 2.5.16 =
 
 * Fix: 503 error caused by Breeze's settings file being saved by two requests at once (mostly Multisite, after updates).

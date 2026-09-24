@@ -170,15 +170,16 @@ class Breeze_Lazy_Load {
 							continue;
 						}
 					}
-					// Get the image URL
-					preg_match( '/src=(?:"|\')(.+?)(?:"|\')/', $img_match, $src_value );
-					$current_src = ! empty( $src_value[1] ) ? $src_value[1] : '';
+					// Get the image URL. The closing quote must match the opening one, otherwise the
+					// rest of the value is left behind and becomes a new attribute.
+					preg_match( '/src=(["\'])(.*?)\1/', $img_match, $src_value );
+					$current_src = ! empty( $src_value[2] ) ? $src_value[2] : '';
 					if ( true !== $this->excluded_images( $current_src ) ) {
 						// Add lazy-load data attribute.
-						$img_match_new = preg_replace( '/(<img\s+)/', '$1data-breeze="' . trim( $current_src ) . '" ', $img_match );
+						$img_match_new = preg_replace( '/(<img\s+)/', '$1data-breeze="' . esc_attr( trim( $current_src ) ) . '" ', $img_match );
 
 						// Remove the current image source.
-						$img_match_new = preg_replace( '/(<img.+)(src=(?:"|\').+?(?:"|\'))(.+?>)/', '$1$3', $img_match_new );
+						$img_match_new = preg_replace( '/(<img.+)(src=(["\']).*?\3)(.+?>)/', '$1$4', $img_match_new );
 
 						preg_match( '/width=(?:"|\')(.+?)(?:"|\')/', $img_match, $width_value );
 						preg_match( '/height=(?:"|\')(.+?)(?:"|\')/', $img_match, $height_value );
@@ -191,8 +192,8 @@ class Breeze_Lazy_Load {
 						$img_match_new = preg_replace( '/(<img\s+)/', '$1src="' . $placeholder . '" ', $img_match_new );
 
 						// Fetch the current image CSS classes.
-						preg_match( '/class=(?:"|\')(.*?)(?:"|\')/', $img_match_new, $class_value );
-						$current_classes = ! empty( $class_value[1] ) ? $class_value[1] : '';
+						preg_match( '/class=(["\'])(.*?)\1/', $img_match_new, $class_value );
+						$current_classes = ! empty( $class_value[2] ) ? $class_value[2] : '';
 
 						// Append breeze lazy-load CSS class.
 						if ( empty( trim( $current_classes ) ) ) {
@@ -201,9 +202,9 @@ class Breeze_Lazy_Load {
 							$current_classes .= ' br-lazy';
 						}
 
-						$img_match_new = preg_replace( '/(<img.+)(class=(?:"|\').+?(?:"|\'))(.+?>)/', '$1$3', $img_match_new );
+						$img_match_new = preg_replace( '/(<img.+)(class=(["\']).*?\3)(.+?>)/', '$1$4', $img_match_new );
 						// Add lazy-load CSS class.
-						$img_match_new = preg_replace( '/(<img\s+)/', '$1class="' . $current_classes . '" ', $img_match_new );
+						$img_match_new = preg_replace( '/(<img\s+)/', '$1class="' . esc_attr( $current_classes ) . '" ', $img_match_new );
 
 						// handle SRCSET and SIZES attributes.
 						preg_match( '/srcset=(?:"|\')(.+?)(?:"|\')/', $img_match_new, $srcset_value );
@@ -281,7 +282,7 @@ class Breeze_Lazy_Load {
 						$current_classes = $this->format_tag_ll_classes( $iframe_tag );
 
 						// Forming iframe tag
-						$iframe_tag_new = preg_replace( '/<iframe/isU', '<iframe data-video-id="' . $video_id . '" class="' . $current_classes . '" data-breeze="' . $src . '"', $iframe_tag );
+						$iframe_tag_new = preg_replace( '/<iframe/isU', '<iframe data-video-id="' . esc_attr( $video_id ) . '" class="' . esc_attr( $current_classes ) . '" data-breeze="' . esc_attr( $src ) . '"', $iframe_tag );
 						$iframe_tag_new = preg_replace( '/src=\"([^\"]+)\"/isU', '', $iframe_tag_new );
 						$content        = str_replace( $iframe_tag, $iframe_tag_new, $content );
 					}
@@ -317,7 +318,7 @@ class Breeze_Lazy_Load {
 						// Determine the correct placeholder for the video src attribute.
 						if ( preg_match( '/src="([^"]+)"/i', $video_attrs, $src_matches ) ) {
 							$video_src   = $src_matches[1];
-							$video_attrs = str_replace( 'src="' . $video_src . '"', 'data-breeze="' . $video_src . '"', $video_attrs );
+							$video_attrs = str_replace( 'src="' . $video_src . '"', 'data-breeze="' . esc_attr( $video_src ) . '"', $video_attrs );
 						}
 
 						// Add or update the class attribute with a lazy loading class.
@@ -342,7 +343,7 @@ class Breeze_Lazy_Load {
 						function ( $matches ) {
 							$source_url = $matches[1];
 
-							return str_replace( 'src="' . $source_url . '"', 'data-breeze="' . $source_url . '"', $matches[0] );
+							return str_replace( 'src="' . $source_url . '"', 'data-breeze="' . esc_attr( $source_url ) . '"', $matches[0] );
 						},
 						$video_tag_new
 					);
@@ -368,8 +369,8 @@ class Breeze_Lazy_Load {
 	 * @return string
 	 */
 	private function format_tag_ll_classes( $tag ) {
-		preg_match( '/class=(?:"|\')(.+?)(?:"|\')/', $tag, $class_value );
-		$current_classes = ! empty( $class_value[1] ) ? $class_value[1] : '';
+		preg_match( '/class=(["\'])(.*?)\1/', $tag, $class_value );
+		$current_classes = ! empty( $class_value[2] ) ? $class_value[2] : '';
 
 		// Append breeze lazy-load CSS class.
 		if ( empty( trim( $current_classes ) ) ) {

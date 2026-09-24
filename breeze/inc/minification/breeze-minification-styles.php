@@ -389,7 +389,8 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 							$path      = $this->getpath( $url );
 							$import_ok = false;
 
-							if ( true === $this->include_imported_css && file_exists( $path ) && is_readable( $path ) ) { // add settings for this
+							// getpath() returns false when an import is unsafe or missing.
+							if ( true === $this->include_imported_css && is_string( $path ) && file_exists( $path ) && is_readable( $path ) ) { // add settings for this
 
 								$code     = addcslashes( $this->fixurls( $path, file_get_contents( $path ) ), '\\' );
 								$code     = preg_replace( '/\x{EF}\x{BB}\x{BF}/', '', $code );

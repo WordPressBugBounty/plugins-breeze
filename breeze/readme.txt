@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.5.17
+Stable tag: 2.5.18
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,9 +160,13 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.5.18 =
+
+* Fix: Enhanced security measures applied to the lazyload and minification.
+
 = 2.5.17 =
 
-Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
+* Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
 
 = 2.5.16 =
 

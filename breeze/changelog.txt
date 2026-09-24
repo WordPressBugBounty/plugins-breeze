@@ -1,8 +1,12 @@
 == Changelog ==
 
+= 2.5.18 =
+
+* Fix: Enhanced security measures applied to the lazyload and minification.
+
 = 2.5.17 =
 
-Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
+* Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
 
 = 2.5.16 =
 

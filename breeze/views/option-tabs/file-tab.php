@@ -42,10 +42,356 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/file-active.png';
 			<?php esc_html_e( 'FILE OPTIMIZATION', 'breeze' ); ?>
         </div>
 
-        <div class="br-option-group">
+        <div class="br-option-group br-top">
             <span class="section-title"><?php esc_html_e( 'HTML Settings', 'breeze' ); ?></span>
             <!-- START OPTION -->
-            <div class="br-option-item br-top">
+            <div class="br-beta br-option-item br-top">
+                <div class="br-label">
+                    <div class="br-option-text">
+                        <?php esc_html_e( 'Cache Full Page HTML', 'breeze' ); ?>
+                    </div>
+                </div>
+                <div class="br-option">
+                    <?php
+                    $html_cache_setting = array_key_exists( 'breeze-enable-html-cache', $options ) ? $options['breeze-enable-html-cache'] : '1';
+                    $basic_value        = filter_var( $html_cache_setting, FILTER_VALIDATE_BOOLEAN );
+                    $is_enabled         = ( true === $basic_value ) ? checked( $html_cache_setting, '1', false ) : '';
+                    ?>
+                    <div class="on-off-checkbox">
+                        <label class="br-switcher">
+                            <input id="enable-html-cache" name="enable-html-cache" type="checkbox" class="br-box"
+                                   value="1" <?php echo esc_attr($is_enabled); ?>>
+                            <div class="br-see-state">
+                            </div>
+                        </label><br>
+                    </div>
+
+                    <div class="br-note">
+                        <p>
+                            <?php
+                            esc_html_e( 'Saves a copy of the page so it can load faster. This is not the same as Cache System in the Basic tab.', 'breeze' );
+                            ?>
+                        </p>
+                        <p>
+                            <?php
+                            esc_html_e( 'Recommend: keep this on for faster pages.', 'breeze' );
+                            ?>
+                        </p>
+
+                        <p class="br-important">
+                            <?php
+                            echo '<strong>';
+                            esc_html_e( 'Important: ', 'breeze' );
+                            echo '</strong>';
+                            esc_html_e( 'This option works at the plugin level. Varnish still runs on the server.', 'breeze' );
+                            ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- END OPTION -->
+
+            <!-- START OPTION -->
+            <?php
+            $enable_html_cache = isset( $options['breeze-enable-html-cache'] ) ? filter_var( $options['breeze-enable-html-cache'], FILTER_VALIDATE_BOOLEAN ) : '1';
+
+            $disable_overlay = '';
+            if ( false === $enable_html_cache ) {
+                $disable_overlay = ' br-apply-disable';
+            }
+            ?>
+            <div class="br-beta br-option-item<?php echo $disable_overlay; ?>">
+                <div class="br-label">
+                    <div class="br-option-text">
+                        <?php esc_html_e( 'Refresh Cached Page Parts', 'breeze' ); ?>
+                    </div>
+                </div>
+                <div class="br-option">
+                    <?php
+                    $basic_value = isset( $options['breeze-html-doublecheck'] ) ? filter_var( $options['breeze-html-doublecheck'], FILTER_VALIDATE_BOOLEAN ) : false;
+                    $is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-html-doublecheck'], '1', false ) : '';
+                    ?>
+                    <div class="on-off-checkbox">
+                        <label class="br-switcher">
+                            <input id="html-doublecheck" name="html-doublecheck" type="checkbox" class="br-box"
+                                   value="0" <?php echo esc_attr($is_enabled); ?>>
+                            <div class="br-see-state">
+                            </div>
+                        </label><br>
+                    </div>
+
+                    <div class="br-note">
+                        <p>
+                            <?php
+                            esc_html_e( 'After the cached page loads, Breeze refreshes only the page parts you list below so they stay up to date.', 'breeze' );
+                            ?>
+                        </p>
+
+                        <p class="br-important">
+                            <?php
+                            echo '<strong>';
+                            esc_html_e( 'Important: ', 'breeze' );
+                            echo '</strong>';
+                            esc_html_e( 'Use this only when a cached page shows old content in one block, such as a mini-cart.', 'breeze' );
+                            ?>
+                        </p>
+                        <p class="br-important">
+                            <?php
+                            echo '<strong>';
+                            esc_html_e( 'Caution: ', 'breeze' );
+                            echo '</strong>';
+                            esc_html_e( 'This option can affect page response. Leave it off if the site already looks correct.', 'breeze' );
+                            ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- END OPTION -->
+
+            <div class="doublecheck-options">
+                <!-- START OPTION -->
+                <?php
+
+
+                $dc_enabled       = isset( $options['breeze-html-doublecheck'] ) ? filter_var( $options['breeze-html-doublecheck'], FILTER_VALIDATE_BOOLEAN ) : false;
+                $is_front_display = '';
+                if ( false === $dc_enabled ) {
+                    $is_front_display = ' style="display: none"';
+                }
+
+
+                $doublecheck_elements = '';
+                if ( ! empty( $options['breeze-doublecheck-elements'] ) ) {
+                    $output               = implode( "\n", $options['breeze-doublecheck-elements'] );
+                    $doublecheck_elements = esc_textarea( $output );
+                }
+
+                ?>
+                <div class="br-beta br-option-item" <?php echo $is_front_display; ?>>
+                    <div class="br-label">
+                        <div class="br-option-text">
+                            <?php esc_html_e( 'Page Parts To Refresh', 'breeze' ); ?>
+                        </div>
+                    </div>
+                    <div class="br-option">
+					<textarea cols="100" rows="7" id="doublecheck-elements" name="doublecheck-elements"
+                              placeholder="Example:&#10;#site-header-cart"><?php echo esc_attr($doublecheck_elements); ?></textarea>
+                        <div class="br-note">
+                            <p>
+                                <?php
+                                echo wp_kses(
+                                    sprintf(
+                                        /* translators: 1: "# for an ID" in bold, 2: ". for a class" in bold */
+                                        __( 'Enter one page part per line, for example #site-header-cart. Use %1$s and %2$s.', 'breeze' ),
+                                        '<strong># for an ID</strong>',
+                                        '<strong>. for a class</strong>'
+                                    ),
+                                    array(
+                                        'strong' => array(),
+                                    )
+                                );
+                                ?>
+                            </p>
+							<p class="br-important">
+								<?php
+								echo '<strong>';
+								esc_html_e( 'Important: ', 'breeze' );
+								echo '</strong>';
+								esc_html_e( 'Do not enter html, body, or head. You can still target something inside the page, such as body .mini-cart. Do not target login, checkout, or add-to-cart forms.', 'breeze' );
+								?>
+							</p>
+							<?php if ( ! empty( $options['breeze-doublecheck-elements-error'] ) ) { ?>
+								<p class="br-notice">
+									<?php echo esc_html( $options['breeze-doublecheck-elements-error'] ); ?>
+								</p>
+							<?php } ?>
+                        </div>
+                    </div>
+                </div>
+                <!-- END OPTION -->
+
+                <!-- START OPTION -->
+                <?php
+                $doublecheck_load_options = array(
+                        'preload' => __( 'Before Load', 'breeze' ),
+                        'onload'  => __( 'After loaded', 'breeze' ),
+                        'async'   => __( 'Async', 'breeze' ),
+                );
+
+                ?>
+                <div class="br-beta br-option-item loading-type-option" style="display: none !important">
+                    <div class="br-label">
+                        <div class="br-option-text">
+                            <?php esc_html_e( 'Double-check loading type', 'breeze' ); ?>
+                        </div>
+                    </div>
+                    <div class="br-option">
+                        <?php
+                        $select_active = isset( $options['breeze-doublecheck-load'] ) ? $options['breeze-doublecheck-load'] : '';
+                    
+                        if($select_active !== 'async') {
+                            $select_active = 'async';
+                        }
+                        ?>
+                        <select name="doublecheck-load" id="doublecheck-load">
+                            <?php
+                            foreach ( $doublecheck_load_options as $value => $label ) {
+                                $selected = '';
+                                if ( $select_active === (string) $value || empty( $select_active ) ) {
+                                    $selected = 'selected';
+                                }
+                                $value = esc_attr($value);
+                                $label = esc_html($label);
+                                echo "<option value='{$value}' {$selected}>{$label}</option>";
+                            }
+                            ?>
+                        </select>
+
+                    </div>
+                </div>
+                <!-- END OPTION -->
+
+                <!-- START OPTION -->
+                <?php
+                $dc_enabled       = isset( $options['breeze-html-doublecheck'] ) ? filter_var( $options['breeze-html-doublecheck'], FILTER_VALIDATE_BOOLEAN ) : false;
+                $is_front_display = '';
+                if ( false === $dc_enabled ) {
+                    $is_front_display = ' style="display: none"';
+                }
+                ?>
+
+                <div class="br-beta br-option-item" <?php echo $is_front_display; ?>>
+                    <div class="br-label">
+                        <div class="br-option-text">
+                            <?php esc_html_e( 'Show Loading Overlay', 'breeze' ); ?>
+                        </div>
+                    </div>
+                    <div class="br-option">
+                        <?php
+                        $basic_value = isset( $options['breeze-html-doublecheck-loader'] ) ? filter_var( $options['breeze-html-doublecheck-loader'], FILTER_VALIDATE_BOOLEAN ) : false;
+                        $is_enabled  = ( isset( $basic_value ) && true === $basic_value ) ? checked( $options['breeze-html-doublecheck-loader'], '1', false ) : '';
+                        ?>
+                        <div class="on-off-checkbox">
+                            <label class="br-switcher">
+                                <input id="html-doublecheck-loader" name="html-doublecheck-loader" type="checkbox"
+                                       class="br-box"
+                                       value="1" <?php echo esc_attr($is_enabled); ?>>
+                                <div class="br-see-state">
+                                </div>
+                            </label><br>
+                        </div>
+
+                        <div class="br-note">
+                            <p>
+                                <?php
+                                esc_html_e( 'Shows a short overlay while those page parts update. This depends on your theme and may not look perfect on every site.', 'breeze' );
+                                ?>
+                            </p>
+                            <p class="br-important">
+                                <?php
+                                echo '<strong>';
+                                esc_html_e( 'Note: ', 'breeze' );
+                                echo '</strong>';
+                                esc_html_e( 'Theme developers can style the overlay using the class breeze-dc-elem.', 'breeze' );
+                                ?>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <!-- END OPTION -->
+            </div>
+
+            <!-- START OPTION -->
+            <?php
+            $dc_enabled       = isset( $options['breeze-html-doublecheck-loader'] ) ? filter_var( $options['breeze-html-doublecheck-loader'], FILTER_VALIDATE_BOOLEAN ) : false;
+            $is_front_display = '';
+            if ( false === $dc_enabled ) {
+                $is_front_display = ' style="display: none"';
+            }
+            ?>
+
+            <div class="br-beta br-option-item" <?php echo $is_front_display; ?>>
+                <div class="br-label">
+                    <div class="br-option-text">
+                        <?php esc_html_e( 'Overlay Color', 'breeze' ); ?>
+                    </div>
+                </div>
+                <div class="br-option">
+                    <?php
+                    $basic_value = ( ! empty( $options['breeze-html-doublecheck-loader-overlay'] ) ? esc_attr( $options['breeze-html-doublecheck-loader-overlay'] ) : '#000000' );
+                    ?>
+                    <div class="on-off-checkbox br-doublecheck-color-control">
+                        <input id="html-doublecheck-loader-overlay-picker" type="color"
+                               pattern="^#[A-Fa-f0-9]{6}$" class="br-doublecheck-color-picker" value="<?php echo esc_attr( $basic_value ); ?>">
+                        <input id="html-doublecheck-loader-overlay" name="html-doublecheck-loader-overlay" type="text"
+                               placeholder="#000000" pattern="^#[A-Fa-f0-9]{6}$" class="br-box br-doublecheck-color-code" value="<?php echo esc_attr( $basic_value ); ?>">
+                    </div>
+
+                    <div class="br-note">
+                        <p>
+                            <?php
+                            esc_html_e( 'Set the background color for the loading overlay.', 'breeze' );
+                            ?>
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+            <!-- END OPTION -->
+
+            <!-- START OPTION -->
+            <?php
+            // Exclusions apply whenever Double-check runs, so this row follows
+            // Refresh Cached Page Parts. The loader toggle only reveals Overlay Color.
+            $dc_enabled       = isset( $options['breeze-html-doublecheck'] ) ? filter_var( $options['breeze-html-doublecheck'], FILTER_VALIDATE_BOOLEAN ) : false;
+            $is_front_display = '';
+            if ( false === $dc_enabled ) {
+                $is_front_display = ' style="display: none"';
+            }
+
+
+            $doublecheck_elements = '';
+            if ( ! empty( $options['breeze-doublecheck-exclude-url'] ) ) {
+                $output               = implode( "\n", $options['breeze-doublecheck-exclude-url'] );
+                $doublecheck_elements = esc_textarea( $output );
+            }
+
+            ?>
+            <div class="br-beta br-option-item" <?php echo $is_front_display; ?>>
+                <div class="br-label">
+                    <div class="br-option-text">
+                        <?php esc_html_e( 'Do Not Refresh On These Pages', 'breeze' ); ?>
+                    </div>
+                </div>
+                <div class="br-option">
+					<textarea cols="100" rows="7" id="doublecheck-exclude-url" name="doublecheck-exclude-url"
+                              placeholder="Example:&#10;yourwebsite.com/posttype/post"><?php echo $doublecheck_elements; ?></textarea>
+                    <div class="br-note">
+                        <p>
+                            <?php
+                            esc_html_e( 'Add one full page URL or path per line, for example /cart/. Exact page only. The page can still be cached.', 'breeze' );
+                            ?>
+                        </p>
+                        <p class="br-important">
+                            <?php
+                            echo '<strong>';
+                            esc_html_e( 'Important: ', 'breeze' );
+                            echo '</strong>';
+                            esc_html_e( 'Wildcards such as /shop/* are not allowed. Use Never Cache URLs if the whole page must stay uncached.', 'breeze' );
+                            ?>
+                        </p>
+						<?php if ( ! empty( $options['breeze-doublecheck-exclude-url-error'] ) ) { ?>
+							<p class="br-notice">
+								<?php echo esc_html( $options['breeze-doublecheck-exclude-url-error'] ); ?>
+							</p>
+						<?php } ?>
+                    </div>
+                </div>
+            </div>
+            <!-- END OPTION -->
+
+            <!-- START OPTION -->
+            <div class="br-option-item">
                 <div class="br-label">
                     <div class="br-option-text">
 						<?php esc_html_e( 'HTML Minify', 'breeze' ); ?>

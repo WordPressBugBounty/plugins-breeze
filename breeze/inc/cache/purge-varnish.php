@@ -25,11 +25,14 @@ class Breeze_PurgeVarnish {
 	protected $urlsPurge   = array();
 	protected $auto_purge  = false;
 	protected static $has_executed_purge = false;
+	/**
+	 * save_post is registered in init() only when page cache is off. Breeze_PurgeCache
+	 * already purges Varnish on save when breeze-active is on, and a second hook would
+	 * repeat those requests.
+	 */
 	protected $actions     = array(
 		'switch_theme',                        // After a theme is changed
-		'save_post',                            // Save a post
 		'deleted_post',                        // Delete a post
-		'edit_post',                            // Edit a post - includes leaving comments
 	);
 	protected $actionsNoId = array( 'switch_theme' );
 
@@ -70,6 +73,12 @@ class Breeze_PurgeVarnish {
 			// Pust urlsPurge after comment
 			add_action( 'comment_post', array( $this, 'purge_post_on_comment' ), 10, 3 );
 			add_action( 'wp_set_comment_status', array( $this, 'purge_post_on_comment_status' ), 10, 2 );
+
+			// Breeze_PurgeCache owns save_post when page cache is on. Without that
+			// class, a post update never reaches Varnish.
+			if ( empty( Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) ) {
+				add_action( 'save_post', array( $this, 'purge_post' ) );
+			}
 		}
 		// Execute Purge
 		add_action( 'shutdown', array( $this, 'breeze_execute_purge' ) );
@@ -94,9 +103,8 @@ class Breeze_PurgeVarnish {
 			$do_purge = is_varnish_cache_started();
 
 			if ( true === $do_purge ) {
-				foreach ( $urlsPurge as $url ) {
-					$this->purge_cache( $url );
-				}
+				// Runs on shutdown, which still blocks the response under PHP-FPM.
+				Breeze_PurgeCache::purge_varnish_urls( $urlsPurge );
 			}
 		} else {
 			$homepage = home_url() . '/?breeze';
@@ -268,10 +276,6 @@ class Breeze_PurgeVarnish {
 	 * Purge varnish cache with action if id post exists
 	 */
 	public function purge_post( $postId ) {
-		if ( 'save_post' === current_action() && did_action( 'edit_post' ) ) {
-			// Prevent triggering this method twice when posts are updated.
-			return;
-		}
 		$this->pushUrl( $postId );
 	}
 

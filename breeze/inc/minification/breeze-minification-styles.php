@@ -658,7 +658,7 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 				// Cache our images for IE
 				$cache->cache( $this->mhtml, 'text/plain' );
 			}
-			$mhtml = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname();
+			$mhtml = breeze_CACHE_URL . breeze_effective_user_type() . $cache->getname();
 
 		}
 		if ( $this->group_css == true ) {
@@ -688,7 +688,7 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 				$cache->cache( $whole_css_file, 'text/css' );
 			}
 
-			$cache_file_url  = breeze_CACHE_URL . breeze_current_user_type() . $cache->getname();
+			$cache_file_url  = breeze_CACHE_URL . breeze_effective_user_type() . $cache->getname();
 			$cache_directory = $cache->get_cache_dir();
 
 			if ( $this->is_cache_file_present( $cache_directory . $cache->get_file_name() ) ) {
@@ -733,7 +733,7 @@ class Breeze_MinificationStyles extends Breeze_MinificationBase {
 					if ( $mark_used ) {
 						$this->mark_bundle_used( $cache_directory . $cache->get_file_name() );
 					}
-					$this->url_group_arr[] = $media . '_breezemedia_' . $file_name . '_breezekey_' . breeze_CACHE_URL . breeze_current_user_type() . $cache->getname() . $url_suffix;
+					$this->url_group_arr[] = $media . '_breezemedia_' . $file_name . '_breezekey_' . breeze_CACHE_URL . breeze_effective_user_type() . $cache->getname() . $url_suffix;
 				}
 			}
 			if ( false === $url_exists ) {

@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.5.18
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -152,13 +152,24 @@ No, Breeze does not support Push CDN. However, you could use Breeze with Push CD
 
 = Does Breeze Work With CloudFlare? =
 
-Yes. The process of setting up CloudFlare with Breeze is easy. Check out the following <a href="https://support.cloudways.com/can-i-use-cloudflare-cdn/" target="_blank">KnowledgeBase article</a> for details.
+Yes. The process of setting up CloudFlare with Breeze is easy. Check out the following <a href="https://support.cloudways.com/can-i-use-cloudflare-cdn/" target="_blank">KnowledgeBase article</a> for details. 
 
 = How Breeze cache uses Gzip? =
 
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.6.0 =
+
+* New: Cache Full Page HTML is now a separate option.
+* New: Added Refresh cached page parts (beta). After a cached page loads, selected parts can be refreshed so they stay up to date. Off by default.
+* Fix: Resolved a PHP fatal error on sites using the FooEvents plugin.
+* Fix: Fixed minified CSS/JS being stored in the wrong folder for logged-in users.
+* Fix: Removed duplicate cache-purge requests when updating a post.
+* Fixed: "Never Cache URL(s)" no longer shows an invalid URL warning for domains with long TLD endings.
+* Improvement: Breeze now updates its config file in place instead of deleting and recreating it.
+* Improvement: Breeze no longer removes locally hosted Google/Facebook files during updates.
 
 = 2.5.18 =
 

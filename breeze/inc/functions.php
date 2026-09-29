@@ -130,6 +130,63 @@ function breeze_current_user_type( $as_dir = true ) {
 	return '';
 }
 
+/**
+ * Whether the "Cache Logged-in Users" toggle is enabled for a single role.
+ *
+ * Despite its name, `breeze-disable-admin` stores an ENABLE flag per role.
+ *
+ * @param string $user_role Role slug, e.g. "administrator".
+ *
+ * @return bool
+ */
+function breeze_is_cache_enabled_for_role( $user_role ) {
+	if ( empty( $user_role ) || ! class_exists( 'Breeze_Options_Reader' ) ) {
+		return false;
+	}
+
+	$role_cache_flags = Breeze_Options_Reader::get_option_value( 'breeze-disable-admin' );
+
+	if ( ! is_array( $role_cache_flags ) || ! isset( $role_cache_flags[ $user_role ] ) ) {
+		return false;
+	}
+
+	return true === filter_var( $role_cache_flags[ $user_role ], FILTER_VALIDATE_BOOLEAN );
+}
+
+/**
+ * User-type segment for minification cache paths, honouring the
+ * "Cache Logged-in Users" setting.
+ *
+ * Returns the role folder (e.g. "administrator/") only when caching is
+ * enabled for one of the current user's roles — the same condition the
+ * HTML cache in wp-content/cache/breeze applies via `disable_per_adminuser`.
+ * Returns '' (root folder, same as a guest) otherwise, so a role folder
+ * is never created for a user whose caching is switched off.
+ *
+ * @param bool $as_dir Append a trailing slash, mirrors breeze_current_user_type().
+ *
+ * @return string
+ */
+function breeze_effective_user_type( $as_dir = true ) {
+	$user_type = breeze_current_user_type( $as_dir );
+
+	// Guest or role not resolvable: root folder, nothing to gate.
+	if ( '' === $user_type ) {
+		return '';
+	}
+
+	if ( ! class_exists( 'Breeze_Options_Reader' ) ) {
+		return $user_type;
+	}
+
+	foreach ( (array) wp_get_current_user()->roles as $one_role ) {
+		if ( breeze_is_cache_enabled_for_role( $one_role ) ) {
+			return $user_type;
+		}
+	}
+
+	return '';
+}
 
 /**
  * Fetches all the current user roles in the wp install, including custom user roles.
@@ -348,6 +405,49 @@ function breeze_is_restricted_access( $bool_response = false ) {
 	if ( true === $bool_response ) {
 		return false; // Do not restrict.
 	}
+}
+
+/**
+ * Whether this request is a crawler for HTML Double-check.
+ *
+ * An empty user agent stays a normal visitor.
+ *
+ * @return bool
+ */
+function breeze_request_is_doublecheck_bot() {
+	$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? strtolower( (string) $_SERVER['HTTP_USER_AGENT'] ) : '';
+	if ( '' === $user_agent ) {
+		return false;
+	}
+
+	$bot_pattern = '/bot|crawl|spider|slurp|bingpreview|mediapartners-google|facebookexternalhit|facebot|twitterbot|linkedinbot|embedly|pinterest|slackbot|vkshare|w3c_validator/i';
+
+	return 1 === preg_match( $bot_pattern, $user_agent );
+}
+
+/**
+ * Whether this bot response must not use the shared page cache.
+ *
+ * The bot HTML omits the Double-check script. With no selectors there is
+ * nothing to omit, so the shared file stays valid.
+ *
+ * @param array $config Breeze configuration.
+ * @return bool
+ */
+function breeze_doublecheck_bypasses_page_cache( $config ) {
+	if ( ! is_array( $config ) ) {
+		return false;
+	}
+
+	$options  = ( isset( $config['cache_options'] ) && is_array( $config['cache_options'] ) ) ? $config['cache_options'] : array();
+	$enabled  = isset( $options['breeze-html-doublecheck'] ) && true === filter_var( $options['breeze-html-doublecheck'], FILTER_VALIDATE_BOOLEAN );
+	$elements = ( isset( $options['breeze-doublecheck-elements'] ) && is_array( $options['breeze-doublecheck-elements'] ) ) ? $options['breeze-doublecheck-elements'] : array();
+
+	if ( ! $enabled || empty( $elements ) ) {
+		return false;
+	}
+
+	return breeze_request_is_doublecheck_bot();
 }
 
 function breeze_which_role_folder( $hash = '' ) {

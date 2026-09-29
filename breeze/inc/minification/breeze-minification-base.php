@@ -518,10 +518,10 @@ abstract class Breeze_MinificationBase {
 	}
 
 	public function get_cache_file_url( $type = 'css' ) {
-		$cache_dir = BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . ( ! empty( $type ) ? $type . '/' : '' );
+		$cache_dir = BREEZE_MINIFICATION_CACHE . breeze_effective_user_type() . ( ! empty( $type ) ? $type . '/' : '' );
 		if ( is_multisite() ) {
 			$blog_id   = get_current_blog_id();
-			$cache_dir = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type() . ( ! empty( $type ) ? $type . '/' : '' );
+			$cache_dir = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_effective_user_type() . ( ! empty( $type ) ? $type . '/' : '' );
 		}
 
 		return $cache_dir;

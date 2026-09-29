@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.5.18
+ * Version: 2.6.0
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.5.18' );
+	define( 'BREEZE_VERSION', '2.6.0' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -143,6 +143,7 @@ new Breeze_Cache_CronJobs( $gravatars_enabled );
 
 // Keep an indexed list of password-protected URLs for fast cache checks.
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-protected-urls-index.php';
+// Instantiate the protected URLs index.
 new Breeze_Protected_Urls_Index();
 
 if ( is_admin() || 'cli' === php_sapi_name() ) {
@@ -163,6 +164,7 @@ if ( is_admin() || 'cli' === php_sapi_name() ) {
 	);
 
 } elseif ( ! empty( Breeze_Options_Reader::get_option_value( 'cdn-active' ) )
+        || ! empty( Breeze_Options_Reader::get_option_value( 'breeze-html-doublecheck' ) )
 		|| ! empty( Breeze_Options_Reader::get_option_value( 'breeze-minify-js' ) )
 		|| ! empty( Breeze_Options_Reader::get_option_value( 'breeze-minify-css' ) )
 		|| ! empty( Breeze_Options_Reader::get_option_value( 'breeze-minify-html' ) )
@@ -257,6 +259,15 @@ function breeze_ob_start_localfiles_callback( $buffer ) {
 
 // Call back ob start - stack
 function breeze_ob_start_callback( $buffer ) {
+
+	// Front-end only guard: never process admin, AJAX, or REST responses.
+	if (
+		is_admin() ||
+		wp_doing_ajax() ||
+		( defined( 'REST_REQUEST' ) && true === REST_REQUEST )
+	) {
+		return $buffer;
+	}
 
 	if ( ! empty( $_SERVER ) && ! empty( $_SERVER['REQUEST_URI'] ) && strpos( $_SERVER['REQUEST_URI'], 'context=edit' ) ) {
 		return $buffer;

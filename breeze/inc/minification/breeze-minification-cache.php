@@ -22,10 +22,10 @@ class Breeze_MinificationCache {
 
 	public function __construct( $md5, $ext = 'php' ) {
 		$separate_cache = breeze_mobile_detect();
-		$this->cachedir = BREEZE_MINIFICATION_CACHE . breeze_current_user_type();
+		$this->cachedir = BREEZE_MINIFICATION_CACHE . breeze_effective_user_type();
 		if ( is_multisite() ) {
 			$blog_id        = get_current_blog_id();
-			$this->cachedir = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type();
+			$this->cachedir = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_effective_user_type();
 		}
 
 		$this->delayed   = BREEZE_CACHE_DELAY;
@@ -217,7 +217,7 @@ class Breeze_MinificationCache {
 	}
 
 	public function getname() {
-		apply_filters( 'breeze_filter_cache_getname', breeze_CACHE_URL . breeze_current_user_type() . $this->filename );
+		apply_filters( 'breeze_filter_cache_getname', breeze_CACHE_URL . breeze_effective_user_type() . $this->filename );
 
 		return $this->filename;
 	}
@@ -267,6 +267,10 @@ class Breeze_MinificationCache {
 			return false;
 		}
 
+		// Role folder only when caching is enabled for this user's role;
+		// falls back to '' (root) so shared scaffolding is always maintained.
+		$user_type = breeze_effective_user_type();
+
 		breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE );
 
 		if ( is_multisite() ) {
@@ -276,26 +280,26 @@ class Breeze_MinificationCache {
 			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . $blog_id );
 
 			foreach ( array( '', 'js', 'css' ) as $checkDir ) {
-				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . breeze_current_user_type() . $checkDir ) ) {
+				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . $user_type . $checkDir ) ) {
 					return false;
 				}
 			}
 
-			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( breeze_current_user_type(), '/' ) );
+			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( $user_type, '/' ) );
 
 			/** write .htaccess here to overrule wp_super_cache */
-			$htAccess = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( breeze_current_user_type(), '/' ) . '/.htaccess';
+			$htAccess = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . rtrim( $user_type, '/' ) . '/.htaccess';
 		} else {
 			foreach ( array( '', 'js', 'css' ) as $checkDir ) {
-				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . breeze_current_user_type() . $checkDir ) ) {
+				if ( ! Breeze_MinificationCache::checkCacheDir( BREEZE_MINIFICATION_CACHE . $user_type . $checkDir ) ) {
 					return false;
 				}
 			}
 
-			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . rtrim( breeze_current_user_type(), '/' ) );
+			breeze_ensure_cache_index_html( BREEZE_MINIFICATION_CACHE . rtrim( $user_type, '/' ) );
 
 			/** write .htaccess here to overrule wp_super_cache */
-			$htAccess = BREEZE_MINIFICATION_CACHE . rtrim( breeze_current_user_type(), '/' ) . '/.htaccess';
+			$htAccess = BREEZE_MINIFICATION_CACHE . rtrim( $user_type, '/' ) . '/.htaccess';
 		}
 
 		if ( ! is_file( $htAccess ) ) {
@@ -419,6 +423,80 @@ class Breeze_MinificationCache {
 		delete_option( 'breeze_minified_hashes' );
 	}
 
+	/**
+	 * Delete a role's minification folder once caching is off for that role.
+	 *
+	 * The folder is named after the visitor's role, so it only ever appears
+	 * while "Cache Logged-in Users" is enabled for that role. Turning the
+	 * option off must take the folder with it rather than leaving an empty
+	 * tree behind. The root folder ('') is shared with guests and is never
+	 * removed here.
+	 *
+	 * A role key is not a trusted path. WordPress stores custom role keys as
+	 * given, so a key containing `../` would make this recursive delete leave
+	 * the minification cache. An unsafe key is treated as handled and skipped,
+	 * which also stops the caller from scanning that path.
+	 *
+	 * @param string $user_folder Role slug, or '' for the shared root folder.
+	 * @param string $user_path   Absolute path to that folder.
+	 *
+	 * @return bool True when the folder was handled and needs no further clearing.
+	 */
+	private static function remove_disabled_user_folder( $user_folder, $user_path ) {
+		if ( empty( $user_folder ) || breeze_is_cache_enabled_for_role( $user_folder ) ) {
+			return false;
+		}
+
+		if ( self::is_role_cache_folder_deletable( $user_folder, $user_path ) ) {
+			breeze_get_filesystem()->rmdir( untrailingslashit( $user_path ), true );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Whether a disabled role folder may be deleted.
+	 *
+	 * The role key must be one path segment of letters, numbers, underscores,
+	 * or hyphens. The resolved directory must then sit strictly inside the
+	 * minification cache, so `..`, a trailing `../`, and a symlink that points
+	 * outside the cache are all refused.
+	 *
+	 * @param string $user_folder Role slug.
+	 * @param string $user_path   Absolute path built from that slug.
+	 *
+	 * @return bool
+	 */
+	private static function is_role_cache_folder_deletable( $user_folder, $user_path ) {
+		if ( ! is_string( $user_folder ) || 1 !== preg_match( '/^[A-Za-z0-9_-]+$/', $user_folder ) ) {
+			return false;
+		}
+
+		if ( ! is_dir( $user_path ) || ! defined( 'BREEZE_MINIFICATION_CACHE' ) ) {
+			return false;
+		}
+
+		// realpath() drops the trailing separator, so the comparison below adds
+		// one back: without it a sibling folder whose name merely begins with
+		// the cache path would pass. Both sides are normalised first so the
+		// appended '/' matches on Windows too.
+		$cache_root = realpath( BREEZE_MINIFICATION_CACHE );
+		$target     = realpath( $user_path );
+
+		if ( false === $cache_root || false === $target ) {
+			return false;
+		}
+
+		$cache_root = trailingslashit( wp_normalize_path( $cache_root ) );
+		$target     = trailingslashit( wp_normalize_path( $target ) );
+
+		if ( $cache_root === $target ) {
+			return false;
+		}
+
+		return 0 === strpos( $target, $cache_root );
+	}
+
 	public static function clear_site_minification( $blog_id_custom = null ) {
 		if ( ! isset( $_GET['breeze_purge'] ) && ! Breeze_MinificationCache::create_cache_minification_folder() ) {
 			return false;
@@ -436,6 +514,13 @@ class Breeze_MinificationCache {
 			// Scan and clear each cache directory in a single pass — O(N).
 			foreach ( $cache_folders as $user_folder ) {
 				$user_path = BREEZE_MINIFICATION_CACHE . $blog_id . '/' . ( ! empty( $user_folder ) ? $user_folder . '/' : '' );
+
+				// A role folder must not outlive its "Cache Logged-in Users"
+				// option being switched off, so drop it whole instead of
+				// clearing it. Settings saves trigger a purge, which lands here.
+				if ( self::remove_disabled_user_folder( $user_folder, $user_path ) ) {
+					continue;
+				}
 
 				foreach ( array( '', 'js', 'css' ) as $scandirName ) {
 					$directory = $user_path . $scandirName;
@@ -489,6 +574,13 @@ class Breeze_MinificationCache {
 			// Scan and clear each cache directory in a single pass — O(N).
 			foreach ( $cache_folders as $user_folder ) {
 				$user_path = BREEZE_MINIFICATION_CACHE . ( ! empty( $user_folder ) ? $user_folder . '/' : '' );
+
+				// A role folder must not outlive its "Cache Logged-in Users"
+				// option being switched off, so drop it whole instead of
+				// clearing it. Settings saves trigger a purge, which lands here.
+				if ( self::remove_disabled_user_folder( $user_folder, $user_path ) ) {
+					continue;
+				}
 
 				foreach ( array( '', 'js', 'css' ) as $scandirName ) {
 					$directory = $user_path . $scandirName;

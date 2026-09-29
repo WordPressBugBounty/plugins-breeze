@@ -572,6 +572,23 @@ final class Execute_Cache {
 	private const LOGGED_IN_COOKIE_NAME_LENGTH = 52;
 
 	/**
+	 * Stop a shared cache from storing a Double-check bot response.
+	 *
+	 * That HTML omits the refresh script. A proxy that keys only on the URL
+	 * would otherwise keep the copy and serve it to visitors.
+	 *
+	 * @return void
+	 */
+	public static function send_doublecheck_bot_nocache_headers(): void {
+		if ( headers_sent() ) {
+			return;
+		}
+
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		header( 'Pragma: no-cache' );
+	}
+
+	/**
 	 * Main entry point, equivalent to the top-level logic in `execute-cache.php`.
 	 *
 	 * This is designed to be invoked once from `advanced-cache.php`, e.g.:
@@ -610,6 +627,9 @@ final class Execute_Cache {
 
 		// Lazy load class is used later in the buffer handler.
 		require_once dirname( __DIR__ ) . '/class-breeze-lazy-load.php';
+
+		// Double Check class.
+		require_once dirname( __DIR__ ) . '/helpers/class-breeze-doublecheck.php';
 
 		$detect = \breeze_mobile_detect_library();
 		if ( ! isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
@@ -654,9 +674,20 @@ final class Execute_Cache {
 			return;
 		}
 
-		// Serve from cache when possible.
-		self::try_serve_cache( $config, $context, $detect );
+		$enable_html_cache = $config['cache_options']['breeze-enable-html-cache'] ?? '1';
+		$enable_html_cache = filter_var( $enable_html_cache, FILTER_VALIDATE_BOOLEAN );
 
+		// A Double-check bot response omits the script, so it must not be read
+		// from the shared page cache or stored by a proxy in front of PHP.
+		$skip_page_cache_for_bot = $enable_html_cache && breeze_doublecheck_bypasses_page_cache( $config );
+		if ( $skip_page_cache_for_bot ) {
+			self::send_doublecheck_bot_nocache_headers();
+		}
+
+		// Serve from cache when possible.
+		if ( $enable_html_cache && ! $skip_page_cache_for_bot ) {
+			self::try_serve_cache( $config, $context, $detect );
+		}
 		// No cache hit: register output buffering callback to generate cache.
 		$handler = new Page_Cache_Handler( $config, $context );
 		\ob_start( array( $handler, 'handle_buffer' ) );
@@ -758,6 +789,10 @@ final class Execute_Cache {
 	private static function should_bypass_entire_request(): bool {
 		// Skip caching for search results.
 		if ( isset( $_GET['s'] ) && ! empty( $_GET['s'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return true;
+		}
+
+		if ( isset( $_GET['nocache'] ) ) {
 			return true;
 		}
 
@@ -1795,22 +1830,25 @@ final class Page_Cache_Handler {
 		// Allow plugins to modify the buffer before caching.
 		$buffer = (string) \apply_filters( 'breeze_cache_buffer_before_processing', $buffer );
 
-		$blog_id_requested = isset( $this->config['blog_id'] ) ? (int) $this->config['blog_id'] : 0;
-		$cache_base_path   = \breeze_get_cache_base_path( false, $blog_id_requested );
-		$path              = $cache_base_path . hash( 'sha256', $this->context->cache_key_url );
+		// The key was added after existing configs were written. A missing value stays on.
+		if ( true === filter_var( $this->config['cache_options']['breeze-enable-html-cache'] ?? '1', FILTER_VALIDATE_BOOLEAN ) ) {
+			$blog_id_requested = isset( $this->config['blog_id'] ) ? (int) $this->config['blog_id'] : 0;
+			$cache_base_path   = \breeze_get_cache_base_path( false, $blog_id_requested );
+			$path              = $cache_base_path . hash( 'sha256', $this->context->cache_key_url );
 
-		// Protect cache roots from directory listing.
-		\breeze_secure_cache_directory( rtrim( WP_CONTENT_DIR, '/\\' ) . '/cache/breeze' );
-		\breeze_secure_cache_directory( rtrim( $cache_base_path, '/\\' ) );
-		\breeze_ensure_cache_index_html( rtrim( $path, '/\\' ) );
+			// Protect cache roots from directory listing.
+			\breeze_secure_cache_directory( rtrim( WP_CONTENT_DIR, '/\\' ) . '/cache/breeze' );
+			\breeze_secure_cache_directory( rtrim( $cache_base_path, '/\\' ) );
+			\breeze_ensure_cache_index_html( rtrim( $path, '/\\' ) );
 
-		// Ensure cache directory exists and is writable.
-		if ( ! \wp_mkdir_p( $path ) ) {
-			Cache_Circuit_Breaker::record_failure( 'Failed to create cache directory: ' . $path );
+			// Ensure cache directory exists and is writable.
+			if ( ! \wp_mkdir_p( $path ) ) {
+				Cache_Circuit_Breaker::record_failure( 'Failed to create cache directory: ' . $path );
 
-			return $buffer;
+				return $buffer;
+			}
+			$path .= '/';
 		}
-		$path         .= '/';
 		$modified_time = time();
 
 		$is_cross_origin_activated = false;
@@ -1858,182 +1896,197 @@ final class Page_Cache_Handler {
 
 			$buffer = (string) \mb_decode_numericentity( $buffer, array( 0x80, 0x10FFFF, 0, ~0 ), 'UTF-8' );
 		}
+		// HTML double check START
+		// The key was added after existing configs were written. A missing value stays on.
+		if ( true === filter_var( $this->config['cache_options']['breeze-enable-html-cache'] ?? '1', FILTER_VALIDATE_BOOLEAN ) ) {
+			// Bot HTML omits the Double-check script, so it must not become the shared file
+			// or a Varnish/CDN entry.
+			if ( breeze_doublecheck_bypasses_page_cache( $this->config ) ) {
+				Execute_Cache::send_doublecheck_bot_nocache_headers();
+				return $buffer;
+			}
 
-		$cache_type = '';
-		if ( \preg_match( '#</html>#i', $buffer ) ) {
+			$cache_type = '';
+			if ( \preg_match( '#</html>#i', $buffer ) ) {
+				if ( true === \is_breeze_mobile_cache() ) {
+					if ( true === \breeze_is_cloudways_server() ) {
+						$cache_type_cloudways = \breeze_cache_type_return();
+						if ( 'D' === $cache_type_cloudways ) {
+							$cache_type = ' (Desktop)';
+						} elseif ( 'T' === $cache_type_cloudways ) {
+							$cache_type = ' (Tablet)';
+						} elseif ( 'M' === $cache_type_cloudways ) {
+							$cache_type = ' (Mobile)';
+						}
+					} else {
+						if ( $detect->isMobile() ) {
+							if ( ! $detect->isTablet() ) {
+								$cache_type = ' (Mobile)';
+							} else {
+								$cache_type = ' (Tablet)';
+							}
+						} else {
+							$cache_type = ' (Desktop)';
+						}
+					}
+				}
+
+				$buffer .= "\n<!-- Cache served by breeze CACHE{$cache_type} - Last modified: " . gmdate( 'D, d M Y H:i:s', $modified_time ) . " GMT -->\n";
+			}
+
+			$headers = array(
+				array(
+					'name'  => 'Content-Length',
+					'value' => strlen( $buffer ),
+				),
+				array(
+					'name'  => 'Content-Type',
+					'value' => 'text/html; charset=utf-8',
+				),
+				array(
+					'name'  => 'Last-Modified',
+					'value' => gmdate( 'D, d M Y H:i:s', $modified_time ) . ' GMT',
+				),
+			);
+
+			if ( isset( $this->config['breeze_custom_headers'] ) && is_array( $this->config['breeze_custom_headers'] ) ) {
+				foreach ( $this->config['breeze_custom_headers'] as $header_name => $header_value ) {
+					$headers[] = array(
+						'name'  => $header_name,
+						'value' => $header_value,
+					);
+				}
+			}
+
+			// NOTE: For now we keep serialize() to preserve exact behaviour.
+			$data = serialize(
+				array(
+					'body'    => $buffer,
+					'headers' => $headers,
+				)
+			);
+
+			// Allow plugins to modify the buffer even after caching logic.
+			$buffer = (string) \apply_filters( 'breeze_cache_buffer_after_processing', $buffer );
+
+			// User-specific cache key handling.
+			$cache_key_url = $this->context->cache_key_url;
+
+			if ( \is_user_logged_in() ) {
+				$logged_in_cache_suffix = Execute_Cache::get_logged_in_cache_suffix_from_cookies();
+				if ( '' !== $logged_in_cache_suffix ) {
+					if ( substr_count( $cache_key_url, '?' ) > 0 ) {
+						$cache_key_url .= '&' . $logged_in_cache_suffix;
+					} else {
+						$cache_key_url .= '?' . $logged_in_cache_suffix;
+					}
+				}
+			} else {
+				$cache_key_url .= $this->context->filename_guest_suffix;
+			}
+
+			$devices = $this->config['cache_options'] ?? array();
+			if ( $detect->isMobile() && ! $detect->isTablet() ) {
+				if ( isset( $devices['breeze-mobile-cache'] ) && 1 === (int) $devices['breeze-mobile-cache'] ) {
+					$cache_key_url .= '_breeze_cache_desktop';
+				}
+				if ( isset( $devices['breeze-mobile-cache'] ) && 2 === (int) $devices['breeze-mobile-cache'] ) {
+					$cache_key_url .= '_breeze_cache_mobile';
+				}
+			} else {
+				if ( isset( $devices['breeze-desktop-cache'] ) && 1 === (int) $devices['breeze-desktop-cache'] ) {
+					$cache_key_url .= '_breeze_cache_desktop';
+				}
+			}
+			$X1 = 'D';
 			if ( true === \is_breeze_mobile_cache() ) {
 				if ( true === \breeze_is_cloudways_server() ) {
-					$cache_type_cloudways = \breeze_cache_type_return();
-					if ( 'D' === $cache_type_cloudways ) {
-						$cache_type = ' (Desktop)';
-					} elseif ( 'T' === $cache_type_cloudways ) {
-						$cache_type = ' (Tablet)';
-					} elseif ( 'M' === $cache_type_cloudways ) {
-						$cache_type = ' (Mobile)';
-					}
+					$X1 = \breeze_cache_type_return();
 				} else {
 					if ( $detect->isMobile() ) {
 						if ( ! $detect->isTablet() ) {
-							$cache_type = ' (Mobile)';
+							$X1 = 'M';
 						} else {
-							$cache_type = ' (Tablet)';
+							$X1 = 'T';
 						}
 					} else {
-						$cache_type = ' (Desktop)';
+						$X1 = 'D';
 					}
 				}
 			}
 
-			$buffer .= "\n<!-- Cache served by breeze CACHE{$cache_type} - Last modified: " . gmdate( 'D, d M Y H:i:s', $modified_time ) . " GMT -->\n";
-		}
+			$is_suffix = $this->context->variation->get_asset_suffix();
 
-		$headers = array(
-			array(
-				'name'  => 'Content-Length',
-				'value' => strlen( $buffer ),
-			),
-			array(
-				'name'  => 'Content-Type',
-				'value' => 'text/html; charset=utf-8',
-			),
-			array(
-				'name'  => 'Last-Modified',
-				'value' => gmdate( 'D, d M Y H:i:s', $modified_time ) . ' GMT',
-			),
-		);
-
-		if ( isset( $this->config['breeze_custom_headers'] ) && is_array( $this->config['breeze_custom_headers'] ) ) {
-			foreach ( $this->config['breeze_custom_headers'] as $header_name => $header_value ) {
-				$headers[] = array(
-					'name'  => $header_name,
-					'value' => $header_value,
-				);
-			}
-		}
-
-		// NOTE: For now we keep serialize() to preserve exact behaviour.
-		$data = serialize(
-			array(
-				'body'    => $buffer,
-				'headers' => $headers,
-			)
-		);
-
-		// Allow plugins to modify the buffer even after caching logic.
-		$buffer = (string) \apply_filters( 'breeze_cache_buffer_after_processing', $buffer );
-
-		// User-specific cache key handling.
-		$cache_key_url = $this->context->cache_key_url;
-
-		if ( \is_user_logged_in() ) {
-			$logged_in_cache_suffix = Execute_Cache::get_logged_in_cache_suffix_from_cookies();
-			if ( '' !== $logged_in_cache_suffix ) {
-				if ( substr_count( $cache_key_url, '?' ) > 0 ) {
-					$cache_key_url .= '&' . $logged_in_cache_suffix;
-				} else {
-					$cache_key_url .= '?' . $logged_in_cache_suffix;
-				}
-			}
-		} else {
-			$cache_key_url .= $this->context->filename_guest_suffix;
-		}
-
-		$devices = $this->config['cache_options'] ?? array();
-		if ( $detect->isMobile() && ! $detect->isTablet() ) {
-			if ( isset( $devices['breeze-mobile-cache'] ) && 1 === (int) $devices['breeze-mobile-cache'] ) {
-				$cache_key_url .= '_breeze_cache_desktop';
-			}
-			if ( isset( $devices['breeze-mobile-cache'] ) && 2 === (int) $devices['breeze-mobile-cache'] ) {
-				$cache_key_url .= '_breeze_cache_mobile';
-			}
-		} else {
-			if ( isset( $devices['breeze-desktop-cache'] ) && 1 === (int) $devices['breeze-desktop-cache'] ) {
-				$cache_key_url .= '_breeze_cache_desktop';
-			}
-		}
-		$X1 = 'D';
-		if ( true === \is_breeze_mobile_cache() ) {
-			if ( true === \breeze_is_cloudways_server() ) {
-				$X1 = \breeze_cache_type_return();
-			} else {
-				if ( $detect->isMobile() ) {
-					if ( ! $detect->isTablet() ) {
-						$X1 = 'M';
-					} else {
-						$X1 = 'T';
-					}
-				} else {
-					$X1 = 'D';
-				}
-			}
-		}
-
-		$is_suffix = $this->context->variation->get_asset_suffix();
-
-		if ( false !== strpos( $cache_key_url, '_breeze_cache_' ) ) {
-			$trimmed_buffer = trim( $buffer );
-			$is_json_buffer = (
+			if ( false !== strpos( $cache_key_url, '_breeze_cache_' ) ) {
+				$trimmed_buffer = trim( $buffer );
+				$is_json_buffer = (
 				'' !== $trimmed_buffer &&
 				( '{' === $trimmed_buffer[0] || '[' === $trimmed_buffer[0] ) &&
 				null !== json_decode( $buffer )
-			);
-			if ( $is_json_buffer ) {
+				);
+				if ( $is_json_buffer ) {
+					return $buffer;
+				}
+
+				$should_gzip = \function_exists( 'gzencode' ) && Execute_Cache::should_gzip_output( $this->config );
+
+				if ( empty( $path ) ) {
+					return $buffer;
+				}
+
+				if ( $should_gzip ) {
+					$cache_file_path = $path . \breeze_mobile_detect() . hash( 'sha256', $cache_key_url . '/index.gzip.html' ) . $is_suffix . '.html';
+				} else {
+					$cache_file_path = $path . \breeze_mobile_detect() . hash( 'sha256', $cache_key_url . '/index.html' ) . $is_suffix . '.html';
+				}
+
+				if ( ! file_exists( $cache_file_path ) ) {
+					$cache_written = \breeze_safe_cache_write( $cache_file_path, $data, $modified_time, false );
+				} else {
+					$cache_written = true;
+				}
+
+				if ( ! $cache_written ) {
+					// Log the failure but continue serving the page
+					$error_msg = 'Cache write failed for URL: ' . $this->context->current_url . ' (Path: ' . $cache_file_path . ')';
+					error_log( '[Breeze] ' . $error_msg );
+					Cache_Circuit_Breaker::record_failure( $error_msg );
+					// Add header to indicate cache write failed
+					header( 'X-Breeze-Cache-Write: FAILED' );
+				} else {
+					// Indicate successful cache write
+					Cache_Circuit_Breaker::record_success();
+					header( 'X-Breeze-Cache-Write: SUCCESS' );
+				}
+			} else {
 				return $buffer;
 			}
 
-			$should_gzip = \function_exists( 'gzencode' ) && Execute_Cache::should_gzip_output( $this->config );
-
-			if ( $should_gzip ) {
-				$cache_file_path = $path . \breeze_mobile_detect() . hash( 'sha256', $cache_key_url . '/index.gzip.html' ) . $is_suffix . '.html';
-			} else {
-				$cache_file_path = $path . \breeze_mobile_detect() . hash( 'sha256', $cache_key_url . '/index.html' ) . $is_suffix . '.html';
-			}
-
-			if ( ! file_exists( $cache_file_path ) ) {
-				$cache_written = \breeze_safe_cache_write( $cache_file_path, $data, $modified_time, false );
-			} else {
-				$cache_written = true;
-			}
-
-			if ( ! $cache_written ) {
-				// Log the failure but continue serving the page
-				$error_msg = 'Cache write failed for URL: ' . $this->context->current_url . ' (Path: ' . $cache_file_path . ')';
-				error_log( '[Breeze] ' . $error_msg );
-				Cache_Circuit_Breaker::record_failure( $error_msg );
-				// Add header to indicate cache write failed
-				header( 'X-Breeze-Cache-Write: FAILED' );
-			} else {
-				// Indicate successful cache write
-				Cache_Circuit_Breaker::record_success();
-				header( 'X-Breeze-Cache-Write: SUCCESS' );
-			}
-		} else {
-			return $buffer;
-		}
-
-		// Set cache provider header if cache file did not previously exist.
-		header( 'Cache-Provider:CLOUDWAYS-CACHE-' . $X1 . 'C' );
-		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $modified_time ) . ' GMT' );
-		if (
+			// Set cache provider header if cache file did not previously exist.
+			header( 'Cache-Provider:CLOUDWAYS-CACHE-' . $X1 . 'C' );
+			header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $modified_time ) . ' GMT' );
+			if (
 			! empty( $this->config['cache_options']['breeze-gzip-compression'] ) &&
 			Execute_Cache::should_bypass_php_gzip()
-		) {
-			header( 'Vary: Accept-Encoding' );
-		}
+			) {
+				header( 'Vary: Accept-Encoding' );
+			}
 
-		if ( \function_exists( 'ob_gzhandler' ) && Execute_Cache::should_gzip_output( $this->config ) ) {
-			if ( defined( 'RedisCachePro\Version' ) ) {
+			if ( \function_exists( 'ob_gzhandler' ) && Execute_Cache::should_gzip_output( $this->config ) ) {
+				if ( defined( 'RedisCachePro\Version' ) ) {
+					return $buffer;
+				}
+
+				$gz_output = \ob_gzhandler( $buffer, $flags );
+				if ( is_string( $gz_output ) && '' !== $gz_output ) {
+					return $gz_output;
+				}
+
 				return $buffer;
 			}
-
-			$gz_output = \ob_gzhandler( $buffer, $flags );
-			if ( is_string( $gz_output ) && '' !== $gz_output ) {
-				return $gz_output;
-			}
-
-			return $buffer;
 		}
 
+		// HTML double check end
 		return $buffer;
 	}
 

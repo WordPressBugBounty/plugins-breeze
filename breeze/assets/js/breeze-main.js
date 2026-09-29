@@ -13,7 +13,7 @@ jQuery( document ).ready(
 			if ( ! $warmup_urls.length ) {
 				return;
 			}
-
+ 
 			var max = parseInt( $warmup_urls.attr( 'data-breeze-max-urls' ), 10 );
 			if ( isNaN( max ) || max < 1 ) {
 				return;
@@ -502,6 +502,137 @@ jQuery( document ).ready(
 		 font_display.attr( 'checked', false );
 		 }
 		 */
+
+        function sync_doublecheck_overlay_color_inputs() {
+            var overlay_picker = $('#html-doublecheck-loader-overlay-picker');
+            var overlay_input = $('#html-doublecheck-loader-overlay');
+            var hex_pattern = /^#[A-Fa-f0-9]{6}$/;
+
+            if (0 === overlay_picker.length || 0 === overlay_input.length) {
+                return;
+            }
+
+            if (hex_pattern.test(overlay_input.val())) {
+                overlay_picker.val(overlay_input.val());
+            } else if (hex_pattern.test(overlay_picker.val())) {
+                overlay_input.val(overlay_picker.val().toUpperCase());
+            }
+        }
+
+        $box_container.on(
+            'input change',
+            '#html-doublecheck-loader-overlay-picker',
+            function () {
+                var overlay_input = $('#html-doublecheck-loader-overlay');
+                var overlay_value = $(this).val();
+                if (/^#[A-Fa-f0-9]{6}$/.test(overlay_value)) {
+                    overlay_input.val(overlay_value.toUpperCase());
+                }
+            }
+        );
+        $box_container.on(
+            'input blur',
+            '#html-doublecheck-loader-overlay',
+            function (event) {
+                var overlay_picker = $('#html-doublecheck-loader-overlay-picker');
+                var overlay_value = $.trim($(this).val());
+                var hex_pattern = /^#[A-Fa-f0-9]{6}$/;
+
+                if ('' === overlay_value) {
+                    if ('blur' === event.type && hex_pattern.test(overlay_picker.val())) {
+                        $(this).val(overlay_picker.val().toUpperCase());
+                    }
+                    this.setCustomValidity('');
+                    return;
+                }
+
+                if (hex_pattern.test(overlay_value)) {
+                    overlay_value = overlay_value.toUpperCase();
+                    $(this).val(overlay_value);
+                    overlay_picker.val(overlay_value);
+                    this.setCustomValidity('');
+                    return;
+                }
+
+                this.setCustomValidity('Use a valid hex color like #000000.');
+                if ('blur' === event.type && hex_pattern.test(overlay_picker.val())) {
+                    $(this).val(overlay_picker.val().toUpperCase());
+                }
+            }
+        );
+
+        sync_doublecheck_overlay_color_inputs();
+
+        $box_container.on(
+            'change',
+            '#enable-html-cache',
+            function () {
+
+                var html_doublecheck = $('#html-doublecheck');
+                var html_doublecheck_elems = $('#doublecheck-elements');
+                var html_doublecheck_options = $('.doublecheck-options');
+                var html_doublecheck_loader_bg = $('#html-doublecheck-loader-overlay');
+                var html_doublecheck_loader_exclude = $('#doublecheck-exclude-url');
+
+                if (true === $(this).is(':checked')) {
+                    html_doublecheck.closest('div.br-option-item').removeClass('br-apply-disable'); // breeze 194
+                } else {
+                    html_doublecheck.closest('div.br-option-item').addClass('br-apply-disable');
+                    html_doublecheck.prop('checked', false);
+                    html_doublecheck.attr('value', 0);
+                    html_doublecheck_elems.closest('div.br-option-item').hide();
+                    html_doublecheck_elems.attr('value', '');
+                    html_doublecheck_options.find('div.br-option-item').hide();
+                    html_doublecheck_options.find('input').attr('value', '').prop('checked', false);
+
+                    html_doublecheck_loader_bg.closest('div.br-option-item').hide();
+                    html_doublecheck_loader_exclude.closest('div.br-option-item').hide();
+                }
+            }
+        );
+        $box_container.on(
+            'change',
+            '#html-doublecheck',
+            function () {
+                var html_doublecheck_elems = $('#doublecheck-elements');
+                var html_doublecheck_options = $('.doublecheck-options');
+                var html_doublecheck_loader_bg = $('#html-doublecheck-loader-overlay');
+                var html_doublecheck_loader_exclude = $('#doublecheck-exclude-url');
+
+                if (true === $(this).is(':checked')) {
+                    html_doublecheck_elems.closest('div.br-option-item').show();
+                    html_doublecheck_options.find('div.br-option-item').not('.loading-type-option').show();
+                    html_doublecheck_loader_exclude.closest('div.br-option-item').show();
+                    if (true === $('#html-doublecheck-loader').is(':checked')) {
+                        html_doublecheck_loader_bg.closest('div.br-option-item').show();
+                    }
+                    sync_doublecheck_overlay_color_inputs();
+                } else {
+                    html_doublecheck_elems.closest('div.br-option-item').hide();
+                    html_doublecheck_elems.attr('value', '');
+                    html_doublecheck_options.find('div.br-option-item').hide();
+                    html_doublecheck_options.find('input').attr('value', '').prop('checked', false);
+
+                    html_doublecheck_loader_bg.closest('div.br-option-item').hide();
+                    html_doublecheck_loader_exclude.closest('div.br-option-item').hide();
+                }
+            }
+        );
+        $box_container.on(
+            'change',
+            '#html-doublecheck-loader',
+            function () {
+                var html_doublecheck_loader_bg = $('#html-doublecheck-loader-overlay');
+                if (true === $(this).is(':checked')) {
+                    html_doublecheck_loader_bg.closest('div.br-option-item').show();
+                    sync_doublecheck_overlay_color_inputs();
+                } else {
+                    // Only hide the colour. A hidden input still submits, so the saved
+                    // colour survives a toggle instead of being reset to #000000.
+                    html_doublecheck_loader_bg.closest('div.br-option-item').hide();
+                }
+            }
+        );
 
 		$box_container.on(
 			'change',
@@ -1145,7 +1276,7 @@ jQuery( document ).ready(
 			var found_alert = $( '.message-clear-cache-top' );
 			if ( found_alert.length ) {
 				found_alert.prependTo( '#wpbody-content' );
-				found_alert.show();
+				found_alert.show(); 
 			}
 		},
 		1000

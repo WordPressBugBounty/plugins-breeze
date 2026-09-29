@@ -84,23 +84,20 @@ class Breeze_ConfigCache {
 				// }
 				restore_current_blog();
 			}
-		} elseif ( ! empty( Breeze_Options_Reader::get_option_value( 'breeze-active' ) ) ) {
-
+		} else {
+			/**
+			 * The site is mapped to its configuration file regardless of the `breeze-active` value so that
+			 * the file is rewritten in place instead of being removed and recreated when caching is toggled.
+			 * Caching itself stays disabled through the `breeze-active` guard written into advanced-cache.php below.
+			 */
 			$cache_configs['breeze-config'][] = preg_replace( '(^https?://)', '', site_url() );
 		}
 
-		if ( empty( $cache_configs ) || ( 1 === count( $cache_configs ) && empty( $cache_configs['breeze-config'] ) ) ) {
-			// No sites with caching enabled.
-			$this->clean_config();
-
-			return;
-		} else {
-			$file_string = '<?php ' .
-							"\n\r" . 'defined( \'ABSPATH\' ) || exit;' .
-							"\n\r" . 'define( \'BREEZE_ADVANCED_CACHE\', true );' .
-							"\n\r" . 'if ( is_admin() ) { return; }' .
-							"\n\r" . 'if ( ! @file_exists( \'' . BREEZE_PLUGIN_DIR . 'breeze.php\' ) ) { return; }';
-		}
+		$file_string = '<?php ' .
+						"\n\r" . 'defined( \'ABSPATH\' ) || exit;' .
+						"\n\r" . 'define( \'BREEZE_ADVANCED_CACHE\', true );' .
+						"\n\r" . 'if ( is_admin() ) { return; }' .
+						"\n\r" . 'if ( ! @file_exists( \'' . BREEZE_PLUGIN_DIR . 'breeze.php\' ) ) { return; }';
 
 		if ( ! is_multisite() && 1 === count( $cache_configs ) ) {
 			// Only 1 config file available.
@@ -425,14 +422,17 @@ FILE_STRING;
 		/**
 		 * Foo Events.
 		 */
-		if ( class_exists( 'FooEventsPOS' ) ) {
-			$pos_page_slug = FooEvents_POS_Integration::fooeventspos_get_app_slug();
-
+		if (class_exists('FooEventsPOS')) {
+			$pos_page_slug = '';
+			if (method_exists('FooEventsPOS_Appearance_Settings', 'fooeventspos_get_app_slug')) {
+				$pos_page_slug = FooEventsPOS_Appearance_Settings::fooeventspos_get_app_slug();
+			}
 			$exclude_foo_events_give_pages = Breeze_Ecommerce_Cache::factory()->exclude_fooevents_pos_pages();
-
-			if ( ! empty( $exclude_foo_events_give_pages ) ) {
-				$ecommerce_exclude_urls   = array_merge( $exclude_foo_events_give_pages, $ecommerce_exclude_urls );
-				$ecommerce_exclude_urls[] = '/' . $pos_page_slug . '/*';
+			if (! empty($exclude_foo_events_give_pages)) {
+				$ecommerce_exclude_urls = array_merge($exclude_foo_events_give_pages, $ecommerce_exclude_urls);
+				if (is_string($pos_page_slug) && '' !== $pos_page_slug) {
+					$ecommerce_exclude_urls[] = '/' . $pos_page_slug . '/*';
+				}
 			}
 		}
 

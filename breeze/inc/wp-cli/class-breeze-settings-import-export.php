@@ -270,6 +270,8 @@ class Breeze_Settings_Import_Export {
 			// If this export is made from network admin
 			if ( 'network' === $level ) {
 				foreach ( $options as $meta_key => $meta_value ) {
+					$meta_value = self::validate_option_group( $meta_value, $meta_key );
+
 					if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 						if ( 'breeze_cdn_integration' === $meta_key ) {
 							$meta_value = $this->breeze_sanitize_imported_settings( $meta_value );
@@ -293,6 +295,7 @@ class Breeze_Settings_Import_Export {
 
 				$blog_id = absint( $level );
 				foreach ( $options as $meta_key => $meta_value ) {
+					$meta_value = self::validate_option_group( $meta_value, $meta_key );
 
 					if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 						if ( 'breeze_cdn_integration' === $meta_key ) {
@@ -317,6 +320,8 @@ class Breeze_Settings_Import_Export {
 		} else {
 
 			foreach ( $options as $meta_key => $meta_value ) {
+				$meta_value = self::validate_option_group( $meta_value, $meta_key );
+
 				if ( false !== strpos( $meta_key, 'breeze_' ) ) {
 					if ( 'breeze_cdn_integration' === $meta_key ) {
 						$meta_value = $this->breeze_sanitize_imported_settings( $meta_value );
@@ -509,7 +514,18 @@ class Breeze_Settings_Import_Export {
 
 		foreach ( $options_imported as $option_name => $option_values ) {
 			if ( ! is_null( $option_values ) ) {
-				if ( is_array( $option_values ) ) {
+				$is_array_valued_option = in_array(
+					$option_name,
+					array(
+						'breeze-doublecheck-elements',
+						'breeze-doublecheck-exclude-url',
+					),
+					true
+				);
+
+				// Keep selector/URL lists intact; flattening would validate each
+				// line as a separate option name (0, 1, …) and skip sanitizing.
+				if ( is_array( $option_values ) && ! $is_array_valued_option ) {
 					foreach ( $option_values as $val_key => $val_value ) {
 						$options[ $val_key ] = self::validate_json_entry( $val_value, $val_key );
 					}
@@ -535,6 +551,12 @@ class Breeze_Settings_Import_Export {
 				'breeze-ttl'              => ( isset( $options['breeze-ttl'] ) ? $options['breeze-ttl'] : 1440 ),
 			);
 
+			$dc_elems_data  = breeze_sanitize_doublecheck_selectors(
+				isset( $options['breeze-doublecheck-elements'] ) ? $options['breeze-doublecheck-elements'] : array()
+			);
+			$dc_elems       = $dc_elems_data['selectors'];
+			$dc_exclude_url = ( isset( $options['breeze-doublecheck-exclude-url'] ) ? $options['breeze-doublecheck-exclude-url'] : array() );
+
 			$is_minification_js        = ( isset( $options['breeze-minify-js'] ) ? $options['breeze-minify-js'] : '0' );
 			$is_inline_minification_js = ( isset( $options['breeze-include-inline-js'] ) ? $options['breeze-include-inline-js'] : '0' );
 			$is_group_js               = ( isset( $options['breeze-group-js'] ) ? $options['breeze-group-js'] : '0' );
@@ -544,6 +566,13 @@ class Breeze_Settings_Import_Export {
 			}
 
 			$file = array(
+				'breeze-enable-html-cache'               => ( isset( $options['breeze-enable-html-cache'] ) ? $options['breeze-enable-html-cache'] : '1' ),
+				'breeze-html-doublecheck'                => ( isset( $options['breeze-html-doublecheck'] ) ? $options['breeze-html-doublecheck'] : '0' ),
+				'breeze-doublecheck-elements'            => $dc_elems,
+				'breeze-doublecheck-load'                => ( isset( $options['breeze-doublecheck-load'] ) ? $options['breeze-doublecheck-load'] : 'async' ),
+				'breeze-html-doublecheck-loader'         => ( isset( $options['breeze-html-doublecheck-loader'] ) ? $options['breeze-html-doublecheck-loader'] : '0' ),
+				'breeze-html-doublecheck-loader-overlay' => ( isset( $options['breeze-html-doublecheck-loader-overlay'] ) ? $options['breeze-html-doublecheck-loader-overlay'] : '' ),
+				'breeze-doublecheck-exclude'             => $dc_exclude_url,
 				'breeze-minify-html'        => ( isset( $options['breeze-minify-html'] ) ? $options['breeze-minify-html'] : '0' ),
 				// --
 				'breeze-minify-css'         => ( isset( $options['breeze-minify-css'] ) ? $options['breeze-minify-css'] : '0' ),
@@ -740,6 +769,21 @@ class Breeze_Settings_Import_Export {
 			}
 		}
 
+		if ( 'breeze-doublecheck-load' === $option ) {
+			$doublecheck_load_options = array(
+				'preload',
+				'onload',
+				'async',
+			);
+			$value                    = (string) $value;
+
+			if ( in_array( $value, $doublecheck_load_options, true ) ) {
+				return $value;
+			}
+
+			return 'async';
+		}
+
 		/**
 		 * Treat options that are not checkbox or array.
 		 */
@@ -776,6 +820,18 @@ class Breeze_Settings_Import_Export {
 			return $value;
 		}
 
+		if ( 'breeze-html-doublecheck-loader-overlay' === $option ) {
+			return self::sanitize_doublecheck_overlay_color( $value );
+		}
+
+		if ( 'breeze-doublecheck-elements' === $option ) {
+			return self::sanitize_doublecheck_elements( $value );
+		}
+
+		if ( 'breeze-doublecheck-exclude-url' === $option ) {
+			return self::sanitize_doublecheck_exclude_urls( $value );
+		}
+
 		if ( 'breeze_first_install' === $option ) {
 			if ( 'no' !== $value && 'yes' !== $value ) {
 				return 'no';
@@ -808,6 +864,9 @@ class Breeze_Settings_Import_Export {
 			'breeze-active'                        => '1',
 			'breeze-mobile-separate'               => '1',
 			'breeze-cross-origin'                  => '0',
+			'breeze-enable-html-cache'             => '1',
+			'breeze-html-doublecheck'              => '0',
+			'breeze-html-doublecheck-loader'       => '0',
 			'breeze-gzip-compression'              => '1',
 			'breeze-browser-cache'                 => '1',
 			'breeze-lazy-load'                     => '0',
@@ -921,6 +980,180 @@ class Breeze_Settings_Import_Export {
 		return '0';
 	}
 
+	/**
+	 * Sanitize imported HTML double-check loader overlay color.
+	 *
+	 * @param mixed $overlay_color Imported color value.
+	 * @return string
+	 */
+	private static function sanitize_doublecheck_overlay_color( $overlay_color ) {
+		$overlay_color = trim( (string) $overlay_color );
+
+		if ( '' === $overlay_color ) {
+			return '';
+		}
+
+		if ( 1 === preg_match( '/^#[A-Fa-f0-9]{6}$/', $overlay_color ) ) {
+			return $overlay_color;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Sanitize imported HTML Double-check selectors.
+	 *
+	 * Uses the same limits and allowlist as File Options save:
+	 * 200 lines, 150 characters per line, simple selector pattern, no root tags.
+	 *
+	 * @param mixed $elements Imported selector list.
+	 * @return array
+	 */
+	private static function sanitize_doublecheck_elements( $elements ) {
+		$sanitized_data = breeze_sanitize_doublecheck_selectors( $elements );
+
+		return $sanitized_data['selectors'];
+	}
+
+	/**
+	 * Sanitize imported HTML double-check exclude URLs.
+	 *
+	 * @param mixed $exclude_urls Imported exclude URL list.
+	 * @return array
+	 */
+	private static function sanitize_doublecheck_exclude_urls( $exclude_urls ) {
+		$sanitized_data = self::sanitize_doublecheck_exclude_urls_with_meta( $exclude_urls );
+
+		return $sanitized_data['urls'];
+	}
+
+	/**
+	 * Sanitize imported HTML double-check exclude URLs with metadata.
+	 *
+	 * @param mixed $exclude_urls Imported exclude URL list.
+	 * @return array{
+	 *     urls: array,
+	 *     removed_invalid: int,
+	 *     removed_duplicates: int
+	 * }
+	 */
+	private static function sanitize_doublecheck_exclude_urls_with_meta( $exclude_urls ) {
+		if ( ! is_array( $exclude_urls ) ) {
+			return array(
+				'urls'               => array(),
+				'removed_invalid'    => 0,
+				'removed_duplicates' => 0,
+			);
+		}
+
+		$sanitized_urls      = array();
+		$seen_urls           = array();
+		$removed_invalid     = 0;
+		$removed_duplicates  = 0;
+
+		foreach ( $exclude_urls as $exclude_url ) {
+			$normalized_url = self::sanitize_single_doublecheck_exclude_url( $exclude_url );
+			if ( '' === $normalized_url ) {
+				++$removed_invalid;
+				continue;
+			}
+
+			if ( isset( $seen_urls[ $normalized_url ] ) ) {
+				++$removed_duplicates;
+				continue;
+			}
+
+			$seen_urls[ $normalized_url ] = true;
+			$sanitized_urls[]             = $normalized_url;
+		}
+
+		return array(
+			'urls'               => $sanitized_urls,
+			'removed_invalid'    => $removed_invalid,
+			'removed_duplicates' => $removed_duplicates,
+		);
+	}
+
+	/**
+	 * Sanitize one imported HTML double-check exclude URL.
+	 *
+	 * @param mixed $exclude_url Imported exclude URL.
+	 * @return string
+	 */
+	private static function sanitize_single_doublecheck_exclude_url( $exclude_url ) {
+		$exclude_url = trim( (string) $exclude_url );
+		if ( '' === $exclude_url ) {
+			return '';
+		}
+
+		if ( '/' === $exclude_url[0] ) {
+			$sanitized_path = sanitize_text_field( $exclude_url );
+			if ( 1 === preg_match( '#^/[A-Za-z0-9/_\-\.\~\%\?\=&]*$#', $sanitized_path ) ) {
+				return $sanitized_path;
+			}
+
+			return '';
+		}
+
+		$sanitized_url = esc_url_raw( $exclude_url, array( 'http', 'https' ) );
+		if ( '' === $sanitized_url ) {
+			return '';
+		}
+
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+		$url_host  = wp_parse_url( $sanitized_url, PHP_URL_HOST );
+		if ( ! is_string( $site_host ) || ! is_string( $url_host ) ) {
+			return '';
+		}
+
+		if ( strtolower( $url_host ) !== strtolower( $site_host ) ) {
+			return '';
+		}
+
+		return $sanitized_url;
+	}
+
+	/**
+	 * Build notice after sanitizing imported HTML double-check exclude URLs.
+	 *
+	 * @param int $removed_invalid Number of removed invalid or non-local entries.
+	 * @param int $removed_duplicates Number of removed duplicates.
+	 * @return string
+	 */
+	private static function get_doublecheck_exclude_urls_notice_message( $removed_invalid, $removed_duplicates ) {
+		$messages = array();
+		$removed_invalid = (int) $removed_invalid;
+		$removed_duplicates = (int) $removed_duplicates;
+
+		if ( $removed_invalid > 0 ) {
+			$messages[] = sprintf(
+				/* translators: %d: number of removed invalid entries */
+				_n(
+					'%d exclude URL entry was removed because only local URLs are allowed.',
+					'%d exclude URL entries were removed because only local URLs are allowed.',
+					$removed_invalid,
+					'breeze'
+				),
+				$removed_invalid
+			);
+		}
+
+		if ( $removed_duplicates > 0 ) {
+			$messages[] = sprintf(
+				/* translators: %d: number of removed duplicates */
+				_n(
+					'%d duplicate exclude URL entry was removed.',
+					'%d duplicate exclude URL entries were removed.',
+					$removed_duplicates,
+					'breeze'
+				),
+				$removed_duplicates
+			);
+		}
+
+		return implode( ' ', $messages );
+	}
+
 	/** Strong = >=32 chars, alphanumeric, >=8 distinct chars. @since 2.5.4 */
 	private static function is_strong_api_token( $token ) {
 		$token = (string) $token;
@@ -955,8 +1188,29 @@ class Breeze_Settings_Import_Export {
 		$changed_options = $option_group;
 
 		if ( ! empty( $option_group ) && is_array( $option_group ) ) {
+			if ( 'breeze_file_settings' === $group_name && array_key_exists( 'breeze-doublecheck-elements', $option_group ) ) {
+				$elements_data = breeze_sanitize_doublecheck_selectors( $option_group['breeze-doublecheck-elements'] );
+				$changed_options['breeze-doublecheck-elements'] = $elements_data['selectors'];
+			}
+
+			if ( 'breeze_file_settings' === $group_name && isset( $option_group['breeze-doublecheck-exclude-url'] ) ) {
+				$exclude_data = self::sanitize_doublecheck_exclude_urls_with_meta( $option_group['breeze-doublecheck-exclude-url'] );
+				$changed_options['breeze-doublecheck-exclude-url'] = $exclude_data['urls'];
+				$changed_options['breeze-doublecheck-exclude-url-error'] = self::get_doublecheck_exclude_urls_notice_message(
+					$exclude_data['removed_invalid'],
+					$exclude_data['removed_duplicates']
+				);
+			}
 
 			foreach ( $option_group as $option_name => $option_value ) {
+				if ( 'breeze_file_settings' === $group_name && 'breeze-doublecheck-exclude-url' === $option_name ) {
+					continue;
+				}
+
+				if ( 'breeze_file_settings' === $group_name && 'breeze-doublecheck-elements' === $option_name ) {
+					continue;
+				}
+
 				$changed_options[ $option_name ] = self::validate_json_entry( $option_value, $option_name );
 			}
 

@@ -29,26 +29,11 @@ class Breeze_Upgrade {
 				function () {
 					$this->do_breeze_clear_cache();
 					$this->do_breeze_config_refresh();
-
 					// Store the new version only after the cache purge and the config rewrite
 					// have run. Storing it first meant that if either failed, advanced-cache.php
 					// stayed stale and this block never ran again, so caching rules were skipped
 					// until the settings were saved manually.
 					update_option( 'breeze_version', BREEZE_VERSION, true );
-
-					// Google Analytics and Facebook Pixel are no longer hosted locally, so remove
-					// any files a previous version cached. Google Fonts (breeze/google/fonts/) is
-					// kept. Uses the per-site uploads dir so multisite subsites are handled too.
-					$breeze_upload = wp_upload_dir();
-					$breeze_base   = untrailingslashit( $breeze_upload['basedir'] ) . '/breeze';
-					$breeze_fs     = breeze_get_filesystem();
-					// Facebook folder (fbevents files).
-					$breeze_fs->delete( $breeze_base . '/facebook', true );
-					// Google Analytics/Tag Manager files sit loose in breeze/google/ as *.js;
-					// deleting only those leaves the breeze/google/fonts/ folder intact.
-					foreach ( glob( $breeze_base . '/google/*.js' ) ?: array() as $breeze_ga_file ) {
-						$breeze_fs->delete( $breeze_ga_file );
-					}
 				}
 			);
 		}
@@ -105,7 +90,7 @@ class Breeze_Upgrade {
 		if ( ! class_exists( 'Breeze_ConfigCache' ) ) {
 			require_once BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php';
 		}
-
+		
 		$is_older_than_v2118 = false;
 
 		// Version 2.1.18 updates.
@@ -124,8 +109,77 @@ class Breeze_Upgrade {
 			$this->v228_upgrades();
 		}
 
+		// HTML Caching is a new File Options toggle; enable it for existing sites.
+		// Fresh installs have no stored version and already receive the 2.6.0 defaults.
+		if ( ! empty( $this->breeze_version ) && version_compare( $this->breeze_version, '2.6.0', '<' ) ) {
+			$this->v260_upgrades();
+		}
+
 		do_action( 'breeze_after_existing_upgrade_routine', $this->breeze_version );
 		update_option( 'breeze_version_upgraded_from', $this->breeze_version );
+	}
+
+	/**
+	 * Enable HTML Caching for existing sites (2.6.0).
+	 *
+	 * HTML Caching is a new File Options toggle. Turn it on for upgrades from
+	 * older versions regardless of the Minify HTML setting.
+	 * Inherited subsites are skipped; they keep using the updated network option.
+	 * This routine must not run on a fresh install (no stored previous version).
+	 *
+	 * @return void
+	 */
+	public function v260_upgrades() {
+		if ( is_multisite() ) {
+			$breeze_file_network = get_site_option( 'breeze_file_settings', array() );
+			if ( ! is_array( $breeze_file_network ) ) {
+				$breeze_file_network = array();
+			}
+			$breeze_file_network = $this->enable_html_cache_option( $breeze_file_network );
+			update_site_option( 'breeze_file_settings', $breeze_file_network );
+
+			$blogs = get_sites(
+				array(
+					'number' => 0,
+				)
+			);
+
+			foreach ( $blogs as $blog ) {
+				$blog_id = (int) $blog->blog_id;
+
+				// Same inherit flag as File Options: inherited sites use network settings.
+				$inherit_option = get_blog_option( $blog_id, 'breeze_inherit_settings', '1' );
+				if ( true === filter_var( $inherit_option, FILTER_VALIDATE_BOOLEAN ) ) {
+					continue;
+				}
+
+				$file = get_blog_option( $blog_id, 'breeze_file_settings', array() );
+				if ( ! is_array( $file ) ) {
+					$file = array();
+				}
+				$file = $this->enable_html_cache_option( $file );
+				update_blog_option( $blog_id, 'breeze_file_settings', $file );
+			}
+		} else {
+			$file = breeze_get_option( 'file_settings', true );
+			if ( ! is_array( $file ) ) {
+				$file = array();
+			}
+			$file = $this->enable_html_cache_option( $file );
+			breeze_update_option( 'file_settings', $file, true );
+		}
+	}
+
+	/**
+	 * Turn on breeze-enable-html-cache without changing Minify HTML.
+	 *
+	 * @param array $file_settings File Options group.
+	 * @return array
+	 */
+	private function enable_html_cache_option( array $file_settings ): array {
+		$file_settings['breeze-enable-html-cache'] = '1';
+
+		return $file_settings;
 	}
 
 	/**

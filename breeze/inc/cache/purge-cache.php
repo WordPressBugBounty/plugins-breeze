@@ -32,8 +32,13 @@ class Breeze_PurgeCache {
 	 * An array to store purged CF posts.
 	 */
 	private static array $purged_cf_posts = array();
+	/**
+	 * Post statuses as they were before the current update, keyed by post ID.
+	 */
+	private static array $pre_update_status = array();
 
 	public function set_action() {
+		add_action( 'pre_post_update', array( $this, 'store_pre_update_status' ), 1, 1 );
 		add_action( 'pre_post_update', array( $this, 'purge_post_on_update' ), 10, 1 );
 		add_action( 'save_post', array( $this, 'purge_post_on_update' ), 10, 1 );
 		add_action( 'save_post', array( $this, 'purge_post_on_update_content' ), 9, 3 );
@@ -170,6 +175,17 @@ class Breeze_PurgeCache {
 		}
 	}
 
+	/**
+	 * Record the status a post had before it was updated.
+	 *
+	 * @param int $post_id Post ID.
+	 *
+	 * @return void
+	 */
+	public function store_pre_update_status( $post_id ) {
+		self::$pre_update_status[ $post_id ] = get_post_status( $post_id );
+	}
+
 	//    Automatically purge all file based page cache on post changes
 	public function purge_post_on_update( $post_id ) {
 
@@ -245,15 +261,16 @@ class Breeze_PurgeCache {
 					// Purge Cloudflare cache
 					Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls );
 					// Purge Varnish cache
-					$varnish = new Breeze_PurgeVarnish();
+					$purge_urls = array();
 					foreach ( $list_of_urls as $url_path ) {
 						// The archive path purge already covers its paginated URLs.
 						if ( self::is_paginated_url( $url_path ) ) {
 							continue;
 						}
-						$item_url = untrailingslashit( $url_path ) . '/?breeze';
-						$varnish->purge_cache( $item_url );
+						$purge_urls[] = untrailingslashit( $url_path ) . '/?breeze';
 					}
+
+					self::purge_varnish_urls( array_unique( $purge_urls ) );
 				}
 			}
 
@@ -345,7 +362,7 @@ class Breeze_PurgeCache {
 				$cf_purge_type = apply_filters( 'breeze_cf_purge_type_on_post_update', 'cron' );
 				Breeze_CloudFlare_Helper::purge_cloudflare_cache_urls( $list_of_urls, $cf_purge_type );
 				// Purge Varnish cache for all URLs including taxonomy archives.
-				$varnish = new Breeze_PurgeVarnish();
+				$purge_urls = array();
 				foreach ( $list_of_urls as $url_path ) {
 					// Skip paginated URLs: the archive path purge below is a wildcard
 					// PURGE that already covers /page/N/ and ?page=N. Sending one
@@ -353,14 +370,58 @@ class Breeze_PurgeCache {
 					if ( self::is_paginated_url( $url_path ) ) {
 						continue;
 					}
-					if ( false !== strpos( $url_path, '?' ) ) {
-						$varnish->purge_cache( $url_path );
-					} else {
-						$item_url = untrailingslashit( $url_path ) . '/?breeze';
-						$varnish->purge_cache( $item_url );
-					}
+					$purge_urls[] = ( false !== strpos( $url_path, '?' ) ) ? $url_path : untrailingslashit( $url_path ) . '/?breeze';
 				}
+
+				// Both slash variants of a term archive normalise to one purge URL,
+				// so dedupe here rather than on the raw list.
+				self::purge_varnish_urls( array_unique( $purge_urls ) );
 			}
+		}
+	}
+
+	/**
+	 * Purge Varnish for a batch of URLs. Queued off-request when possible, since each
+	 * purge is a blocking round trip and a batch can add tens of seconds to save_post.
+	 *
+	 * Also serves as the queue callback, hence the doing_action() check. The queued
+	 * action carries a transient key rather than the URLs themselves, because Action
+	 * Scheduler rejects args longer than 8000 characters as JSON.
+	 *
+	 * @param array|string $purge_urls Normalised purge URLs, or a transient key.
+	 *
+	 * @return void
+	 */
+	public static function purge_varnish_urls( $purge_urls ) {
+		if ( is_string( $purge_urls ) ) {
+			$transient_key = $purge_urls;
+			$purge_urls    = get_transient( $transient_key );
+			delete_transient( $transient_key );
+		}
+
+		// array_filter also covers an expired transient, which reads back as false.
+		$purge_urls = array_values( array_filter( (array) $purge_urls ) );
+
+		if ( empty( $purge_urls ) ) {
+			return;
+		}
+
+		if ( ! doing_action( 'breeze_purge_varnish_urls' ) && function_exists( 'as_enqueue_async_action' ) ) {
+			$transient_key = 'breeze_purge_' . md5( wp_json_encode( $purge_urls ) . microtime() );
+			set_transient( $transient_key, $purge_urls, HOUR_IN_SECONDS );
+			$action_id = as_enqueue_async_action( 'breeze_purge_varnish_urls', array( $transient_key ), 'breeze' );
+
+			// A queued action replays this method. A 0 means the queue refused it.
+			if ( 0 !== (int) $action_id ) {
+				return;
+			}
+
+			delete_transient( $transient_key );
+		}
+
+		$varnish = new Breeze_PurgeVarnish();
+		foreach ( $purge_urls as $item_url ) {
+			$varnish->purge_cache( $item_url );
 		}
 	}
 
@@ -385,6 +446,7 @@ class Breeze_PurgeCache {
 	public static function collect_urls_for_cache_purge( $post_id ): array {
 
 		if ( false === get_permalink( $post_id ) ) {
+			unset( self::$pre_update_status[ $post_id ] );
 			return array();
 		}
 		// Reset CloudFlare cache.
@@ -400,6 +462,18 @@ class Breeze_PurgeCache {
 		$this_post_type      = get_post_type( $post_id );
 		$rest_api_route      = 'wp/v2';
 		$valid_post_status   = array( 'publish', 'private', 'trash' );
+
+		// Scheduled, draft and pending posts were never publicly reachable, so there is
+		// nothing cached for them. A post being unpublished still needs its old public
+		// URLs cleared, hence the status captured before the update.
+		$was_public = isset( self::$pre_update_status[ $post_id ] )
+			&& in_array( self::$pre_update_status[ $post_id ], $valid_post_status, true );
+		// The pre-update status is only needed for this decision.
+		unset( self::$pre_update_status[ $post_id ] );
+
+		if ( ! $was_public && ! in_array( $this_post_status, $valid_post_status, true ) ) {
+			return array();
+		}
 
 		$post_type_object = get_post_type_object( $this_post_type );
 		if ( isset( $post_type_object->rest_base ) && ! empty( $post_type_object->rest_base ) ) {
@@ -963,6 +1037,10 @@ class Breeze_PurgeCache {
 		return false;
 	}
 }
+
+// Outside the breeze-active guard: queued purges must still run when only the Varnish
+// auto-purge option is enabled, otherwise the queued batch would be dropped silently.
+add_action( 'breeze_purge_varnish_urls', array( 'Breeze_PurgeCache', 'purge_varnish_urls' ), 10, 1 );
 
 $breeze_basic_settings = Breeze_Options_Reader::get_option_value( 'breeze-active' );
 

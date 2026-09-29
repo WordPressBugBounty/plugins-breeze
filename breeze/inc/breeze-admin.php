@@ -155,9 +155,7 @@ class Breeze_Admin {
 		}
 		// Clear cache when a scheduled post get's published.
 		if ( 'future' === $old_status && 'publish' === $new_status ) {
-			do_action( 'breeze_clear_varnish' );
-			Breeze_PurgeCache::breeze_cache_flush();
-			Breeze_MinificationCache::clear_minification();
+			do_action( 'purge_post_cache', $post->ID );
 		}
 	}
 
@@ -853,6 +851,16 @@ INLINEJS;
 			'googletagmanager',
 		);
 		$default_file            = array(
+			'breeze-enable-html-cache'               => '1',
+			'breeze-html-doublecheck'                => '0',
+			'breeze-doublecheck-elements'            =>
+				array(),
+			'breeze-doublecheck-load'                => 'async',
+			'breeze-html-doublecheck-loader'         => '0',
+			'breeze-html-doublecheck-loader-overlay' => '',
+			'breeze-doublecheck-exclude-url'         =>
+				array(),
+			'breeze-doublecheck-exclude-url-error'   => '',
 			'breeze-minify-html'       => '0',
 			// --
 			'breeze-minify-css'        => '0',

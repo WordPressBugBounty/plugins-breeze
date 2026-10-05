@@ -1,5 +1,9 @@
 == Changelog ==
 
+= 2.6.1 =
+
+* Fix: Resolved high server load and slow or timed-out pages right after updating Breeze (mostly Multisite).
+
 = 2.6.0 =
 
 * New: Cache Full Page HTML is now a separate option.

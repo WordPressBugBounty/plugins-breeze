@@ -23,6 +23,15 @@ class Breeze_Upgrade {
 
 		if ( empty( $this->breeze_version ) || version_compare( BREEZE_VERSION, $this->breeze_version, '!=' ) ) {
 
+			// Breeze's own self-requests and parallel requests must not start another upgrade.
+			// The lock is an option, not a transient, because the cache purge below can flush transients.
+			$is_self_request = isset( $_GET['no-cache'] ) || isset( $_GET['breeze_check_cache_available'] );
+			$upgrade_lock    = (int) get_site_option( 'breeze_upgrade_running', 0 );
+			if ( $is_self_request || ( time() - $upgrade_lock ) < 5 * MINUTE_IN_SECONDS ) {
+				return;
+			}
+			update_site_option( 'breeze_upgrade_running', time() );
+
 			add_action( 'wp_loaded', array( $this, 'do_breeze_upgrade' ) );
 			add_action(
 				'wp_loaded',
@@ -34,6 +43,7 @@ class Breeze_Upgrade {
 					// stayed stale and this block never ran again, so caching rules were skipped
 					// until the settings were saved manually.
 					update_option( 'breeze_version', BREEZE_VERSION, true );
+					delete_site_option( 'breeze_upgrade_running' );
 				}
 			);
 		}

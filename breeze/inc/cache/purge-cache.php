@@ -193,8 +193,6 @@ class Breeze_PurgeCache {
 
 		if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || 'revision' === $post_type ) {
 			return;
-		} elseif ( ! current_user_can( 'edit_post', $post_id ) && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
-			return;
 		}
 
 		$do_cache_reset = true;
@@ -347,8 +345,6 @@ class Breeze_PurgeCache {
 			$post_type = get_post_type( $post_id );
 
 			if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || 'revision' === $post_type ) {
-				return;
-			} elseif ( ! current_user_can( 'edit_post', $post_id ) && ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) ) {
 				return;
 			}
 

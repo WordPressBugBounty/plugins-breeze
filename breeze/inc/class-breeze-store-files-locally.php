@@ -85,7 +85,11 @@ class Breeze_Store_Files {
 
 		$font_declarations = $matches[1];
 
-		foreach ( $font_declarations as $font_url ) {
+		foreach ( $font_declarations as $font_href ) {
+
+			// WordPress prints "&" as "&#038;" in the href. Left encoded, the "#" starts a
+			// URL fragment and every query parameter after the first is never sent to Google.
+			$font_url = html_entity_decode( $font_href, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 
 			// The regex above already anchors the URL to fonts.googleapis.com,
 			// but re-validate explicitly in case the pattern is ever loosened.
@@ -94,10 +98,20 @@ class Breeze_Store_Files {
 			}
 
 			$url_structured = parse_url( $font_url );
-			parse_str( $url_structured['query'], $query );
+			parse_str( $url_structured['query'] ?? '', $query );
+			if ( empty( $query['family'] ) || ! is_string( $query['family'] ) ) {
+				continue;
+			}
 			$font_title = explode( ':', $query['family'] );
 			$font_title = explode( ' ', $font_title[0] );
 			$font_title = strtolower( implode( '_', $font_title ) );
+
+			// The family name becomes a folder name and part of the rewritten href, so keep
+			// only characters that cannot traverse directories or break out of the attribute.
+			$font_title = preg_replace( '/[^a-z0-9_-]/', '', $font_title );
+			if ( '' === $font_title ) {
+				continue;
+			}
 
 			$file_dir        = $files_dir . $font_title . '/';
 			$stored_file_uri = $stored_files_uri . $font_title . '/';
@@ -125,7 +139,7 @@ class Breeze_Store_Files {
 			$local_css = $this->rewrite_google_fonts_files( $font_content, $font_title, $file_dir, $stored_file_uri );
 
 			if ( $local_css ) {
-				$html = str_replace( $font_url, $local_css, $html );
+				$html = str_replace( $font_href, esc_url( $local_css ), $html );
 			}
 		}
 
@@ -334,13 +348,9 @@ class Breeze_Store_Files {
 			return false;
 		}
 
-		// Reject a payload embedding a PHP/ASP opening tag regardless of the
-		// declared extension; this is the primary guard for text formats
-		// (css/js) where a binary signature check does not apply.
-		if ( preg_match( '/<\?php|<\?=|<%/i', substr( $content, 0, 4096 ) ) ) {
-			return false;
-		}
-
+		// Binary fonts are validated by their signature only. Compressed font data
+		// can contain PHP-tag byte sequences by chance, so scanning it for them
+		// rejects genuine font files.
 		if ( isset( self::BINARY_FILE_SIGNATURES[ $extension ] ) ) {
 			return 0 === strpos( $content, self::BINARY_FILE_SIGNATURES[ $extension ] );
 		}
@@ -350,8 +360,12 @@ class Breeze_Store_Files {
 			return in_array( $header, array( "\x00\x01\x00\x00", 'true', 'ttcf' ), true );
 		}
 
-		// css, js, and eot: the extension allowlist plus the PHP/ASP-tag
-		// rejection above are the applicable checks for these formats.
+		// css, js, and eot have no signature to check, so reject any payload
+		// embedding a PHP opening tag. ASP-style "<%" tags were removed in PHP 7.0.
+		if ( preg_match( '/<\?php|<\?=/i', substr( $content, 0, 4096 ) ) ) {
+			return false;
+		}
+
 		return true;
 	}
 

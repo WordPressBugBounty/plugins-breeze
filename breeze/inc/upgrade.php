@@ -21,7 +21,12 @@ class Breeze_Upgrade {
 	public function init() {
 		$this->breeze_version = get_option( 'breeze_version' );
 
-		if ( empty( $this->breeze_version ) || version_compare( BREEZE_VERSION, $this->breeze_version, '!=' ) ) {
+		// A missing version is a fresh install. Upgrade work runs only for a stored version.
+		if ( empty( $this->breeze_version ) ) {
+			return;
+		}
+
+		if ( version_compare( BREEZE_VERSION, $this->breeze_version, '!=' ) ) {
 
 			// Breeze's own self-requests and parallel requests must not start another upgrade.
 			// The lock is an option, not a transient, because the cache purge below can flush transients.
@@ -42,7 +47,11 @@ class Breeze_Upgrade {
 					// have run. Storing it first meant that if either failed, advanced-cache.php
 					// stayed stale and this block never ran again, so caching rules were skipped
 					// until the settings were saved manually.
-					update_option( 'breeze_version', BREEZE_VERSION, true );
+					if ( is_multisite() ) {
+						$this->stamp_network_versions();
+					} else {
+						update_option( 'breeze_version', BREEZE_VERSION, true );
+					}
 					delete_site_option( 'breeze_upgrade_running' );
 				}
 			);
@@ -79,7 +88,49 @@ class Breeze_Upgrade {
 	 * @return void
 	 */
 	private function do_breeze_config_refresh() {
-			self::refresh_config_files();
+			self::refresh_config_files( false );
+	}
+
+	/**
+	 * Write the current Breeze version on blogs this upgrade already covered.
+	 *
+	 * Runs after the purge and config refresh. Blogs with no stored version,
+	 * and blogs still on the triggering blog's old version, are updated.
+	 * Any other stored version is left so that blog can run its own migrations.
+	 *
+	 * @return void
+	 */
+	private function stamp_network_versions(): void {
+		if ( ! is_multisite() ) {
+			return;
+		}
+
+		$blogs = get_sites(
+			array(
+				'number' => 0,
+			)
+		);
+		if ( empty( $blogs ) ) {
+			return;
+		}
+
+		foreach ( $blogs as $blog ) {
+			$blog_id         = (int) $blog->blog_id;
+			$stored_version  = get_blog_option( $blog_id, 'breeze_version' );
+			$version_missing = ( false === $stored_version || '' === $stored_version );
+
+			if ( ! $version_missing && BREEZE_VERSION === $stored_version ) {
+				continue;
+			}
+
+			if ( ! $version_missing && $this->breeze_version !== $stored_version ) {
+				continue;
+			}
+
+			$upgraded_from = $version_missing ? '' : $stored_version;
+			update_blog_option( $blog_id, 'breeze_version', BREEZE_VERSION );
+			update_blog_option( $blog_id, 'breeze_version_upgraded_from', $upgraded_from );
+		}
 	}
 
 	/**
@@ -101,21 +152,17 @@ class Breeze_Upgrade {
 			require_once BREEZE_PLUGIN_DIR . 'inc/cache/config-cache.php';
 		}
 		
-		$is_older_than_v2118 = false;
-
-		// Version 2.1.18 updates.
-		if ( ( ! empty( $this->breeze_version ) && version_compare( $this->breeze_version, '2.1.18', '<' ) )
-			|| ( empty( $this->breeze_version ) && ! empty( get_option( 'breeze_first_install' ) ) ) ) {
-			$is_older_than_v2118 = true;
+		// Version 2.1.18 updates. A missing version is not an upgrade.
+		if ( ! empty( $this->breeze_version ) && version_compare( $this->breeze_version, '2.1.18', '<' ) ) {
 			$this->v2118_upgrades();
 		}
 		// Version 2.1.19 updates.
-		if ( $is_older_than_v2118 || version_compare( $this->breeze_version, '2.1.19', '<' ) ) {
+		if ( ! empty( $this->breeze_version ) && version_compare( $this->breeze_version, '2.1.19', '<' ) ) {
 			$this->v2119_upgrades();
 		}
 
 		// Making sure that "Purge Cache After" value is set in Basic tab option.
-		if ( $is_older_than_v2118 || version_compare( $this->breeze_version, '2.2.8', '<' ) ) {
+		if ( ! empty( $this->breeze_version ) && version_compare( $this->breeze_version, '2.2.8', '<' ) ) {
 			$this->v228_upgrades();
 		}
 
@@ -295,24 +342,29 @@ class Breeze_Upgrade {
 					$inherit_settings = get_blog_option( $blog_id, 'breeze_inherit_settings' );
 
 					if ( ! $inherit_settings ) {
-						Breeze_ConfigCache::write_config_cache();
+						Breeze_ConfigCache::write_config_cache( false, false );
 					}
 
 					restore_current_blog();
 				}
 			}
 			// Update the network config file.
-			Breeze_ConfigCache::write_config_cache( true );
+			Breeze_ConfigCache::write_config_cache( true, false );
 		} else {
-			Breeze_ConfigCache::write_config_cache();
+			Breeze_ConfigCache::write_config_cache( false, false );
 		}
 	}
 
 
 	/**
 	 * This function is used to refresh config files and is called from other parts of plugin too.
+	 *
+	 * Callers that omit the argument still fetch headers. The upgrade passes
+	 * false so each file keeps the headers it already stored.
+	 *
+	 * @param bool $refresh_headers True fetches headers. False reuses stored headers.
 	 */
-	public static function refresh_config_files() {
+	public static function refresh_config_files( $refresh_headers = true ) {
 
 		$wp_filesystem = breeze_get_filesystem();
 
@@ -330,10 +382,15 @@ class Breeze_Upgrade {
 
 		if ( is_multisite() ) {
 			// For multi-site we need to also reset the root config-file.
-			Breeze_ConfigCache::factory()->write_config_cache( true );
+			Breeze_ConfigCache::factory()->write_config_cache( true, $refresh_headers );
 
 			$blogs = get_sites( array( 'number' => 0 ) );
 			if ( ! empty( $blogs ) ) {
+				// Network Admin, and the root write above, make is_network_admin() true.
+				// Subsite writes must still read subsite settings and target breeze-config-{id}.php.
+				global $breeze_network_subsite_settings;
+				$network_subsite_settings        = $breeze_network_subsite_settings;
+				$breeze_network_subsite_settings = true;
 				foreach ( $blogs as $blog_data ) {
 					$blog_id = $blog_data->blog_id;
 					switch_to_blog( $blog_id );
@@ -345,16 +402,17 @@ class Breeze_Upgrade {
 					// If the settings are not inherited from parent blog, then refresh the config file.
 					if ( false === $inherit_option ) {
 						// Refresh breeze-cache.php file
-						Breeze_ConfigCache::factory()->write_config_cache();
+						Breeze_ConfigCache::factory()->write_config_cache( false, $refresh_headers );
 					}
 
 					restore_current_blog();
 				}
+				$breeze_network_subsite_settings = $network_subsite_settings;
 			}
 		} else {
 			// For single site.
 			// Refresh breeze-cache.php file
-			Breeze_ConfigCache::factory()->write_config_cache();
+			Breeze_ConfigCache::factory()->write_config_cache( false, $refresh_headers );
 		}
 		Breeze_ConfigCache::factory()->write();
 	}

@@ -261,10 +261,15 @@ FILE_STRING;
 	/**
 	 * Function write parameter to breeze-config.
 	 *
-	 * @param bool $create_root_config Used in multisite, to reset/create breeze-config.php file
+	 * The first argument selects the root file or the current subsite file.
+	 * The second argument defaults to fetching headers. The upgrade passes
+	 * false so an existing file keeps the headers it already stored.
+	 *
+	 * @param bool $create_root_config Used in multisite, to reset/create breeze-config.php file.
+	 * @param bool $refresh_headers    True fetches headers. False reuses the headers stored in this file.
 	 */
-	public static function write_config_cache( $create_root_config = false ) {
-		global $wmc_settings;
+	public static function write_config_cache( $create_root_config = false, $refresh_headers = true ) {
+		global $wmc_settings, $breeze_network_subsite_settings;
 		if ( true === $create_root_config ) {
 			$network_id = get_current_network_id();
 			$settings   = Breeze_Options_Reader::fetch_all_saved_settings( true );
@@ -347,7 +352,7 @@ FILE_STRING;
 
 		// permalink_structure
 		if ( is_multisite() ) {
-			if ( is_network_admin() ) {
+			if ( is_network_admin() && ! $breeze_network_subsite_settings ) {
 				if ( true === $woocs_is_active ) {
 					$storage['woocs-store-type'] = get_site_option( 'woocs_storage', 'transient' );
 				}
@@ -544,43 +549,54 @@ FILE_STRING;
 			}
 		}
 
-		$the_headers = breeze_helper_fetch_headers();
+		$reuse_headers  = false;
+		$stored_headers = null;
+		if ( false === $refresh_headers ) {
+			$stored_headers = self::read_stored_custom_headers( $create_root_config );
+			$reuse_headers  = is_array( $stored_headers );
+		}
 
-		$allowed_headers = apply_filters(
-			'breeze_custom_headers_allow',
-			array(
-				'content-security-policy',
-				'x-frame-options',
-				'referrer-policy',
-				'strict-transport-security',
-				'X-Content-Type-Options',
-				'Access-Control-Allow-Origin',
-				'Cross-Origin-Opener-Policy',
-				'Cross-Origin-Embedder-Policy',
-				'Cross-Origin-Resource-Policy',
-				'Permissions-Policy',
-				'X-XSS-Protection',
-			)
-		);
+		if ( $reuse_headers ) {
+			$storage['breeze_custom_headers'] = $stored_headers;
+		} else {
+			$the_headers = breeze_helper_fetch_headers();
 
-		if ( is_array( $the_headers ) && ! empty( $the_headers ) ) {
-			$to_save_headers = array();
+			$allowed_headers = apply_filters(
+				'breeze_custom_headers_allow',
+				array(
+					'content-security-policy',
+					'x-frame-options',
+					'referrer-policy',
+					'strict-transport-security',
+					'X-Content-Type-Options',
+					'Access-Control-Allow-Origin',
+					'Cross-Origin-Opener-Policy',
+					'Cross-Origin-Embedder-Policy',
+					'Cross-Origin-Resource-Policy',
+					'Permissions-Policy',
+					'X-XSS-Protection',
+				)
+			);
 
-			foreach ( $allowed_headers as $header_name ) {
+			if ( is_array( $the_headers ) && ! empty( $the_headers ) ) {
+				$to_save_headers = array();
 
-				$header_name = strtolower( $header_name );
+				foreach ( $allowed_headers as $header_name ) {
 
-				if ( array_key_exists( $header_name, $the_headers ) ) {
+					$header_name = strtolower( $header_name );
 
-					if ( is_array( $the_headers[ $header_name ] ) ) {
-						$to_save_headers[ $header_name ] = $the_headers[ $header_name ][0];
-					} else {
-						$to_save_headers[ $header_name ] = $the_headers[ $header_name ];
+					if ( array_key_exists( $header_name, $the_headers ) ) {
+
+						if ( is_array( $the_headers[ $header_name ] ) ) {
+							$to_save_headers[ $header_name ] = $the_headers[ $header_name ][0];
+						} else {
+							$to_save_headers[ $header_name ] = $the_headers[ $header_name ];
+						}
 					}
 				}
-			}
-			if ( ! empty( $to_save_headers ) ) {
-				$storage['breeze_custom_headers'] = $to_save_headers;
+				if ( ! empty( $to_save_headers ) ) {
+					$storage['breeze_custom_headers'] = $to_save_headers;
+				}
 			}
 		}
 
@@ -589,7 +605,7 @@ FILE_STRING;
 		// The root config is shared by inherited subsites. Rebuild it after a
 		// subsite change so that integration metadata remains site-specific.
 		if ( ! $create_root_config && is_multisite() && ! is_network_admin() && breeze_does_inherit_settings() ) {
-			self::write_config_cache( true );
+			self::write_config_cache( true, $refresh_headers );
 		}
 
 		return $result;
@@ -651,21 +667,57 @@ FILE_STRING;
 	}
 
 	/**
+	 * Path of the config file this write targets.
+	 *
+	 * @param bool $create_root_config True writes the shared root file.
+	 * @return string
+	 */
+	private static function config_file_path( $create_root_config = false ) {
+		global $breeze_network_subsite_settings;
+
+		$config_dir = trailingslashit( WP_CONTENT_DIR ) . 'breeze-config';
+		$filename   = 'breeze-config';
+		if ( false === $create_root_config && is_multisite() && ( ! is_network_admin() || $breeze_network_subsite_settings ) ) {
+			$filename .= '-' . get_current_blog_id();
+		}
+
+		return $config_dir . DIRECTORY_SEPARATOR . $filename . '.php';
+	}
+
+	/**
+	 * Headers already stored in the config file about to be written.
+	 *
+	 * @param bool $create_root_config True reads the shared root file.
+	 * @return array|null Stored headers, or null when that key is absent.
+	 */
+	private static function read_stored_custom_headers( $create_root_config = false ) {
+		$config_file = self::config_file_path( $create_root_config );
+		if ( ! is_readable( $config_file ) ) {
+			return null;
+		}
+
+		$loaded_config = include $config_file;
+		if ( ! is_array( $loaded_config ) || ! array_key_exists( 'breeze_custom_headers', $loaded_config ) ) {
+			return null;
+		}
+
+		if ( ! is_array( $loaded_config['breeze_custom_headers'] ) ) {
+			return null;
+		}
+
+		return $loaded_config['breeze_custom_headers'];
+	}
+
+	/**
 	 * Create file config storage parameter used for cache.
 	 *
 	 * @param array $config Options array.
-	 * @param bool $create_root_config Used in multisite, to reset/create breeze-config.php file
+	 * @param bool  $create_root_config Used in multisite, to reset/create breeze-config.php file.
 	 */
 	public static function write_config( $config, $create_root_config = false ) {
 		$wp_filesystem = breeze_get_filesystem();
 
-		$config_dir = trailingslashit( WP_CONTENT_DIR ) . 'breeze-config';
-		$filename   = 'breeze-config';
-		if ( false === $create_root_config && ( is_multisite() && ! is_network_admin() ) ) {
-			$filename .= '-' . get_current_blog_id();
-		}
-
-		$config_file = $config_dir . DIRECTORY_SEPARATOR . $filename . '.php';
+		$config_file = self::config_file_path( $create_root_config );
 		$old_config  = array();
 		if ( $wp_filesystem->exists( $config_file ) ) {
 			$loaded_config = @include $config_file;
@@ -691,6 +743,7 @@ FILE_STRING;
 			}
 		}
 
+		$config_dir = dirname( $config_file );
 		$wp_filesystem->mkdir( $config_dir );
 
 		$config_file_string = '<?php ' . "\n\r" . "defined( 'ABSPATH' ) || exit;" . "\n\r" . 'return ' . var_export( $config, true ) . '; ' . "\n\r";

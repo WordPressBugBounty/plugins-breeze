@@ -224,6 +224,8 @@ class Breeze_Admin {
 		if ( empty( $blog_varnish ) ) {
 			update_blog_option( $blog_id, 'breeze_varnish_cache', $varnish );
 		}
+
+		self::store_installed_version_if_missing( $blog_id );
 	}
 
 
@@ -954,6 +956,33 @@ INLINEJS;
 		return $default_data;
 	}
 
+	/**
+	 * Store the installed Breeze version when this blog has none.
+	 *
+	 * Called from activation and new-subsite setup. Breeze_Upgrade does not
+	 * write a version for a fresh install. An existing version is left in
+	 * place so a later plugin update still runs the upgrade.
+	 *
+	 * @param int $blog_id Blog ID. 0 writes the current blog on a single site.
+	 * @return void
+	 */
+	private static function store_installed_version_if_missing( $blog_id = 0 ) {
+		$blog_id = (int) $blog_id;
+
+		if ( is_multisite() && 0 < $blog_id ) {
+			$stored_version = get_blog_option( $blog_id, 'breeze_version' );
+			if ( false === $stored_version || '' === $stored_version ) {
+				update_blog_option( $blog_id, 'breeze_version', BREEZE_VERSION );
+			}
+			return;
+		}
+
+		$stored_version = get_option( 'breeze_version' );
+		if ( false === $stored_version || '' === $stored_version ) {
+			update_option( 'breeze_version', BREEZE_VERSION, true );
+		}
+	}
+
 	/*
 	 * Register active plugin hook.
 	 */
@@ -1024,6 +1053,8 @@ INLINEJS;
 				if ( empty( $blog_varnish ) ) {
 					update_blog_option( (int) $blog->blog_id, 'breeze_varnish_cache', $varnish );
 				}
+
+				self::store_installed_version_if_missing( (int) $blog->blog_id );
 			}
 
 			if ( $network_wide ) {
@@ -1099,6 +1130,8 @@ INLINEJS;
 			if ( ! $singe_network_varnish ) {
 				breeze_update_option( 'varnish_cache', $varnish );
 			}
+
+			self::store_installed_version_if_missing();
 		}
 
 		// add header to htaccess if setting is enabled or by default if first installed
@@ -1214,6 +1247,8 @@ INLINEJS;
 				delete_site_option( 'breeze_exclude_url_pages' );
 				delete_site_option( 'breeze_hide_notice' );
 				delete_site_option( 'breeze_version' );
+				delete_site_option( 'breeze_version_upgraded_from' );
+				delete_site_option( 'breeze_upgrade_running' );
 				delete_site_option( 'breeze_cf_microservice_url' );
 				delete_site_option( 'breeze_cf_platform' );
 
@@ -1239,6 +1274,7 @@ INLINEJS;
 					delete_option( 'breeze_exclude_url_pages' );
 					delete_option( 'breeze_hide_notice' );
 					delete_option( 'breeze_version' );
+					delete_option( 'breeze_version_upgraded_from' );
 					delete_option( 'breeze_cf_microservice_url' );
 					delete_option( 'breeze_cf_platform' );
 					restore_current_blog();
@@ -1261,6 +1297,8 @@ INLINEJS;
 				delete_option( 'breeze_exclude_url_pages' );
 				delete_option( 'breeze_hide_notice' );
 				delete_option( 'breeze_version' );
+				delete_option( 'breeze_version_upgraded_from' );
+				delete_option( 'breeze_upgrade_running' );
 				delete_option( 'breeze_cf_microservice_url' );
 				delete_option( 'breeze_cf_platform' );
 

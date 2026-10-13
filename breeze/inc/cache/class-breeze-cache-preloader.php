@@ -372,15 +372,17 @@ class Breeze_Cache_Preloader {
 			return false;
 		}
 
-		if ( ! self::has_action_scheduler_tables() ) {
-			self::log( '[Breeze Preload] Action Scheduler tables missing for blog ' . $blog_id . ' — skipping preload scheduling.' );
-			return false;
-		}
-
+		// Check the setting before the tables: the table check costs 4 SHOW TABLES
+		// queries per blog, and a network fan-out runs it for every sub-blog.
 		if ( ! self::is_cache_warmup_enabled() ) {
 			delete_option( self::get_queue_key() );
 			delete_option( self::get_last_warm_key() );
 			self::log( '[Breeze Preload] Cache warmup is disabled for blog ' . $blog_id . ' — skipping preload scheduling.' );
+			return false;
+		}
+
+		if ( ! self::has_action_scheduler_tables() ) {
+			self::log( '[Breeze Preload] Action Scheduler tables missing for blog ' . $blog_id . ' — skipping preload scheduling.' );
 			return false;
 		}
 

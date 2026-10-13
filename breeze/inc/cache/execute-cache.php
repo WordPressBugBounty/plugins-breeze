@@ -571,6 +571,9 @@ final class Execute_Cache {
 	/** @var int Expected auth cookie name length (`wordpress_logged_in_` + 32 hex). */
 	private const LOGGED_IN_COOKIE_NAME_LENGTH = 52;
 
+	/** @var array<string,mixed> Request values saved before ignored query vars were removed. */
+	private static $original_request = array();
+
 	/**
 	 * Stop a shared cache from storing a Double-check bot response.
 	 *
@@ -659,6 +662,7 @@ final class Execute_Cache {
 		if ( ! $context->variation->is_page_cacheable() ) {
 			header( 'Cache-Control: no-cache' );
 			$GLOBALS['breeze_bypass_cache'] = true;
+			self::restore_stripped_query_vars();
 
 			return;
 		}
@@ -666,16 +670,31 @@ final class Execute_Cache {
 		self::send_variation_etag( $context->variation );
 
 		// Page-level exclusion rules.
-		if ( self::is_excluded_page( $config, $context ) ) {
+		$is_excluded = self::is_excluded_page( $config, $context );
+		if ( ! $is_excluded && ! empty( self::$original_request ) ) {
+			// A Never Cache rule may contain a tracking var, so also match the URL as sent.
+			self::restore_stripped_query_vars();
+			$is_excluded = self::is_excluded_page( $config, self::build_request_context( $config ) );
+			self::strip_ignored_query_vars_from_request();
+		}
+		if ( $is_excluded ) {
 			// Match legacy: enforce no-cache header for excluded pages.
 			header( 'Cache-Control: no-cache' );
 			$GLOBALS['breeze_bypass_cache'] = true; // Circuit reopened - disable minification
+
+			// Excluded pages are never stored, so give WordPress the original request.
+			// This runs after is_excluded_page() so the exclusion match itself still
+			// uses the canonical URL.
+			self::restore_stripped_query_vars();
 
 			return;
 		}
 
 		$enable_html_cache = $config['cache_options']['breeze-enable-html-cache'] ?? '1';
 		$enable_html_cache = filter_var( $enable_html_cache, FILTER_VALIDATE_BOOLEAN );
+		if ( ! $enable_html_cache ) {
+			self::restore_stripped_query_vars();
+		}
 
 		// A Double-check bot response omits the script, so it must not be read
 		// from the shared page cache or stored by a proxy in front of PHP.
@@ -894,8 +913,14 @@ final class Execute_Cache {
 			return;
 		}
 
-		$rules   = Breeze_Query_Strings_Rules::get_instance();
-		$removed = false;
+		$rules    = Breeze_Query_Strings_Rules::get_instance();
+		$removed  = false;
+		$original = array(
+			'get'          => $_GET,
+			'request'      => $_REQUEST,
+			'query_string' => (string) ( $_SERVER['QUERY_STRING'] ?? '' ),
+			'request_uri'  => (string) ( $_SERVER['REQUEST_URI'] ?? '/' ),
+		);
 
 		foreach ( array_keys( $_GET ) as $key ) {
 			// Same check the cache key uses, so a var dropped from the key is always
@@ -909,11 +934,39 @@ final class Execute_Cache {
 			return;
 		}
 
+		// Keep the original values so the request can be put back if Breeze decides
+		// this page must not be cached (for example a Never Cache URL).
+		self::$original_request = $original;
+
 		// Rebuild REQUEST_URI / QUERY_STRING from the cleaned $_GET so the two stay
 		// consistent (this also covers array-style names such as "utm_source[]").
 		$path                    = strtok( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), '?' );
 		$_SERVER['QUERY_STRING'] = http_build_query( $_GET );
 		$_SERVER['REQUEST_URI']  = $path . ( '' !== $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '' );
+	}
+
+	/**
+	 * Put the removed query vars back into the request.
+	 *
+	 * Called only after Breeze has decided not to cache the page, so WordPress and
+	 * plugins still get the parameters the visitor sent. Nothing is stored for these
+	 * requests, so the clean cache entry still cannot be poisoned.
+	 *
+	 * @access private
+	 * @static
+	 * @return void
+	 */
+	private static function restore_stripped_query_vars(): void {
+		if ( empty( self::$original_request ) ) {
+			return;
+		}
+
+		$_GET                    = self::$original_request['get'];
+		$_REQUEST                = self::$original_request['request'];
+		$_SERVER['QUERY_STRING'] = self::$original_request['query_string'];
+		$_SERVER['REQUEST_URI']  = self::$original_request['request_uri'];
+
+		self::$original_request = array();
 	}
 
 	/**
@@ -976,7 +1029,7 @@ final class Execute_Cache {
 			// If user commented on this post, do not cache (matches legacy rule).
 			if ( ! empty( $_COOKIE['breeze_commented_posts'] ) && is_array( $_COOKIE['breeze_commented_posts'] ) ) {
 				foreach ( $_COOKIE['breeze_commented_posts'] as $path ) {
-					if ( ! empty( $path ) && rtrim( (string) $path, '/' ) === rtrim( $request_uri, '/' ) ) {
+					if ( is_string( $path ) && ! empty( $path ) && rtrim( $path, '/' ) === rtrim( $request_uri, '/' ) ) {
 						// Signal exclusion via header, actual bypass is handled by caller.
 						header( 'Cache-control: must-revalidate, max-age=0' );
 						// We still build context; the caller decides to return early.
@@ -1035,14 +1088,18 @@ final class Execute_Cache {
 		}
 
 		foreach ( $_COOKIE as $cookie_name => $cookie_value ) {
-			$cookie_name  = (string) $cookie_name;
-			$cookie_value = (string) $cookie_value;
+			$cookie_name = (string) $cookie_name;
 
 			// Core format uses wordpress_logged_in_<32-hex-cookiehash>.
 			if (
 				self::LOGGED_IN_COOKIE_NAME_LENGTH !== strlen( $cookie_name ) ||
 				1 !== preg_match( '/^wordpress_logged_in_[a-f0-9]{32}$/', $cookie_name )
 			) {
+				continue;
+			}
+
+			// PHP turns a "name[x]=value" cookie into an array; a real auth cookie is always a string.
+			if ( ! is_string( $cookie_value ) ) {
 				continue;
 			}
 
@@ -1148,10 +1205,10 @@ final class Execute_Cache {
 			return true;
 		}
 
-		if ( ! empty( $_COOKIE['breeze_commented_posts'] ) ) {
+		if ( ! empty( $_COOKIE['breeze_commented_posts'] ) && is_array( $_COOKIE['breeze_commented_posts'] ) ) {
 			foreach ( $_COOKIE['breeze_commented_posts'] as $path ) {
-				if ( ! empty( $path ) ) {
-					if ( rtrim( (string) $path, '/' ) === rtrim( (string) $_SERVER['REQUEST_URI'], '/' ) ) {
+				if ( is_string( $path ) && ! empty( $path ) ) {
+					if ( rtrim( $path, '/' ) === rtrim( (string) $_SERVER['REQUEST_URI'], '/' ) ) {
 						// User commented on this post
 						return true;
 					}

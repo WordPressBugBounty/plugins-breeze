@@ -703,16 +703,17 @@ function breeze_file_match_pattern( $file_url, $pattern ) {
  * @return bool
  */
 function is_varnish_cache_started() {
-
-	if ( isset( $_SERVER['HTTP_X_VARNISH'] ) && is_numeric( $_SERVER['HTTP_X_VARNISH'] ) ) {
-		return true;
-	}
+	$data = $_SERVER;
 
 	// Return false early if varnish is disabled by the user.
 	if ( isset( $data['HTTP_X_APPLICATION'] )
 	&& ( 'varnishpass' === trim( $data['HTTP_X_APPLICATION'] ) || 'bypass' === trim( $data['HTTP_X_APPLICATION'] ) )
 	) {
 		return false;
+	}
+
+	if ( isset( $data['HTTP_X_VARNISH'] ) && is_numeric( $data['HTTP_X_VARNISH'] ) ) {
+		return true;
 	}
 
 	$check_local_server = is_varnish_layer_started();

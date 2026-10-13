@@ -1,5 +1,17 @@
 == Changelog ==
 
+= 2.6.2 =
+
+* Improvement: Activating or deactivating a plugin in Network Admin is now faster when Preload URLs is off.
+* Improvement: On Multisite, each site now saves the new Breeze version after an update, so the update routine doesn’t run again.
+* Improvement: Uninstalling Breeze now removes leftover update data.
+* Fix: Pages excluded by Never Cache are no longer cached, and links with extra parameters (such as tracking codes) still open the correct page.
+* Fix: Locally hosted Google Fonts now load correctly.
+* Fix: Refresh cached page parts now updates the correct section when a page contains several similar elements.
+* Fix: Updating a post through WP-CLI or a scheduled task now clears that post’s cache.
+* Fix: Turning Varnish off in Breeze now keeps it off.
+* Fix: Removed an “Array to string conversion” warning in the PHP error log after a visitor leaves a comment.
+
 = 2.6.1 =
 
 * Fix: Resolved high server load and slow or timed-out pages right after updating Breeze (mostly Multisite).

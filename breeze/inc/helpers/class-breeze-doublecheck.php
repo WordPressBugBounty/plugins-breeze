@@ -69,12 +69,13 @@ class Breeze_Doublecheck {
 		$dom = new DOMDocument();
 		@$dom->loadHTML( $buffer );
 
-		$xpath           = new DOMXPath( $dom );
-		$classToAdd      = $this->loader_class;
-		$has_elements    = false;
-		$output          = array();
-		$search_offsets  = array();
+		$xpath         = new DOMXPath( $dom );
+		$class_to_add  = $this->loader_class;
+		$has_elements  = false;
+		$output        = array();
 		$raw_text_ranges = $this->collect_raw_text_ranges( $buffer );
+		$opening_tag_spans = $this->collect_opening_tag_spans( $buffer, $raw_text_ranges );
+		$matched_opening_tag_spans = array();
 
 		foreach ( $elements as $selector ) {
 			if ( ! is_string( $selector ) || breeze_is_doublecheck_unsupported_root_selector( $selector ) ) {
@@ -104,9 +105,28 @@ class Breeze_Doublecheck {
 						continue;
 					}
 
-					$buffer = $this->patch_node_opening_tag_class_in_buffer( $buffer, $node, $classToAdd, $search_offsets, $raw_text_ranges );
+					$tag_index = $this->dom_element_tag_index( $node );
+					$tag_name  = strtolower( $node->tagName );
+					if ( 0 > $tag_index || ! isset( $opening_tag_spans[ $tag_name ][ $tag_index ] ) ) {
+						continue;
+					}
+
+					$matched_opening_tag = $opening_tag_spans[ $tag_name ][ $tag_index ];
+					$matched_opening_tag_spans[ $matched_opening_tag['start'] ] = $matched_opening_tag['end'];
 				}
 			}
+		}
+
+		// Later tags are rewritten first so earlier byte offsets stay valid.
+		krsort( $matched_opening_tag_spans );
+		foreach ( $matched_opening_tag_spans as $tag_start => $tag_end ) {
+			$opening_tag = substr( $buffer, (int) $tag_start, (int) $tag_end - (int) $tag_start );
+			$updated_tag = $this->add_class_to_opening_tag( $opening_tag, $class_to_add );
+			if ( $updated_tag === $opening_tag ) {
+				continue;
+			}
+
+			$buffer = substr( $buffer, 0, (int) $tag_start ) . $updated_tag . substr( $buffer, (int) $tag_end );
 		}
 
 		// Return original buffer with only matched opening tags updated.
@@ -119,60 +139,109 @@ class Breeze_Doublecheck {
 	/**
 	 * Byte ranges whose contents are not elements.
 	 *
-	 * Each script or style range is the interior only, so the opening tag can
-	 * still be patched. A comment range covers the whole comment. Comment
-	 * markers inside a script or style block are ignored.
+	 * Each script or style range is the interior
+	 * only, so the opening tag can still be patched. A comment range covers
+	 * the whole comment. Comment markers inside those interiors are ignored.
+	 * An unclosed raw element consumes the rest of the buffer, matching the
+	 * HTML parser. Textarea, title, and iframe are not listed: libxml2 2.13
+	 * and older parse tags inside them as elements.
 	 *
 	 * @param string $buffer Original HTML buffer.
 	 * @return array<int, array{start: int, end: int}>
 	 */
 	private function collect_raw_text_ranges( string $buffer ): array {
-		$ranges   = array();
-		$patterns = array(
-			'/<script\b[^>]*>(.*?)<\/script\s*>/is',
-			'/<style\b[^>]*>(.*?)<\/style\s*>/is',
+		$ranges        = array();
+		$raw_tag_names = array(
+			'script' => true,
+			'style'  => true,
 		);
+		$length        = strlen( $buffer );
+		$offset        = 0;
 
-		foreach ( $patterns as $pattern ) {
-			$matches = array();
-			if ( false === preg_match_all( $pattern, $buffer, $matches, PREG_OFFSET_CAPTURE ) ) {
+		while ( $offset < $length ) {
+			$tag_start = strpos( $buffer, '<', $offset );
+			if ( false === $tag_start ) {
+				break;
+			}
+
+			$name_start = $tag_start + 1;
+			if ( $name_start >= $length ) {
+				break;
+			}
+
+			if ( 1 !== preg_match( '/\G([a-zA-Z][a-zA-Z0-9:-]*)/', $buffer, $tag_name_match, 0, $name_start ) ) {
+				$offset = $name_start;
 				continue;
 			}
 
-			foreach ( $matches[1] as $inner ) {
-				$start  = (int) $inner[1];
-				$length = strlen( $inner[0] );
-				if ( $length < 1 ) {
-					continue;
-				}
+			$tag_end = $this->find_opening_tag_end( $buffer, $tag_start );
+			if ( $tag_start >= $tag_end ) {
+				$offset = $name_start;
+				continue;
+			}
 
+			$tag_name = strtolower( $tag_name_match[1] );
+			if ( ! isset( $raw_tag_names[ $tag_name ] ) ) {
+				$offset = $tag_end;
+				continue;
+			}
+
+			$closing_tag_start = $this->find_closing_tag_start( $buffer, $tag_name, $tag_end );
+			if ( 0 === $closing_tag_start ) {
 				$ranges[] = array(
-					'start' => $start,
-					'end'   => $start + $length,
+					'start' => $tag_end,
+					'end'   => $length,
+				);
+				break;
+			}
+
+			if ( $closing_tag_start > $tag_end ) {
+				$ranges[] = array(
+					'start' => $tag_end,
+					'end'   => $closing_tag_start,
 				);
 			}
+
+			$offset = $closing_tag_start + 1;
 		}
 
-		// Blank script and style interiors so a <!-- inside them cannot pair
-		// with a later -->. Length is unchanged, so offsets still match $buffer.
-		$masked = $buffer;
+		// Blank interiors so a <!-- inside them cannot pair with a later -->.
+		// Length is unchanged, so offsets still match $buffer.
+		$masked_buffer = $buffer;
 		foreach ( $ranges as $range ) {
-			$length = $range['end'] - $range['start'];
-			$masked = substr_replace( $masked, str_repeat( ' ', $length ), $range['start'], $length );
+			$interior_length = $range['end'] - $range['start'];
+			$masked_buffer   = substr_replace( $masked_buffer, str_repeat( ' ', $interior_length ), $range['start'], $interior_length );
 		}
 
 		$comments = array();
-		if ( false !== preg_match_all( '/<!--.*?-->/s', $masked, $comments, PREG_OFFSET_CAPTURE ) ) {
+		if ( false !== preg_match_all( '/<!--.*?-->/s', $masked_buffer, $comments, PREG_OFFSET_CAPTURE ) ) {
 			foreach ( $comments[0] as $comment ) {
-				$start    = (int) $comment[1];
-				$ranges[] = array(
-					'start' => $start,
-					'end'   => $start + strlen( $comment[0] ),
+				$comment_start = (int) $comment[1];
+				$ranges[]      = array(
+					'start' => $comment_start,
+					'end'   => $comment_start + strlen( $comment[0] ),
 				);
 			}
 		}
 
 		return $ranges;
+	}
+
+	/**
+	 * Byte offset of a closing tag, searching forward from an interior.
+	 *
+	 * @param string $buffer   Original HTML buffer.
+	 * @param string $tag_name Lowercase tag name.
+	 * @param int    $from     Offset where the search starts.
+	 * @return int Offset of the closing tag's "<", or 0 when it is absent.
+	 */
+	private function find_closing_tag_start( string $buffer, string $tag_name, int $from ): int {
+		$pattern = '/<\/' . preg_quote( $tag_name, '/' ) . '\s*>/i';
+		if ( 1 !== preg_match( $pattern, $buffer, $closing_tag_match, PREG_OFFSET_CAPTURE, $from ) ) {
+			return 0;
+		}
+
+		return (int) $closing_tag_match[0][1];
 	}
 
 	/**
@@ -195,142 +264,141 @@ class Breeze_Doublecheck {
 	}
 
 	/**
-	 * Move raw-text ranges that follow an insertion.
+	 * Index of one element among elements of the same tag, in document order.
 	 *
-	 * @param array<int, array{start: int, end: int}> $ranges Raw-text ranges.
-	 * @param int                                      $position Insertion point.
-	 * @param int                                      $inserted Number of bytes inserted.
-	 * @return void
+	 * @param DOMElement $node Matched element.
+	 * @return int Zero-based index, or -1 when the node cannot be placed.
 	 */
-	private function shift_raw_text_ranges( array &$ranges, int $position, int $inserted ): void {
-		if ( 0 === $inserted ) {
-			return;
+	private function dom_element_tag_index( DOMElement $node ): int {
+		$document = $node->ownerDocument;
+		if ( ! ( $document instanceof DOMDocument ) ) {
+			return -1;
 		}
 
-		foreach ( $ranges as $index => $range ) {
-			if ( $range['start'] >= $position ) {
-				$ranges[ $index ]['start'] += $inserted;
-				$ranges[ $index ]['end']   += $inserted;
-			}
+		$tag_name = strtolower( $node->tagName );
+		if ( '' === $tag_name ) {
+			return -1;
 		}
+
+		$elements_with_same_tag = $document->getElementsByTagName( $tag_name );
+		$index                  = 0;
+		foreach ( $elements_with_same_tag as $element_with_same_tag ) {
+			if ( $element_with_same_tag === $node ) {
+				return $index;
+			}
+
+			++$index;
+		}
+
+		return -1;
 	}
 
 	/**
-	 * Patch one matched node opening tag in the original buffer.
+	 * Opening tags in source order, keyed by lowercase tag name.
 	 *
-	 * @param string                                   $buffer Original HTML buffer.
-	 * @param DOMElement                               $node Matched node from DOM query.
-	 * @param string                                   $class_to_add Class that should be added.
-	 * @param array                                    $search_offsets Search offsets per matcher key.
-	 * @param array<int, array{start: int, end: int}>  $raw_text_ranges Script, style, and comment ranges.
-	 * @return string
+	 * Tags inside raw-text ranges are omitted so this list lines up with the
+	 * elements DOMDocument created. Each span is the original opening tag,
+	 * from "<" through the closing ">".
+	 *
+	 * @param string                                  $buffer Original HTML buffer.
+	 * @param array<int, array{start: int, end: int}> $raw_text_ranges Ranges that are not elements.
+	 * @return array<string, array<int, array{start: int, end: int}>>
 	 */
-	private function patch_node_opening_tag_class_in_buffer( string $buffer, DOMElement $node, string $class_to_add, array &$search_offsets, array &$raw_text_ranges ): string {
-		$matcher_data = $this->build_node_opening_tag_matcher( $node );
-		// Abort when no safe matcher could be built for the target node.
-		if ( empty( $matcher_data['pattern'] ) ) {
-			return $buffer;
-		}
+	private function collect_opening_tag_spans( string $buffer, array $raw_text_ranges ): array {
+		$opening_tag_spans = array();
+		$buffer_length     = strlen( $buffer );
+		$offset            = 0;
 
-		$pattern = $matcher_data['pattern'];
-		$key     = $matcher_data['key'];
-		$offset  = isset( $search_offsets[ $key ] ) ? (int) $search_offsets[ $key ] : 0;
-
-		$matches = array();
-		// Skip copies of the tag that live in a script, style block, or comment.
-		while ( $offset <= strlen( $buffer ) && 1 === preg_match( $pattern, $buffer, $matches, PREG_OFFSET_CAPTURE, $offset ) ) {
-			$opening_tag_pos = (int) $matches[0][1];
-			$skip_to         = $this->raw_text_range_end_after( $raw_text_ranges, $opening_tag_pos );
-
-			if ( $skip_to > $opening_tag_pos ) {
-				$offset = $skip_to;
+		while ( $offset < $buffer_length ) {
+			$raw_text_end = $this->raw_text_range_end_after( $raw_text_ranges, $offset );
+			if ( $offset < $raw_text_end ) {
+				$offset = $raw_text_end;
 				continue;
 			}
 
-			$opening_tag = $matches[0][0];
-			$updated_tag = $this->add_class_to_opening_tag( $opening_tag, $class_to_add );
-
-			$search_offsets[ $key ] = $opening_tag_pos + strlen( $updated_tag );
-
-			// If class already exists, avoid rewriting and leave buffer untouched.
-			if ( $updated_tag === $opening_tag ) {
-				return $buffer;
+			$tag_start = strpos( $buffer, '<', $offset );
+			if ( false === $tag_start ) {
+				break;
 			}
 
-			$this->shift_raw_text_ranges( $raw_text_ranges, $opening_tag_pos, strlen( $updated_tag ) - strlen( $opening_tag ) );
+			$raw_text_end = $this->raw_text_range_end_after( $raw_text_ranges, $tag_start );
+			if ( $tag_start < $raw_text_end ) {
+				$offset = $raw_text_end;
+				continue;
+			}
 
-			return substr( $buffer, 0, $opening_tag_pos ) . $updated_tag . substr( $buffer, $opening_tag_pos + strlen( $opening_tag ) );
+			$name_start = $tag_start + 1;
+			if ( $name_start >= $buffer_length ) {
+				break;
+			}
+
+			$character_after_open_bracket = $buffer[ $name_start ];
+			if ( '/' === $character_after_open_bracket || '!' === $character_after_open_bracket || '?' === $character_after_open_bracket ) {
+				$offset = $name_start;
+				continue;
+			}
+
+			if ( 1 !== preg_match( '/\G([a-zA-Z][a-zA-Z0-9:-]*)/', $buffer, $tag_name_match, 0, $name_start ) ) {
+				$offset = $name_start;
+				continue;
+			}
+
+			$tag_end = $this->find_opening_tag_end( $buffer, $tag_start );
+			if ( $tag_start >= $tag_end ) {
+				$offset = $name_start;
+				continue;
+			}
+
+			$tag_name = strtolower( $tag_name_match[1] );
+			if ( ! isset( $opening_tag_spans[ $tag_name ] ) ) {
+				$opening_tag_spans[ $tag_name ] = array();
+			}
+
+			$opening_tag_spans[ $tag_name ][] = array(
+				'start' => $tag_start,
+				'end'   => $tag_end,
+			);
+
+			$offset = $tag_end;
 		}
 
-		return $buffer;
+		return $opening_tag_spans;
 	}
 
 	/**
-	 * Build a safe regex matcher for one node opening tag.
+	 * Byte offset just after an opening tag's closing ">".
 	 *
-	 * @param DOMElement $node Matched node from DOM query.
-	 * @return array{pattern: string, key: string}
+	 * Quoted attribute values may contain ">".
+	 *
+	 * @param string $buffer Original HTML buffer.
+	 * @param int    $start  Offset of the opening "<".
+	 * @return int Offset after ">", or 0 when the tag is unfinished.
 	 */
-	private function build_node_opening_tag_matcher( DOMElement $node ): array {
-		$tag_name = strtolower( $node->tagName );
-		// A node without tag name cannot be matched back to an HTML opening tag.
-		if ( '' === $tag_name ) {
-			return array(
-				'pattern' => '',
-				'key'     => '',
-			);
-		}
+	private function find_opening_tag_end( string $buffer, int $start ): int {
+		$length = strlen( $buffer );
+		$quote  = '';
 
-		$id_value = trim( $node->getAttribute( 'id' ) );
-		// Prefer id-based matching because ids are expected to be unique in the document.
-		if ( '' !== $id_value ) {
-			// Escape user/content-provided id to keep the regex literal and safe.
-			$escaped_id = preg_quote( $id_value, '/' );
-			return array(
-				// Match opening tag by tag name and exact id attribute value.
-				'pattern' => '/<' . $tag_name . '\b(?=[^>]*\bid\s*=\s*(["\'])' . $escaped_id . '\1)[^>]*>/i',
-				'key'     => 'id:' . $tag_name . ':' . $id_value,
-			);
-		}
+		for ( $position = $start + 1; $position < $length; $position++ ) {
+			$character = $buffer[ $position ];
 
-		$class_attr = trim( $node->getAttribute( 'class' ) );
-		// Fallback to class-based matching when no id is present.
-		if ( '' !== $class_attr ) {
-			// Split classes by whitespace to build per-class lookaheads.
-			$class_tokens = preg_split( '/\s+/', $class_attr );
-			// Keep processing only when split result is a non-empty array.
-			if ( is_array( $class_tokens ) && ! empty( $class_tokens ) ) {
-				// Normalize class tokens: remove empty entries and duplicates.
-				$class_tokens = array_values( array_unique( array_filter( $class_tokens ) ) );
-				// If nothing remains after normalization, fall back to tag-only matcher.
-				if ( empty( $class_tokens ) ) {
-					return array(
-						'pattern' => '/<' . $tag_name . '\b[^>]*>/i',
-						'key'     => 'tag:' . $tag_name,
-					);
+			if ( '' !== $quote ) {
+				if ( $quote === $character ) {
+					$quote = '';
 				}
+				continue;
+			}
 
-				$class_lookaheads = '';
-				foreach ( $class_tokens as $class_token ) {
-					// Escape class name to prevent regex meta characters from altering the pattern.
-					$escaped_token     = preg_quote( $class_token, '/' );
-					// Ensure each expected class token exists inside the class attribute value.
-					$class_lookaheads .= '(?=[^>]*\bclass\s*=\s*["\'][^"\']*\b' . $escaped_token . '\b[^"\']*["\'])';
-				}
+			if ( '"' === $character || "'" === $character ) {
+				$quote = $character;
+				continue;
+			}
 
-				return array(
-					// Match opening tag by tag name and all required class-token lookaheads.
-					'pattern' => '/<' . $tag_name . '\b' . $class_lookaheads . '[^>]*>/i',
-					'key'     => 'class:' . $tag_name . ':' . implode( '.', $class_tokens ),
-				);
+			if ( '>' === $character ) {
+				return $position + 1;
 			}
 		}
 
-		// Final fallback: first opening tag for this tag name after current offset.
-		return array(
-			'pattern' => '/<' . $tag_name . '\b[^>]*>/i',
-			'key'     => 'tag:' . $tag_name,
-		);
+		return 0;
 	}
 
 	/**
@@ -342,35 +410,73 @@ class Breeze_Doublecheck {
 	 */
 	private function add_class_to_opening_tag( string $opening_tag, string $class_to_add ): string {
 		$class_to_add = trim( $class_to_add );
-		// Empty class input means there is nothing to patch.
-		if ( '' === $class_to_add ) {
+		// The class name is written into HTML. Only a token can be inserted.
+		if ( 1 !== preg_match( '/^[A-Za-z0-9_-]+$/', $class_to_add ) ) {
 			return $opening_tag;
 		}
 
-		$matches = array();
-		// Detect existing class attribute and capture quote style + current class list.
-		if ( 1 === preg_match( '/\bclass\s*=\s*(["\'])([^"\']*)\1/i', $opening_tag, $matches ) ) {
-			$current_classes = isset( $matches[2] ) ? trim( $matches[2] ) : '';
-			// Skip updates when class already exists as a standalone token.
-			if ( preg_match( '/(?:^|\s)' . preg_quote( $class_to_add, '/' ) . '(?:\s|$)/', $current_classes ) ) {
-				return $opening_tag;
-			}
-
-			$updated_classes = trim( $current_classes . ' ' . $class_to_add );
-			// Replace class attribute value while preserving original quote style.
-			return (string) preg_replace_callback(
-				'/\bclass\s*=\s*(["\'])[^"\']*\1/i',
-				static function ( $class_matches ) use ( $updated_classes ) {
-					$quote = isset( $class_matches[1] ) ? $class_matches[1] : '"';
-					return 'class=' . $quote . $updated_classes . $quote;
-				},
-				$opening_tag,
-				1
-			);
+		$class_attribute = $this->find_class_attribute( $opening_tag );
+		if ( empty( $class_attribute ) ) {
+			// No class attribute exists: inject one before the closing ">" or "/>".
+			return (string) preg_replace( '/\s*(\/?)>$/', ' class="' . $class_to_add . '"$1>', $opening_tag, 1 );
 		}
 
-		// No class attribute exists: inject one before the closing ">" or "/>".
-		return (string) preg_replace( '/\s*(\/?)>$/', ' class="' . $class_to_add . '"$1>', $opening_tag, 1 );
+		$current_classes = trim( $class_attribute['value'] );
+		// Skip updates when class already exists as a standalone token.
+		if ( preg_match( '/(?:^|\s)' . preg_quote( $class_to_add, '/' ) . '(?:\s|$)/', $current_classes ) ) {
+			return $opening_tag;
+		}
+
+		$updated_classes = trim( $current_classes . ' ' . $class_to_add );
+		$replacement     = 'class=' . $class_attribute['quote'] . $updated_classes . $class_attribute['quote'];
+
+		return substr( $opening_tag, 0, $class_attribute['start'] ) . $replacement . substr( $opening_tag, $class_attribute['end'] );
+	}
+
+	/**
+	 * Location of the class attribute on one opening tag.
+	 *
+	 * Quoted values are skipped, so class= inside another attribute is ignored.
+	 *
+	 * @param string $opening_tag Opening tag to inspect.
+	 * @return array{start: int, end: int, value: string, quote: string}|array{}
+	 */
+	private function find_class_attribute( string $opening_tag ): array {
+		$tag_length = strlen( $opening_tag );
+		$position   = 0;
+
+		while ( $position < $tag_length ) {
+			if ( 1 !== preg_match( '/\G([^\s=\/>]+)\s*=\s*(["\'])/i', $opening_tag, $attribute_match, 0, $position ) ) {
+				$position++;
+				continue;
+			}
+
+			$attribute_name  = strtolower( $attribute_match[1] );
+			$attribute_quote = $attribute_match[2];
+			$value_start     = $position + strlen( $attribute_match[0] );
+			$value_end       = $value_start;
+
+			while ( $value_end < $tag_length && $attribute_quote !== $opening_tag[ $value_end ] ) {
+				$value_end++;
+			}
+
+			if ( $value_end >= $tag_length ) {
+				break;
+			}
+
+			if ( 'class' === $attribute_name ) {
+				return array(
+					'start' => $position,
+					'end'   => $value_end + 1,
+					'value' => substr( $opening_tag, $value_start, $value_end - $value_start ),
+					'quote' => $attribute_quote,
+				);
+			}
+
+			$position = $value_end + 1;
+		}
+
+		return array();
 	}
 
 	public function cssToXPath( $selector ) {

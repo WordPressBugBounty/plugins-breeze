@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.6.1
+Stable tag: 2.6.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,6 +160,18 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 
 == Changelog ==
 
+= 2.6.2 =
+
+* Improvement: Activating or deactivating a plugin in Network Admin is now faster when Preload URLs is off.
+* Improvement: On Multisite, each site now saves the new Breeze version after an update, so the update routine doesn’t run again.
+* Improvement: Uninstalling Breeze now removes leftover update data.
+* Fix: Pages excluded by Never Cache are no longer cached, and links with extra parameters (such as tracking codes) still open the correct page.
+* Fix: Locally hosted Google Fonts now load correctly.
+* Fix: Refresh cached page parts now updates the correct section when a page contains several similar elements.
+* Fix: Updating a post through WP-CLI or a scheduled task now clears that post’s cache.
+* Fix: Turning Varnish off in Breeze now keeps it off.
+* Fix: Removed an “Array to string conversion” warning in the PHP error log after a visitor leaves a comment.
+
 = 2.6.1 =
 
 * Fix: Resolved high server load and slow or timed-out pages right after updating Breeze (mostly Multisite).
@@ -174,56 +186,6 @@ Using Gzip, Breeze compresses the request files, further reducing the size of th
 * Fixed: "Never Cache URL(s)" no longer shows an invalid URL warning for domains with long TLD endings.
 * Improvement: Breeze now updates its config file in place instead of deleting and recreating it.
 * Improvement: Breeze no longer removes locally hosted Google/Facebook files during updates.
-
-= 2.5.18 =
-
-* Fix: Enhanced security measures applied to the lazyload and minification.
-
-= 2.5.17 =
-
-* Fix: Addressed a critical error after updating Breeze on sites that exclude pages containing dynamic shortcodes from the cache.
-
-= 2.5.16 =
-
-* Fix: 503 error caused by Breeze's settings file being saved by two requests at once (mostly Multisite, after updates).
-* Improvement: Settings file is now saved safely to prevent partial/corrupted writes.
-
-= 2.5.15 =
-
-* Security: Completed the fix for the previously identified low-severity content injection concern related to cache handling.
-* Improvement: Further improved cache handling to ensure consistent processing of requests with query-string variations.
-
-= 2.5.14 =
-
-* Fix: Addressed a low-severity content injection concern related to cache handling.
-* Fix: Patched a medium-severity XSS issue under specific conditions. In most cases, WordPress admin approval was required; default installations are not affected.
-* Fix: Resolved intermittent 404 errors on minified JS and CSS files after clearing the cache.
-* Fix: Fixed corrupted file downloads and images with Gravity Forms.
-* Improvement: Removed Google Analytics and Facebook Pixel from Host Files Locally, as hosting them locally does not improve performance and added unnecessary risk. Google Fonts remains available for local hosting, since it can genuinely improve load times.
-* Improvement: Reduced unnecessary database queries when preload has nothing to warm up.
-
-= 2.5.13 =
-
-* Fixed: Prevented crafted currency cookies from manipulating cache file handling and overwriting files.
-* Improved: Enhanced compatibility with WCML, CURCY/WMC, WOOCS, Aelia Currency Switcher, and Weglot.
-* Improved: Refined cache keys and ETags to better account for product variations.
-* Improved: Enhanced variation handling and cache invalidation across multisite environments.
-
-= 2.5.12 =
-
-* Fix: Resolved a dependency compatibility issue between Breeze's PSR Simple Cache v3 implementation and plugins loading earlier PSR Simple Cache versions, preventing fatal errors.
-* Fix: Reduced excessive cache purge requests triggered by product updates on large WooCommerce catalogs.
-
-= 2.5.11 =
-
-* Improvement: WooCommerce REST API product updates now clear only the related product/pages cache instead of the entire site cache.
-* Fix: Updating a custom post type now also refreshes its taxonomy archive pages to keep listings up to date.
-* Fix: Improved compatibility with PHP 8.4+ to prevent debug log notices.
-
-= 2.5.10 =
-
-* Improvement: Hardened cache directories with index.html and PHP execution blocks.
-* Enhancement: Restricted and validated remote downloads for locally hosted third-party assets and Gravatar images.
 
 [See changelog for all versions](https://plugins.svn.wordpress.org/breeze/trunk/changelog.txt)
 

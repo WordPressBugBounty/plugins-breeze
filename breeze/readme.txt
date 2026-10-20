@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.6.2
+Stable tag: 2.6.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.6.3 =
+
+* Fix: Extra link parameters can no longer be used to store the wrong page in the cache.
+* Fix: Switching tabs in Breeze settings no longer shows the text “no-issue”.
+* Fix: Logging out now clears Breeze’s login cookie on sites installed in a subfolder.
+* Fix: Unpublishing a post now removes the cached page visitors were seeing.
+* Fix: Saving a post with a non-English address, such as Hebrew, now clears that page’s cache.
 
 = 2.6.2 =
 

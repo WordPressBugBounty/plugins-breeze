@@ -83,8 +83,6 @@ class Purge_Post_Cache {
 
 		check_admin_referer( 'clear-cache-post_' . $post_id );
 
-		$wp_filesystem = breeze_get_filesystem();
-
 		$url_path = get_permalink( $post_id );
 
 		$the_blog_id = 0;
@@ -106,9 +104,7 @@ class Purge_Post_Cache {
 
 		$cache_base_path = breeze_get_cache_base_path( false, $the_blog_id );
 
-		if ( $wp_filesystem->exists( $cache_base_path . hash( 'sha256', $url_path ) ) ) {
-			$wp_filesystem->rmdir( $cache_base_path . hash( 'sha256', $url_path ), true );
-		}
+		breeze_purge_local_cache_for_urls( array( $url_path ), $cache_base_path );
 		// Clear the varnish cache.
 		do_action( 'breeze_clear_varnish' );
 

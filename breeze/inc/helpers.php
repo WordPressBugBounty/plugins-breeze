@@ -1036,6 +1036,54 @@ function multisite_blog_id_config() {
 }
 
 /**
+ * Delete Breeze disk-cache folders for the given URLs.
+ *
+ * Cache keys are the raw request URL (e.g. https://example.com/store?page=3), so each URL
+ * is also tried with/without a trailing slash and with its path percent-encoded in
+ * lowercase and uppercase hex, as browsers send non-ASCII paths in either case.
+ *
+ * @param array  $urls            URLs to purge.
+ * @param string $cache_base_path Breeze cache base path.
+ *
+ * @return void
+ */
+function breeze_purge_local_cache_for_urls( array $urls, string $cache_base_path ) {
+	$wp_filesystem = breeze_get_filesystem();
+
+	foreach ( $urls as $url ) {
+		$candidates = array( $url );
+
+		// Do not trailingslashit query-string URLs (?page=2 would become ?page=2/).
+		if ( false === strpos( $url, '?' ) ) {
+			$candidates[] = trailingslashit( $url );
+			$candidates[] = untrailingslashit( $url );
+		}
+
+		foreach ( $candidates as $candidate ) {
+			// Only the path is encoded. parse_url() is not used: depending on locale it replaces some UTF-8 bytes with "_".
+			$parts = explode( '?', $candidate, 2 );
+			foreach ( array( 'strtolower', 'strtoupper' ) as $hex_case ) {
+				$parts[0]     = preg_replace_callback(
+					'/%[0-9A-Fa-f]{2}|[\x80-\xFF]/',
+					static function ( $match ) use ( $hex_case ) {
+						return $hex_case( '%' === $match[0][0] ? $match[0] : '%' . bin2hex( $match[0] ) );
+					},
+					$parts[0]
+				);
+				$candidates[] = implode( '?', $parts );
+			}
+		}
+
+		foreach ( array_unique( $candidates ) as $candidate ) {
+			$cache_path = $cache_base_path . hash( 'sha256', $candidate );
+			if ( $wp_filesystem->exists( $cache_path ) ) {
+				$wp_filesystem->rmdir( $cache_path, true );
+			}
+		}
+	}
+}
+
+/**
  * Purges the cache for a given URL.
  * Varnish cache and local cache.
  *
@@ -1046,11 +1094,9 @@ function multisite_blog_id_config() {
  * @since 1.1.10
  */
 function breeze_varnish_purge_cache( $url = '', $purge_varnish = false, $check_varnish = true ) {
-	$wp_filesystem = breeze_get_filesystem();
-
 	// Clear the local cache using the product URL.
-	if ( ! empty( $url ) && $wp_filesystem->exists( breeze_get_cache_base_path() . hash( 'sha256', $url ) ) ) {
-		$wp_filesystem->rmdir( breeze_get_cache_base_path() . hash( 'sha256', $url ), true );
+	if ( ! empty( $url ) ) {
+		breeze_purge_local_cache_for_urls( array( $url ), breeze_get_cache_base_path() );
 	}
 
 	if ( false === $purge_varnish && true === $check_varnish ) {

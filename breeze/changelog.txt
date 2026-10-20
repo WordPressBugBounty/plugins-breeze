@@ -1,5 +1,13 @@
 == Changelog ==
 
+= 2.6.3 =
+
+* Fix: Extra link parameters can no longer be used to store the wrong page in the cache.
+* Fix: Switching tabs in Breeze settings no longer shows the text “no-issue”.
+* Fix: Logging out now clears Breeze’s login cookie on sites installed in a subfolder.
+* Fix: Unpublishing a post now removes the cached page visitors were seeing.
+* Fix: Saving a post with a non-English address, such as Hebrew, now clears that page’s cache.
+
 = 2.6.2 =
 
 * Improvement: Activating or deactivating a plugin in Network Admin is now faster when Preload URLs is off.

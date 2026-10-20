@@ -326,7 +326,7 @@ function breeze_auth_cookie_clear() {
 	if ( ! apply_filters( 'send_auth_cookies', true ) ) {
 		return;
 	}
-	setcookie( BREEZE_WP_COOKIE, ' ', time() - YEAR_IN_SECONDS, SITECOOKIEPATH, COOKIE_DOMAIN );
+	setcookie( BREEZE_WP_COOKIE, ' ', time() - YEAR_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN );
 }
 
 add_action( 'init', 'breeze_auth_cookie_set_init', 5 );

@@ -244,13 +244,12 @@ class Breeze_Admin {
 		}
 
 		$product_id        = $product->get_id();
-		$wp_filesystem     = breeze_get_filesystem();
 		$cache_base_path   = breeze_get_cache_base_path();
 		$post_related_urls = Breeze_PurgeCache::collect_urls_for_cache_purge( $product_id );
 
 		// Clear local file cache for all URLs (includes shop/cat/tag ?page=N and /page/N/).
 		$post_related_urls = array_values( array_unique( $post_related_urls ) );
-		$this->purge_local_cache_for_urls( $post_related_urls, $cache_base_path, $wp_filesystem );
+		breeze_purge_local_cache_for_urls( $post_related_urls, $cache_base_path );
 
 		// Clear Varnish cache for all URLs.
 		$this->clear_varnish_for_urls( $post_related_urls );
@@ -285,36 +284,6 @@ class Breeze_Admin {
 				continue;
 			}
 			$main->purge_cache( trailingslashit( $url ) );
-		}
-	}
-
-	/**
-	 * Delete Breeze disk-cache folders for the given URLs.
-	 *
-	 * Cache keys are the raw request URL (e.g. https://example.com/store?page=3).
-	 * Path URLs are also tried with/without a trailing slash.
-	 *
-	 * @param array               $urls            URLs to purge.
-	 * @param string              $cache_base_path Breeze cache base path.
-	 * @param \WP_Filesystem_Base $wp_filesystem   Filesystem API.
-	 *
-	 * @return void
-	 */
-	private function purge_local_cache_for_urls( $urls, $cache_base_path, $wp_filesystem ) {
-		foreach ( $urls as $url_path ) {
-			$candidates = array( $url_path );
-
-			if ( false === strpos( $url_path, '?' ) ) {
-				$candidates[] = trailingslashit( $url_path );
-				$candidates[] = untrailingslashit( $url_path );
-			}
-
-			foreach ( array_unique( $candidates ) as $candidate ) {
-				$cache_path = $cache_base_path . hash( 'sha256', $candidate );
-				if ( $wp_filesystem->exists( $cache_path ) ) {
-					$wp_filesystem->rmdir( $cache_path, true );
-				}
-			}
 		}
 	}
 

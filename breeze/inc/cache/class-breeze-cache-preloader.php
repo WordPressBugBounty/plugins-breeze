@@ -1142,9 +1142,10 @@ class Breeze_Cache_Preloader {
 	/**
 	 * Action Scheduler job: warm the cache for a single URL.
 	 *
-	 * @param string $url Absolute local URL to warm.
+	 * @param string $url     Absolute local URL to warm.
+	 * @param array  $variant Optional 'user-agent', 'cookies' and 'headers' for a cache variant.
 	 */
-	public static function preload_url( string $url ): void {
+	public static function preload_url( string $url, array $variant = array() ): void {
 		if ( empty( $url ) ) {
 			self::log( '[Breeze Preload] Received empty URL — skipping.' );
 			return;
@@ -1179,8 +1180,8 @@ class Breeze_Cache_Preloader {
 				'sslverify'   => apply_filters( 'breeze_ssl_check_certificate', false ),
 				'headers'     => array(
 					'X-Breeze-Preload' => '1',
-				),
-			)
+				) + ( $variant['headers'] ?? array() ),
+			) + array_intersect_key( $variant, array( 'cookies' => 0, 'user-agent' => 0 ) )
 		);
 
 		// Non-blocking: the request is fired and forgotten. WordPress will

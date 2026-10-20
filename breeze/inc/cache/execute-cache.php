@@ -938,6 +938,9 @@ final class Execute_Cache {
 		// this page must not be cached (for example a Never Cache URL).
 		self::$original_request = $original;
 
+		// Tell the buffer handler that ignored vars were removed from this request.
+		$GLOBALS['breeze_ignored_query_stripped'] = true;
+
 		// Rebuild REQUEST_URI / QUERY_STRING from the cleaned $_GET so the two stay
 		// consistent (this also covers array-style names such as "utm_source[]").
 		$path                    = strtok( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), '?' );
@@ -1956,6 +1959,15 @@ final class Page_Cache_Handler {
 		// HTML double check START
 		// The key was added after existing configs were written. A missing value stays on.
 		if ( true === filter_var( $this->config['cache_options']['breeze-enable-html-cache'] ?? '1', FILTER_VALIDATE_BOOLEAN ) ) {
+			// Requests that had ignored vars removed warm the clean URL, which fills
+			// the same cache key. Placed after the checks above so only genuinely
+			// cacheable pages are warmed.
+			if ( ! empty( $GLOBALS['breeze_ignored_query_stripped'] ) ) {
+				$this->warm_clean_url();
+
+				return $buffer;
+			}
+
 			// Bot HTML omits the Double-check script, so it must not become the shared file
 			// or a Varnish/CDN entry.
 			if ( breeze_doublecheck_bypasses_page_cache( $this->config ) ) {
@@ -2145,6 +2157,70 @@ final class Page_Cache_Handler {
 
 		// HTML double check end
 		return $buffer;
+	}
+
+	/**
+	 * Fire a background request for this page without the tracking vars, so the
+	 * clean cache entry is still created even though the current render cannot be
+	 * stored. `$_SERVER['REQUEST_URI']` was already rewritten without the ignored
+	 * vars, so it is the canonical URL and produces the same cache key.
+	 *
+	 * The scheme and host come from home_url() rather than the Host header, so a
+	 * forged header cannot point the request elsewhere.
+	 *
+	 * @access private
+	 * @return void
+	 */
+	private function warm_clean_url(): void {
+		if ( ! class_exists( '\Breeze\Cache\Breeze_Cache_Preloader' ) || ! function_exists( '\home_url' ) ) {
+			return;
+		}
+
+		$home = \wp_parse_url( \home_url( '/' ) );
+		if ( empty( $home['scheme'] ) || empty( $home['host'] ) ) {
+			return;
+		}
+
+		// Send only the currency cookie behind this request's cache variant, with the
+		// visitor's exact value (the variant value is lowercased).
+		$cookies  = array();
+		$currency = $this->context->variation->get_values()['currency'] ?? '';
+		foreach ( array( 'wcml_client_currency', 'aelia_cs_selected_currency', 'wmc_current_currency' ) as $name ) {
+			if ( '' !== $currency && isset( $_COOKIE[ $name ] ) && is_string( $_COOKIE[ $name ] ) && strtolower( $_COOKIE[ $name ] ) === $currency ) {
+				$cookies[ $name ] = $_COOKIE[ $name ];
+			}
+		}
+
+		// A currency stored in the session is not available to the warm request.
+		if ( '' !== $currency && empty( $cookies ) ) {
+			return;
+		}
+
+		// One user agent per device type, so the warm is stored in the visitor's device folder.
+		$device  = \breeze_mobile_detect( false );
+		$request = array( 'cookies' => $cookies );
+		if ( 'mobile' === $device ) {
+			$request['user-agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+		} elseif ( 'tablet' === $device ) {
+			$request['user-agent'] = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+		}
+		if ( \is_breeze_mobile_cache( true ) ) {
+			$request['headers'] = array( 'X-Device-Type' => '' !== $device ? $device : 'desktop' );
+		}
+
+		$url  = $home['scheme'] . '://' . $home['host']
+			. ( empty( $home['port'] ) ? '' : ':' . $home['port'] )
+			. $this->context->request_uri;
+		$lock = 'breeze_warm_' . md5( $url . '|' . $this->context->variation->get_key() . '|' . $device );
+
+		// One warm per URL and variant per 30s, so a burst of tracking links cannot pile up.
+		if ( \get_transient( $lock ) ) {
+			return;
+		}
+
+		\set_transient( $lock, 1, 30 );
+
+		Breeze_Cache_Preloader::preload_url( $url, $request );
 	}
 
 	/**

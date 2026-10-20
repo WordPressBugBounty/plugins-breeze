@@ -36,6 +36,10 @@ class Breeze_PurgeCache {
 	 * Post statuses as they were before the current update, keyed by post ID.
 	 */
 	private static array $pre_update_status = array();
+	/**
+	 * Permalinks of publicly viewable posts as they were before the current update, keyed by post ID.
+	 */
+	private static array $pre_update_permalink = array();
 
 	public function set_action() {
 		add_action( 'pre_post_update', array( $this, 'store_pre_update_status' ), 1, 1 );
@@ -176,7 +180,7 @@ class Breeze_PurgeCache {
 	}
 
 	/**
-	 * Record the status a post had before it was updated.
+	 * Record the status and permalink a post had before it was updated.
 	 *
 	 * @param int $post_id Post ID.
 	 *
@@ -184,6 +188,11 @@ class Breeze_PurgeCache {
 	 */
 	public function store_pre_update_status( $post_id ) {
 		self::$pre_update_status[ $post_id ] = get_post_status( $post_id );
+		// Only a viewable post can have a cached page. Trashing renames the slug to
+		// "slug__trashed" before this hook runs, but the page was cached without it.
+		self::$pre_update_permalink[ $post_id ] = is_post_status_viewable( self::$pre_update_status[ $post_id ] )
+			? str_replace( '__trashed', '', get_permalink( $post_id ) )
+			: '';
 	}
 
 	//    Automatically purge all file based page cache on post changes
@@ -348,7 +357,9 @@ class Breeze_PurgeCache {
 				return;
 			}
 
-			$list_of_urls = self::collect_urls_for_cache_purge( $post_id );
+			// Read before collect_urls_for_cache_purge() clears it.
+			$pre_update_permalink = self::$pre_update_permalink[ $post_id ] ?? '';
+			$list_of_urls         = self::collect_urls_for_cache_purge( $post_id );
 
 			if ( ! empty( $list_of_urls ) ) {
 				// Purge local cache for the URLs list.
@@ -372,6 +383,13 @@ class Breeze_PurgeCache {
 				// Both slash variants of a term archive normalise to one purge URL,
 				// so dedupe here rather than on the raw list.
 				self::purge_varnish_urls( array_unique( $purge_urls ) );
+
+				// The queued purge can run a minute or more later, so a post taken out of
+				// public view is purged from Varnish right away.
+				if ( $pre_update_permalink && ! is_post_status_viewable( $post->post_status ) ) {
+					$has_query = false !== strpos( $pre_update_permalink, '?' );
+					( new Breeze_PurgeVarnish() )->purge_cache( $has_query ? $pre_update_permalink : $pre_update_permalink . '?breeze' );
+				}
 			}
 		}
 	}
@@ -442,7 +460,7 @@ class Breeze_PurgeCache {
 	public static function collect_urls_for_cache_purge( $post_id ): array {
 
 		if ( false === get_permalink( $post_id ) ) {
-			unset( self::$pre_update_status[ $post_id ] );
+			unset( self::$pre_update_status[ $post_id ], self::$pre_update_permalink[ $post_id ] );
 			return array();
 		}
 		// Reset CloudFlare cache.
@@ -464,11 +482,19 @@ class Breeze_PurgeCache {
 		// URLs cleared, hence the status captured before the update.
 		$was_public = isset( self::$pre_update_status[ $post_id ] )
 			&& in_array( self::$pre_update_status[ $post_id ], $valid_post_status, true );
-		// The pre-update status is only needed for this decision.
-		unset( self::$pre_update_status[ $post_id ] );
+		$pre_update_permalink = self::$pre_update_permalink[ $post_id ] ?? '';
+		// The pre-update status and permalink are only needed here.
+		unset( self::$pre_update_status[ $post_id ], self::$pre_update_permalink[ $post_id ] );
 
 		if ( ! $was_public && ! in_array( $this_post_status, $valid_post_status, true ) ) {
 			return array();
+		}
+
+		// A post taken out of public view now gets the plain ?p=ID permalink, but its
+		// page was cached under the permalink it had before this update.
+		if ( $pre_update_permalink && ! is_post_status_viewable( $this_post_status ) ) {
+			$get_permalink = $pre_update_permalink;
+			$list_of_urls  = array( $get_permalink );
 		}
 
 		$post_type_object = get_post_type_object( $this_post_type );
@@ -487,7 +513,7 @@ class Breeze_PurgeCache {
 		if ( function_exists( 'amp_get_permalink' ) ) {
 			$list_of_urls[] = amp_get_permalink( $post_id );
 			// Regular AMP url for posts
-			$list_of_urls[] = get_permalink( $post_id ) . 'amp/';
+			$list_of_urls[] = $get_permalink . 'amp/';
 		}
 		if ( 'trash' === $this_post_status ) {
 			$list_of_urls[] = $get_permalink . 'feed/';
@@ -737,30 +763,7 @@ class Breeze_PurgeCache {
 	 * @return void
 	 */
 	private function clear_local_cache_for_urls( array $list_of_urls ) {
-		$wp_filesystem   = breeze_get_filesystem();
-		$cache_base_path = breeze_get_cache_base_path();
-
-		if ( empty( $list_of_urls ) ) {
-			return;
-		}
-
-		foreach ( $list_of_urls as $local_url ) {
-			$candidates = array( $local_url );
-
-			// Path URLs may be cached with or without a trailing slash.
-			// Do not trailingslashit query-string URLs (?page=2 would become ?page=2/).
-			if ( false === strpos( $local_url, '?' ) ) {
-				$candidates[] = trailingslashit( $local_url );
-				$candidates[] = untrailingslashit( $local_url );
-			}
-
-			foreach ( array_unique( $candidates ) as $candidate ) {
-				$cache_path = $cache_base_path . hash( 'sha256', $candidate );
-				if ( $wp_filesystem->exists( $cache_path ) ) {
-					$wp_filesystem->rmdir( $cache_path, true );
-				}
-			}
-		}
+		breeze_purge_local_cache_for_urls( $list_of_urls, breeze_get_cache_base_path() );
 	}
 
 	/**

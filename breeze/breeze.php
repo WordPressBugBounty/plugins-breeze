@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.6.3
+ * Version: 2.6.4
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.6.3' );
+	define( 'BREEZE_VERSION', '2.6.4' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -88,6 +88,10 @@ require_once BREEZE_PLUGIN_DIR . 'inc/plugin-incompatibility/class-breeze-incomp
 require_once BREEZE_PLUGIN_DIR . 'inc/plugin-incompatibility/class-breeze-woocs-compatibility.php';
 // Check for if folder/files are writable.
 require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-file-permissions.php';
+// Review request banner. Loaded only on the Breeze settings page and for its button links.
+if ( is_admin() && ( ( isset( $_GET['page'] ) && 'breeze' === $_GET['page'] ) || ( isset( $_GET['action'] ) && 'breeze_review_notice' === $_GET['action'] ) ) ) {
+	require_once BREEZE_PLUGIN_DIR . 'inc/class-breeze-review-notice.php';
+}
 // AMP compatibility.
 require_once BREEZE_PLUGIN_DIR . 'inc/plugin-incompatibility/breeze-amp-compatibility.php';
 

@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.6.3
+Stable tag: 2.6.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -159,6 +159,14 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.6.4 =
+
+* New: The Breeze settings page now shows a short review request that you can postpone or dismiss.
+* Improvement: Visitors arriving from Google Ads links (with tracking parameters such as gclid) now get the cached page.
+* Improvement: Fixed Plugin Check warnings to meet WordPress.org plugin standards.
+* Fix: DNS Prefetch no longer marks addresses that start with "//", such as //fonts.googleapis.com, as invalid.
+* Fix: Automatic plugin updates no longer stop after the first plugin when several plugins update at once on sites using Redis or Object Cache Pro.
 
 = 2.6.3 =
 

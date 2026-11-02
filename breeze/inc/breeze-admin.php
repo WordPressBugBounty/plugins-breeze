@@ -1220,6 +1220,7 @@ INLINEJS;
 				delete_site_option( 'breeze_upgrade_running' );
 				delete_site_option( 'breeze_cf_microservice_url' );
 				delete_site_option( 'breeze_cf_platform' );
+				delete_site_option( 'breeze_review_notice_done' );
 
 				// Delete transients.
 				delete_transient( 'breeze_custom_varnish_server_active' );
@@ -1270,6 +1271,7 @@ INLINEJS;
 				delete_option( 'breeze_upgrade_running' );
 				delete_option( 'breeze_cf_microservice_url' );
 				delete_option( 'breeze_cf_platform' );
+				delete_option( 'breeze_review_notice_done' );
 
 				// Delete transients.
 				delete_transient( 'breeze_custom_varnish_server_active' );
@@ -1277,6 +1279,9 @@ INLINEJS;
 				// Delete Minfication hashes.
 				delete_option( 'breeze_minified_hashes' );
 			}
+
+			delete_metadata( 'user', 0, 'breeze_review_notice_dismissed', '', true );
+			delete_metadata( 'user', 0, 'breeze_review_notice_later', '', true );
 		}
 	}
 

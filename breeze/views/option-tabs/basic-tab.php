@@ -130,7 +130,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 					$kb_mobile_cache = 'https://support.cloudways.com/en/articles/8460042-how-to-use-device-detection-with-your-application#h_78ed161271';
 					echo wp_kses(
 						sprintf(
-						/* translators: %s Export file location */
+						/* translators: %s: URL of the Cloudways Device Detection guide. */
 							__( 'To use mobile caching with the Breeze plugin on Cloudways, you must enable the Device Detection feature through the Cloudways Platform. Please follow this <a href="%s" target="_blank">guide</a> to ensure the mobile cache functions properly.', 'breeze' ),
 							esc_url( $kb_mobile_cache )
 						),
@@ -206,6 +206,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 					<?php
 					if ( $is_disabled ) {
 						echo '<p class="br-notice">';
+						/* translators: %s: Name of the setting, e.g. Gzip Compression. */
 						printf( esc_html__( 'Enabling/disabling %s for subsites is only available for Apache 2.4 and above. For lower versions, the Network-level settings will apply.', 'breeze' ), 'Gzip Compression' );
 						echo '</p>';
 					}
@@ -252,6 +253,7 @@ $icon = BREEZE_PLUGIN_URL . 'assets/images/basic-active.png';
 					<?php
 					if ( $is_disabled ) {
 						echo '<p class="br-notice">';
+						/* translators: %s: Name of the setting, e.g. Browser Cache. */
 						printf( esc_html__( 'Enabling/disabling %s for subsites is only available for Apache 2.4 and above. For lower versions, the Network-level settings will apply.', 'breeze' ), 'Browser Cache' );
 						echo '</p>';
 					}

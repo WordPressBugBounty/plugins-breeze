@@ -422,7 +422,7 @@ function breeze_validate_urls( array $url_list = array(), bool $include_dns_chec
 		}
 
 		if ( false === strpos( $url, ':' ) ) {
-			$url = 'https://' . $url;
+			$url = ( 0 === strpos( $url, '//' ) ? 'https:' : 'https://' ) . $url;
 		}
 
 		$parsed_url = wp_parse_url( $url );

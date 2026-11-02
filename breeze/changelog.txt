@@ -1,5 +1,13 @@
 == Changelog ==
 
+= 2.6.4 =
+
+* New: The Breeze settings page now shows a short review request that you can postpone or dismiss.
+* Improvement: Visitors arriving from Google Ads links (with tracking parameters such as gclid) now get the cached page.
+* Improvement: Fixed Plugin Check warnings to meet WordPress.org plugin standards.
+* Fix: DNS Prefetch no longer marks addresses that start with "//", such as //fonts.googleapis.com, as invalid.
+* Fix: Automatic plugin updates no longer stop after the first plugin when several plugins update at once on sites using Redis or Object Cache Pro.
+
 = 2.6.3 =
 
 * Fix: Extra link parameters can no longer be used to store the wrong page in the cache.

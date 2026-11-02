@@ -11,6 +11,7 @@ class Breeze_Bulk_Update
 	function __construct()
 	{
 		add_action('upgrader_process_complete', array($this, 'breeze_after_plugin_bulk_upgrade'), 10, 2);
+		add_action('pre_auto_update', array($this, 'hold_purge'));
 		add_action('activate_plugin', array($this, 'plugin_activation_deactivation_detection'), 10, 2);
 		add_action('deactivate_plugin', array($this, 'plugin_activation_deactivation_detection'), 10, 2);
 		add_action('wp_ajax_store_update_count', array($this, 'store_update_count'));
@@ -43,6 +44,25 @@ class Breeze_Bulk_Update
 				do_action('breeze_clear_all_cache');
 			}
 		}
+	}
+
+	/**
+	 * A purge during auto-updates (from this class or the Elementor compatibility) flushes the update list
+	 * from a persistent object cache, which fails the remaining updates. Purge once at the end instead.
+	 * Translation updates don't need a full purge.
+	 */
+	function hold_purge($type)
+	{
+		global $wp_filter;
+		if ('translation' === $type || empty($wp_filter['breeze_clear_all_cache'])) {
+			return;
+		}
+		$hook = $wp_filter['breeze_clear_all_cache'];
+		unset($wp_filter['breeze_clear_all_cache']);
+		add_action('shutdown', function () use ($hook) {
+			$GLOBALS['wp_filter']['breeze_clear_all_cache'] = $hook;
+			do_action('breeze_clear_all_cache');
+		});
 	}
 
 	/**

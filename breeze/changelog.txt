@@ -1,5 +1,14 @@
 == Changelog ==
 
+= 2.6.5 =
+
+* Improvement: Fixed more Plugin Check warnings to meet WordPress.org plugin standards.
+* Fix: Tracking parameters such as utm_source, gclid, and fbclid are now kept when WordPress redirects a page, for example when it adds a trailing slash.
+* Fix: Cache Warmup now finishes warming your URLs after a cache purge, even when no one has wp-admin open.
+* Fix: CSS and JS from shortcut themes and plugins are minified again.
+* Fix: Option names on the Database tab are now shown as plain text.
+* Fix: The loading overlay color is now used only when it is a normal hex color.
+
 = 2.6.4 =
 
 * New: The Breeze settings page now shows a short review request that you can postpone or dismiss.

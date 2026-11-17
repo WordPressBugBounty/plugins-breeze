@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Breeze
  * Description: Breeze is a cache plugin with extensive options to speed up your website. All the options including Varnish Cache are compatible with Cloudways hosting.
- * Version: 2.6.4
+ * Version: 2.6.5
  * Text Domain: breeze
  * Domain Path: /languages
  * Author: Cloudways
@@ -37,7 +37,7 @@ if ( ! defined( 'BREEZE_PLUGIN_DIR' ) ) {
 	define( 'BREEZE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 if ( ! defined( 'BREEZE_VERSION' ) ) {
-	define( 'BREEZE_VERSION', '2.6.4' );
+	define( 'BREEZE_VERSION', '2.6.5' );
 }
 if ( ! defined( 'BREEZE_SITEURL' ) ) {
 	define( 'BREEZE_SITEURL', get_site_url() );
@@ -215,6 +215,9 @@ add_action(
 	},
 	PHP_INT_MAX
 );
+
+// Keep the tracking vars Breeze removed from the request on WordPress redirects.
+add_filter( 'wp_redirect', array( 'Breeze_Query_Strings_Rules', 'add_stripped_vars_to_redirect' ), PHP_INT_MAX );
 
 // Compatibilities.
 require_once BREEZE_PLUGIN_DIR . 'inc/compatibility/class-breeze-the-events-calendar.php';

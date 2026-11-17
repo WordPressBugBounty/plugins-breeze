@@ -91,6 +91,16 @@ final class Request_Context {
 	}
 }
 
+/*
+ * The circuit breaker also runs while advanced-cache.php serves a cached page,
+ * before WordPress has loaded WP_Filesystem or wp_delete_file(). Its state file
+ * is written under flock() through a temp file and rename(), which needs native
+ * file handles. Failures are logged so a host can see why caching was switched off.
+ */
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.WP.AlternativeFunctions.file_system_operations_fclose, WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_mkdir, WordPress.WP.AlternativeFunctions.unlink_unlink, WordPress.WP.AlternativeFunctions.rename_rename
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 /**
  * Circuit Breaker for cache operations.
  *
@@ -552,6 +562,18 @@ final class Cache_Circuit_Breaker {
 		error_log( '[Breeze Circuit Breaker] Manually reset to CLOSED state' );
 	}
 }
+// phpcs:enable
+
+/*
+ * Execute_Cache runs from advanced-cache.php, before WordPress has loaded
+ * wp_unslash(), the sanitize_*() helpers, WP_Filesystem or wp_delete_file().
+ * WordPress has not slashed the request superglobals yet, so the values read
+ * here are raw. Query vars are read only to decide whether a page view can be
+ * cached, and page views carry no nonce. Cache read failures are logged.
+ */
+// phpcs:disable WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Recommended
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.WP.AlternativeFunctions.file_system_operations_fclose, WordPress.WP.AlternativeFunctions.unlink_unlink
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 /**
  * Bootstrap entry point for Breeze page caching.
@@ -941,6 +963,9 @@ final class Execute_Cache {
 		// Tell the buffer handler that ignored vars were removed from this request.
 		$GLOBALS['breeze_ignored_query_stripped'] = true;
 
+		// Removed vars, so WordPress redirects can carry them on to the next URL.
+		$GLOBALS['breeze_stripped_query_vars'] = array_diff_key( $original['get'], $_GET );
+
 		// Rebuild REQUEST_URI / QUERY_STRING from the cleaned $_GET so the two stay
 		// consistent (this also covers array-style names such as "utm_source[]").
 		$path                    = strtok( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), '?' );
@@ -970,6 +995,7 @@ final class Execute_Cache {
 		$_SERVER['REQUEST_URI']  = self::$original_request['request_uri'];
 
 		self::$original_request = array();
+		unset( $GLOBALS['breeze_stripped_query_vars'] );
 	}
 
 	/**
@@ -1211,7 +1237,7 @@ final class Execute_Cache {
 		if ( ! empty( $_COOKIE['breeze_commented_posts'] ) && is_array( $_COOKIE['breeze_commented_posts'] ) ) {
 			foreach ( $_COOKIE['breeze_commented_posts'] as $path ) {
 				if ( is_string( $path ) && ! empty( $path ) ) {
-					if ( rtrim( $path, '/' ) === rtrim( (string) $_SERVER['REQUEST_URI'], '/' ) ) {
+					if ( rtrim( $path, '/' ) === rtrim( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), '/' ) ) {
 						// User commented on this post
 						return true;
 					}
@@ -1800,6 +1826,7 @@ final class Execute_Cache {
 		return rtrim( $value, '/\\' ) . '/';
 	}
 }
+// phpcs:enable
 
 /**
  * Output buffer handler responsible for generating and writing cache files.
@@ -1863,7 +1890,7 @@ final class Page_Cache_Handler {
 		if ( ! isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
 			$_SERVER['HTTP_USER_AGENT'] = '';
 		}
-		$detect->setUserAgent( (string) $_SERVER['HTTP_USER_AGENT'] );
+		$detect->setUserAgent( (string) $_SERVER['HTTP_USER_AGENT'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only matched against device patterns.
 
 		// Honour "disable optimization for admin users" setting.
 		if ( $this->is_admin_user_cache_disabled() ) {
@@ -2118,7 +2145,7 @@ final class Page_Cache_Handler {
 				if ( ! $cache_written ) {
 					// Log the failure but continue serving the page
 					$error_msg = 'Cache write failed for URL: ' . $this->context->current_url . ' (Path: ' . $cache_file_path . ')';
-					error_log( '[Breeze] ' . $error_msg );
+					error_log( '[Breeze] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Cache write failure, counted by the circuit breaker.
 					Cache_Circuit_Breaker::record_failure( $error_msg );
 					// Add header to indicate cache write failed
 					header( 'X-Breeze-Cache-Write: FAILED' );
@@ -2185,11 +2212,13 @@ final class Page_Cache_Handler {
 		// visitor's exact value (the variant value is lowercased).
 		$cookies  = array();
 		$currency = $this->context->variation->get_values()['currency'] ?? '';
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- A cookie is forwarded only when it equals the variant's currency.
 		foreach ( array( 'wcml_client_currency', 'aelia_cs_selected_currency', 'wmc_current_currency' ) as $name ) {
 			if ( '' !== $currency && isset( $_COOKIE[ $name ] ) && is_string( $_COOKIE[ $name ] ) && strtolower( $_COOKIE[ $name ] ) === $currency ) {
 				$cookies[ $name ] = $_COOKIE[ $name ];
 			}
 		}
+		// phpcs:enable
 
 		// A currency stored in the session is not available to the warm request.
 		if ( '' !== $currency && empty( $cookies ) ) {

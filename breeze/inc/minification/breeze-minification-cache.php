@@ -160,7 +160,7 @@ class Breeze_MinificationCache {
 		}
 
 		if ( ! defined( 'FS_CHMOD_FILE' ) ) {
-			define( 'FS_CHMOD_FILE', ( 0664 & ~umask() ) );
+			define( 'FS_CHMOD_FILE', ( 0664 & ~umask() ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress core constant, defined only when WP_Filesystem() has not defined it.
 		}
 
 		if ( ! $wp_filesystem->exists( $this->cachedir . $this->filename, FS_CHMOD_FILE ) ) {
@@ -378,6 +378,7 @@ class Breeze_MinificationCache {
 	static function checkCacheDir( $dir ) {
 		// Check and create if not exists
 		if ( ! file_exists( $dir ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- Keeps the FS_CHMOD_DIR / 0775 mode these folders have always been created with.
 			@mkdir( $dir, defined( 'FS_CHMOD_DIR' ) ? FS_CHMOD_DIR : 0775, true );
 			if ( ! file_exists( $dir ) ) {
 				return false;
@@ -385,7 +386,7 @@ class Breeze_MinificationCache {
 		}
 
 		// check if we can now write
-		if ( ! is_writable( $dir ) ) {
+		if ( ! is_writable( $dir ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- wp_is_writable() writes a test file on Windows servers.
 			return false;
 		}
 
@@ -400,7 +401,7 @@ class Breeze_MinificationCache {
 
 	public static function clear_minification( $blog_id = null ) {
 		if ( true === Breeze_CloudFlare_Helper::is_log_enabled() ) {
-			error_log( '######### PURGE LOCAL CACHE MINIFICATION; ###: ' . var_export( 'true', true ) );
+			error_log( '######### PURGE LOCAL CACHE MINIFICATION; ###: ' . var_export( 'true', true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions -- Written only when Breeze logging is enabled.
 		}
 		if ( is_multisite() && is_network_admin() ) {
 			$sites = get_sites(
@@ -497,8 +498,9 @@ class Breeze_MinificationCache {
 		return 0 === strpos( $target, $cache_root );
 	}
 
+	// phpcs:disable WordPress.WP.AlternativeFunctions.unlink_unlink -- Cache files are deleted directly; wp_delete_file() would let other plugins' wp_delete_file filters redirect or skip the delete.
 	public static function clear_site_minification( $blog_id_custom = null ) {
-		if ( ! isset( $_GET['breeze_purge'] ) && ! Breeze_MinificationCache::create_cache_minification_folder() ) {
+		if ( ! isset( $_GET['breeze_purge'] ) && ! Breeze_MinificationCache::create_cache_minification_folder() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Presence check only; the purge request is verified with check_admin_referer( 'breeze_purge_cache' ).
 			return false;
 		}
 		// $start_time  = microtime( true );
@@ -636,6 +638,7 @@ class Breeze_MinificationCache {
 
 		return true;
 	}
+	// phpcs:enable
 
 	/**
 	 * Remove the minified bundles that belong to a single post.
@@ -728,7 +731,7 @@ class Breeze_MinificationCache {
 						continue;
 					}
 					if ( is_file( $real ) ) {
-						@unlink( $real );
+						@unlink( $real ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Deleted directly so other plugins' wp_delete_file filters cannot redirect or skip it.
 					}
 				}
 			}
@@ -1003,7 +1006,7 @@ class Breeze_MinificationCache {
 					}
 					$mtime = @filemtime( $real );
 					if ( false !== $mtime && $mtime < $purged_at ) {
-						@unlink( $real );
+						@unlink( $real ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Deleted directly so other plugins' wp_delete_file filters cannot redirect or skip it.
 					}
 				}
 			}

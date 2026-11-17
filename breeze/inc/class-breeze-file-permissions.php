@@ -115,6 +115,16 @@ class Breeze_File_Permissions {
 
 	}
 
+	// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+	/**
+	 * Collects the Breeze files and folders that are missing or not writable.
+	 *
+	 * Runs on every admin page, so it checks with is_writable() directly:
+	 * wp_is_writable() would create and delete a test file in each folder on
+	 * Windows servers.
+	 *
+	 * @return void
+	 */
 	public function check_specific_files_folders() {
 
 		/**
@@ -282,6 +292,7 @@ class Breeze_File_Permissions {
 		}
 
 	}
+	// phpcs:enable
 
 	/**
 	 * Displays error messages related to file permission issues.

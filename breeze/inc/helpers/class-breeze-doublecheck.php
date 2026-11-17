@@ -683,6 +683,11 @@ class Breeze_Doublecheck {
 	}
 
 	public function get_style( $overlay_color ) {
+		// The stored value is printed inside <style>, so only #RRGGBB is allowed.
+		if ( ! is_string( $overlay_color ) || 1 !== preg_match( '/^#[A-Fa-f0-9]{6}$/D', $overlay_color ) ) {
+			$overlay_color = '#3a12fa';
+		}
+
 		$style = "
             .{$this->loader_class} {
                 position: relative;
@@ -857,14 +862,14 @@ class Breeze_Doublecheck {
 	 */
 	private function get_cached_dc_block( string $cache_key, callable $builder ): string {
 		$cached_block = wp_cache_get( $cache_key, self::DC_CACHE_GROUP );
-		if ( is_string( $cached_block ) && '' !== $cached_block ) {
-			return $cached_block;
+		if ( $this->is_signed_dc_block( $cache_key, $cached_block ) ) {
+			return substr( $cached_block, 64 );
 		}
 
 		$transient_block = get_transient( $cache_key );
-		if ( is_string( $transient_block ) && '' !== $transient_block ) {
+		if ( $this->is_signed_dc_block( $cache_key, $transient_block ) ) {
 			wp_cache_set( $cache_key, $transient_block, self::DC_CACHE_GROUP, self::DC_CACHE_TTL );
-			return $transient_block;
+			return substr( $transient_block, 64 );
 		}
 
 		$generated_block = (string) call_user_func( $builder );
@@ -872,10 +877,21 @@ class Breeze_Doublecheck {
 			return '';
 		}
 
-		wp_cache_set( $cache_key, $generated_block, self::DC_CACHE_GROUP, self::DC_CACHE_TTL );
-		set_transient( $cache_key, $generated_block, self::DC_CACHE_TTL );
+		$signed_block = $this->sign_dc_block( $cache_key, $generated_block ) . $generated_block;
+		wp_cache_set( $cache_key, $signed_block, self::DC_CACHE_GROUP, self::DC_CACHE_TTL );
+		set_transient( $cache_key, $signed_block, self::DC_CACHE_TTL );
 
 		return $generated_block;
+	}
+
+	// Cached blocks are printed as-is, so only trust ones signed with the wp-config salt.
+	private function sign_dc_block( string $cache_key, string $block ): string {
+		return hash_hmac( 'sha256', $cache_key . $block, wp_salt( 'auth' ) );
+	}
+
+	private function is_signed_dc_block( string $cache_key, $block ): bool {
+		return is_string( $block ) && strlen( $block ) > 64
+			&& hash_equals( $this->sign_dc_block( $cache_key, substr( $block, 64 ) ), substr( $block, 0, 64 ) );
 	}
 
 	/**

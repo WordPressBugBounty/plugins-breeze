@@ -4,7 +4,7 @@ Tags: cache,caching, performance, wp-cache, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.6.4
+Stable tag: 2.6.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,9 +38,7 @@ What makes Breeze Cache Plugin awesome is that it comes with builtin support for
 * Master real-time interactions with Breeze's Heartbeat API management. Fine-tune notifications, sales data, autosaves, and more to optimize WordPress website performance by adjusting API call frequencies.
 * Effortlessly manage Breeze settings using Import/Export. Download your configurations as a .json file for backup, or effortlessly import existing settings to quickly fine-tune your optimization.
 
-
 **Support:** We love to provide support! Post your questions on the WordPress.org support forums, or if you are a Cloudways Customer you may ask questions on the <a href="https://community.cloudways.com/">Cloudways Community Forum</a>.
-
 
 == Installation ==
 
@@ -159,6 +157,15 @@ Yes. The process of setting up CloudFlare with Breeze is easy. Check out the fol
 Using Gzip, Breeze compresses the request files, further reducing the size of the download files and speeding up the user experience.
 
 == Changelog ==
+
+= 2.6.5 =
+
+* Improvement: Fixed more Plugin Check warnings to meet WordPress.org plugin standards.
+* Fix: Tracking parameters such as utm_source, gclid, and fbclid are now kept when WordPress redirects a page, for example when it adds a trailing slash.
+* Fix: Cache Warmup now finishes warming your URLs after a cache purge, even when no one has wp-admin open.
+* Fix: CSS and JS from shortcut themes and plugins are minified again.
+* Fix: Option names on the Database tab are now shown as plain text.
+* Fix: The loading overlay color is now used only when it is a normal hex color.
 
 = 2.6.4 =
 

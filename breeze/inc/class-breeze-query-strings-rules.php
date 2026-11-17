@@ -141,6 +141,43 @@ class Breeze_Query_Strings_Rules {
 		}
 	}
 
+	/**
+	 * Adds the tracking vars Breeze removed from the request back onto a same-site
+	 * redirect, so "/page?utm_source=x" lands on "/page/?utm_source=x".
+	 *
+	 * @param string $location Redirect URL.
+	 *
+	 * @return string
+	 */
+	public static function add_stripped_vars_to_redirect( $location ) {
+		if ( empty( $GLOBALS['breeze_stripped_query_vars'] ) || ! is_array( $GLOBALS['breeze_stripped_query_vars'] ) || ! is_string( $location ) || '' === $location ) {
+			return $location;
+		}
+
+		// Visitor values are never passed on to another site, including hosts
+		// added through allowed_redirect_hosts. Relative redirects have no host.
+		$validated = wp_validate_redirect( $location, false );
+		if ( ! $validated ) {
+			return $location;
+		}
+
+		$host = wp_parse_url( $validated, PHP_URL_HOST );
+		if ( null !== $host && strtolower( (string) $host ) !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) ) {
+			return $location;
+		}
+
+		wp_parse_str( (string) wp_parse_url( $location, PHP_URL_QUERY ), $existing );
+		$vars = array_diff_key( array_filter( $GLOBALS['breeze_stripped_query_vars'], 'is_string' ), $existing );
+		if ( empty( $vars ) ) {
+			return $location;
+		}
+
+		// The redirect now holds this visitor's values, so Varnish/CDN must not share it.
+		nocache_headers();
+
+		return add_query_arg( array_map( 'rawurlencode', $vars ), $location );
+	}
+
 	public function fetch_always_cache_list() {
 		$this->always_cache_query = apply_filters( 'breeze_always_cache_query_strings', $this->always_cache_query );
 

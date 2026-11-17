@@ -401,7 +401,7 @@ class Breeze_Cache_Preloader {
 
 		// Cancel pending chain jobs for THIS blog only — using the per-blog
 		// group ensures we don't kill a chain belonging to another sub-blog.
-		as_unschedule_all_actions( self::CHAIN_HOOK, array(), $group );
+		as_unschedule_all_actions( self::CHAIN_HOOK, array( 'blog_id' => $blog_id ), $group );
 
 		// Reset the last-warm timestamp so the heartbeat doesn't think a
 		// previous run already happened.
@@ -447,6 +447,16 @@ class Breeze_Cache_Preloader {
 					self::log( '[Breeze Preload] Failed to dispatch async chain for blog ' . $blog_id . ' — queued for heartbeat recovery.' );
 				}
 				return $performed_warm;
+			}
+
+			// Start the Action Scheduler queue runner so the chain begins now.
+			// Skipped in network fan-out to avoid one loopback per sub-blog.
+			if ( ! $is_network_fanout && method_exists( 'ActionScheduler_AsyncRequest_QueueRunner', 'maybe_dispatch' ) ) {
+				try {
+					( new \ActionScheduler_AsyncRequest_QueueRunner( \ActionScheduler::store() ) )->maybe_dispatch();
+				} catch ( \Throwable $e ) {
+					self::log( '[Breeze Preload] Could not start the Action Scheduler runner: ' . $e->getMessage() );
+				}
 			}
 		} else {
 			delete_option( self::get_queue_key() );
@@ -554,7 +564,7 @@ class Breeze_Cache_Preloader {
 					self::CHAIN_HOOK,
 					array( 'blog_id' => $blog_id ),
 					self::get_blog_group(),
-					true
+					false
 				);
 				if ( $action_id > 0 ) {
 					self::log( '[Breeze Preload] ' . $remaining . ' URL(s) remaining for blog ' . $blog_id . ' — next batch dispatched via async runner.' );
@@ -733,16 +743,17 @@ class Breeze_Cache_Preloader {
 				return false;
 			}
 
+			$blog_id = is_multisite() ? get_current_blog_id() : 0;
+
 			// Chain is stalled (or has not started) AND URLs remain in the
 			// queue. Cancel any ghost AS jobs for THIS blog only (per-blog group)
 			// so we don't end up with a duplicate warm if the loopback recovers
 			// later, and so we don't kill another sub-blog's healthy chain.
 			
 			if ( self::is_action_scheduler_available() && self::has_action_scheduler_tables() ) {
-				as_unschedule_all_actions( self::CHAIN_HOOK, array(), self::get_blog_group() );
+				as_unschedule_all_actions( self::CHAIN_HOOK, array( 'blog_id' => $blog_id ), self::get_blog_group() );
 			}
 
-			$blog_id  = is_multisite() ? get_current_blog_id() : 0;
 			$idle_log = ( PHP_INT_MAX === $seconds_idle ) ? '∞' : (string) $seconds_idle;
 
 		self::log(

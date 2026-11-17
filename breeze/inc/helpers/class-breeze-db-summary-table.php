@@ -129,11 +129,11 @@ class Breeze_Db_Summary_List_Table extends WP_List_Table {
 		switch ( $column_name ) {
 			case 'number':
 			case 'table_name':
-				return $item[ $column_name ];
+				return esc_html( $item[ $column_name ] );
 			case 'table_size':
-				return $item[ $column_name ] . ' KB';
+				return esc_html( $item[ $column_name ] ) . ' KB';
 			default:
-				return print_r( $item, true ); //Show the whole array for troubleshooting purposes
+				return esc_html( print_r( $item, true ) ); //Show the whole array for troubleshooting purposes
 		}
 	}
 }
